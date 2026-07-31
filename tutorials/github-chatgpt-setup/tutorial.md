@@ -1,5 +1,7 @@
 # Using GitHub with ChatGPT: A Beginner's Guide
 
+[Open the live, styled tutorial](https://bortlip.github.io/SharedInfo/tutorials/github-chatgpt-setup/tutorial.html)
+
 This guide shows you how to create a GitHub account and repository, connect GitHub to ChatGPT, and ask ChatGPT to create and edit files.
 
 You do not need to know programming, Git, or source control. You also do not need to install anything.
@@ -14,7 +16,7 @@ A saved change is called a **commit**. Git is the underlying system GitHub uses 
 
 You do not need to learn Git commands for this tutorial.
 
-Learn more:
+**For more information, read:**
 
 - [About GitHub and Git](https://docs.github.com/en/get-started/start-your-journey/about-github-and-git)
 - [About repositories](https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories)
@@ -32,7 +34,7 @@ Choose a username you are comfortable showing other people. It may appear on you
 
 GitHub also supports two-factor authentication, which adds an extra login check. Enabling it is recommended. Save any recovery codes somewhere safe.
 
-More help: [Creating a GitHub account](https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github)
+**For more information, read:** [Creating a GitHub account](https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github)
 
 ## 3. Create your first repository
 
@@ -50,7 +52,7 @@ The README is the introductory page for the repository. Leave the default text i
 
 Do not store passwords, recovery codes, API keys, banking information, or other secrets in the repository.
 
-More help: [Creating a new repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository)
+**For more information, read:** [Creating a new repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository)
 
 ## 4. Connect GitHub to ChatGPT
 
@@ -72,7 +74,7 @@ When GitHub asks which repositories it may access:
 
 Return to ChatGPT when the connection is complete. A newly connected repository may take a few minutes to appear.
 
-More help:
+**For more information, read:**
 
 - [Plugins in ChatGPT and Codex](https://help.openai.com/en/articles/20001256-plugins-in-codex)
 - [ChatGPT Codex Connector on GitHub](https://github.com/apps/chatgpt-codex-connector)
@@ -129,7 +131,49 @@ Organize the ideas into Personal, Home, and Work sections.
 
 Concentrate on describing the result you want.
 
-## 9. What a pull request is
+## 9. Ideas for using GitHub with ChatGPT
+
+Once everything is connected, a repository can become a shared workspace where ChatGPT collects information, creates documents, and keeps the supporting material organized.
+
+### Research a topic deeply
+
+Ask ChatGPT to find and evaluate up to 50 credible sources about a subject. It can save detailed notes about each source, maintain an index of what has been collected, identify gaps, and eventually create a referenced report from the research.
+
+Example prompt:
+
+```text
+Use my repository named [repository name] to create a research project about [topic].
+
+Find and evaluate up to 50 credible sources. For each source, save its title, author or publisher, date, link, detailed notes, key findings, and important limitations. Maintain a source index that shows what has been collected and what gaps remain.
+
+After the source collection is strong enough, create a detailed report based on the collected research, with references back to the source notes.
+```
+
+### Compare a major decision
+
+Use a repository to research a major purchase, trip, move, school, service, or other important decision. ChatGPT can preserve your requirements, source material, comparisons, unanswered questions, and final reasoning.
+
+Example prompt:
+
+```text
+Use my repository named [repository name] to help me decide between [options].
+
+Create a document listing my requirements and priorities. Research each option, record the sources and findings, compare the tradeoffs, identify unanswered questions, and maintain a current recommendation that can change as new evidence is added.
+```
+
+### Develop a writing or learning project
+
+Store research notes, outlines, drafts, lessons, glossaries, exercises, and progress notes in one repository. ChatGPT can help organize the material and combine it into a polished final result.
+
+Example prompt:
+
+```text
+Use my repository named [repository name] to help me [learn a subject or develop a writing project].
+
+Create an outline, glossary, notes, exercises or drafts, and a progress checklist. Update them as we work, explain difficult ideas, and combine the completed material into a polished final document.
+```
+
+## 10. What a pull request is
 
 A **pull request**, usually shortened to **PR**, lets you review proposed changes before adding them to the main version of a repository.
 
@@ -150,13 +194,13 @@ Make the changes on a new branch and open a pull request for me to review.
 
 **Merging** means accepting the proposed changes and adding them to the repository's main version. GitHub may then offer to delete the temporary branch used for the PR.
 
-More help:
+**For more information, read:**
 
 - [About pull requests](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests)
 - [Reviewing proposed changes](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request)
 - [Merging a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/merging-a-pull-request)
 
-## 10. Give ChatGPT access to another repository
+## 11. Give ChatGPT access to another repository
 
 The ChatGPT Codex Connector can use only repositories you authorize.
 
