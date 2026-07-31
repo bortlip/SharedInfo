@@ -1,131 +1,1030 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Create a GitHub account and repository, connect GitHub to ChatGPT, and use ChatGPT to create and edit files.">
+  <meta name="color-scheme" content="light dark">
   <link rel="canonical" href="https://bortlip.github.io/SharedInfo/tutorials/github-chatgpt-setup/tutorial.html">
   <title>Using GitHub with ChatGPT — Beginner's Guide</title>
+  <script>
+    (() => {
+      let saved = null;
+      try { saved = localStorage.getItem("tutorial-theme"); } catch {}
+      const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = saved || (dark ? "dark" : "light");
+    })();
+  </script>
   <style>
-    :root{--bg:#f4f7fc;--card:#fff;--ink:#172036;--muted:#5b667a;--line:#dce3ef;--primary:#4f46e5;--dark:#3730a3;--teal:#0f766e;--soft:#eef2ff;--warn:#fff7df;--danger:#fff0ef;--shadow:0 18px 55px rgba(30,41,59,.10)}
-    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 8% 0,rgba(79,70,229,.14),transparent 28rem),radial-gradient(circle at 100% 12%,rgba(15,118,110,.10),transparent 26rem),var(--bg);color:var(--ink);font:17px/1.67 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--dark)}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{padding:.1rem .35rem;border-radius:.35rem;background:#edf0f7;font-size:.92em}pre{position:relative;margin:1rem 0;padding:1.2rem 4rem 1.2rem 1.2rem;overflow:auto;border:1px solid #303b55;border-radius:14px;background:#172033;color:#f7f9ff;white-space:pre-wrap}pre code{padding:0;background:none;color:inherit}.copy{position:absolute;top:.6rem;right:.6rem;padding:.35rem .55rem;border:1px solid #66738f;border-radius:8px;background:#26324a;color:#fff;cursor:pointer}.copy:hover{background:#34415d}.layout{display:grid;grid-template-columns:250px minmax(0,850px);gap:2rem;width:min(1180px,calc(100% - 2rem));margin:auto;padding:2rem 0 5rem}nav{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto;padding:1rem;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.9);box-shadow:0 10px 30px rgba(30,41,59,.07);backdrop-filter:blur(14px)}nav strong{display:block;margin:.2rem .5rem .6rem;color:var(--muted);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase}nav a{display:block;padding:.48rem .65rem;border-radius:9px;color:var(--ink);text-decoration:none;font-size:.92rem}nav a:hover{background:var(--soft);color:var(--dark)}main{min-width:0}.hero{position:relative;overflow:hidden;padding:clamp(2rem,6vw,4.4rem);border-radius:28px;background:linear-gradient(135deg,#3730a3,#4f46e5 55%,#0f766e);color:#fff;box-shadow:var(--shadow)}.hero:after{content:"⌘";position:absolute;right:-1rem;bottom:-5rem;color:rgba(255,255,255,.09);font-size:19rem;font-weight:800;transform:rotate(-12deg)}.eyebrow{position:relative;z-index:1;display:inline-flex;padding:.35rem .7rem;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:rgba(255,255,255,.12);font-size:.82rem;font-weight:750;text-transform:uppercase;letter-spacing:.05em}h1{position:relative;z-index:1;max-width:760px;margin:1rem 0 .8rem;font-size:clamp(2.2rem,7vw,4.5rem);line-height:1.02;letter-spacing:-.045em}.hero p{position:relative;z-index:1;max-width:700px;margin:0;color:rgba(255,255,255,.9);font-size:1.12rem}.outcomes{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.5rem}.outcomes span{padding:.4rem .7rem;border-radius:999px;background:rgba(255,255,255,.14);font-size:.9rem}.section{margin-top:1.5rem;padding:clamp(1.3rem,4vw,2.2rem);border:1px solid var(--line);border-radius:20px;background:var(--card);box-shadow:0 10px 30px rgba(30,41,59,.055)}.heading{display:flex;gap:.9rem;align-items:center;margin-bottom:.8rem}.icon{display:grid;flex:0 0 2.7rem;width:2.7rem;height:2.7rem;place-items:center;border-radius:12px;background:var(--soft);color:var(--dark);font-size:1.3rem}h2{margin:0;font-size:clamp(1.35rem,3vw,1.85rem);line-height:1.2}h3{margin:1.5rem 0 .4rem}p{margin:.65rem 0}ol,ul{padding-left:1.35rem}li+li{margin-top:.35rem}.terms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1rem 0}.term,.idea{padding:1rem;border:1px solid var(--line);border-radius:14px;background:#fafbfe}.term strong{display:block;color:var(--dark)}.callout{margin:1rem 0;padding:1rem 1.1rem;border-left:5px solid var(--teal);border-radius:0 12px 12px 0;background:#edf9f7}.danger{border-left-color:#b42318;background:var(--danger)}.learn-label{margin-top:1.15rem;color:var(--muted);font-size:.92rem;font-weight:800}.links{display:grid;gap:.55rem;margin-top:.55rem}.links a{display:flex;gap:.55rem;align-items:center;padding:.7rem .85rem;border:1px solid var(--line);border-radius:11px;background:#fafbfe;text-decoration:none}.links a:hover{border-color:#aab4cc;background:var(--soft)}.new-tab{margin-left:.2rem;color:var(--muted);font-size:.78rem;font-weight:500}.ideas{display:grid;gap:1rem;margin-top:1rem}.idea h3{margin:0 0 .45rem}.workflow{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-top:1.2rem}.workflow div{padding:.85rem .45rem;border-radius:12px;background:var(--soft);text-align:center;font-size:.84rem;font-weight:750}footer{padding:2rem 0;color:var(--muted);text-align:center;font-size:.9rem}@media(max-width:900px){.layout{display:block}nav{position:static;max-height:none;margin-bottom:1rem}nav a{display:inline-block}}@media(max-width:620px){.layout{width:min(100% - 1rem,1180px);padding-top:.5rem}.hero{border-radius:20px}.terms,.workflow{grid-template-columns:1fr}.section{border-radius:16px}}
+    :root {
+      --bg: #f2f5fb;
+      --bg-orb-1: rgba(99, 102, 241, .18);
+      --bg-orb-2: rgba(13, 148, 136, .13);
+      --surface: rgba(255, 255, 255, .92);
+      --surface-solid: #fff;
+      --surface-soft: #f7f8ff;
+      --surface-raised: #fff;
+      --ink: #172036;
+      --muted: #5c687d;
+      --faint: #8490a5;
+      --line: #dce3ef;
+      --line-strong: #c2ccdc;
+      --primary: #5548e8;
+      --primary-dark: #382da4;
+      --primary-soft: #eceaff;
+      --teal: #087b72;
+      --teal-soft: #e8f8f5;
+      --amber: #a75a00;
+      --amber-soft: #fff4dc;
+      --danger: #b42318;
+      --danger-soft: #fff0ef;
+      --code: #141c2f;
+      --code-ink: #f7f9ff;
+      --nav-active: linear-gradient(135deg, #5b4ee9, #7a5cf0);
+      --hero: linear-gradient(135deg, #332b95 0%, #5748e7 48%, #087b72 105%);
+      --shadow-sm: 0 8px 24px rgba(30, 41, 59, .07);
+      --shadow: 0 22px 65px rgba(30, 41, 59, .13);
+      --ring: 0 0 0 3px rgba(85, 72, 232, .22);
+      --radius: 22px;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0b1020;
+      --bg-orb-1: rgba(114, 92, 255, .22);
+      --bg-orb-2: rgba(17, 163, 151, .16);
+      --surface: rgba(21, 29, 49, .92);
+      --surface-solid: #151d31;
+      --surface-soft: #1a233a;
+      --surface-raised: #1c2640;
+      --ink: #edf2ff;
+      --muted: #a9b5ca;
+      --faint: #7f8ca5;
+      --line: #2e3954;
+      --line-strong: #43506d;
+      --primary: #9b8dff;
+      --primary-dark: #c0b7ff;
+      --primary-soft: #28264c;
+      --teal: #6ee7d8;
+      --teal-soft: #153c3a;
+      --amber: #ffc46b;
+      --amber-soft: #422f18;
+      --danger: #ff9f97;
+      --danger-soft: #452423;
+      --code: #080d19;
+      --code-ink: #f3f6ff;
+      --nav-active: linear-gradient(135deg, #7868f4, #9b6ef0);
+      --hero: linear-gradient(135deg, #29226f 0%, #4b3bd0 52%, #075d57 110%);
+      --shadow-sm: 0 8px 24px rgba(0, 0, 0, .25);
+      --shadow: 0 24px 70px rgba(0, 0, 0, .38);
+      --ring: 0 0 0 3px rgba(155, 141, 255, .28);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 6% 0, var(--bg-orb-1), transparent 31rem),
+        radial-gradient(circle at 100% 14%, var(--bg-orb-2), transparent 28rem),
+        var(--bg);
+      color: var(--ink);
+      font: 17px/1.68 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      transition: background-color .2s ease, color .2s ease;
+    }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a { color: var(--primary-dark); text-underline-offset: .16em; }
+    a:hover { text-decoration-thickness: 2px; }
+    :focus-visible { outline: none; box-shadow: var(--ring); }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code {
+      padding: .1rem .36rem;
+      border-radius: .4rem;
+      background: var(--primary-soft);
+      color: var(--ink);
+      font-size: .92em;
+    }
+    pre {
+      position: relative;
+      margin: 1rem 0;
+      padding: 1.25rem 4.4rem 1.25rem 1.25rem;
+      overflow: auto;
+      border: 1px solid color-mix(in srgb, var(--line-strong), transparent 20%);
+      border-radius: 15px;
+      background: var(--code);
+      color: var(--code-ink);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+      white-space: pre-wrap;
+    }
+    pre code { padding: 0; background: none; color: inherit; }
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: .7rem;
+      left: .7rem;
+      padding: .6rem .85rem;
+      border-radius: 9px;
+      background: var(--surface-solid);
+      color: var(--ink);
+      box-shadow: var(--shadow-sm);
+      transform: translateY(-160%);
+    }
+    .skip-link:focus { transform: translateY(0); }
+    .progress-track {
+      position: fixed;
+      z-index: 90;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: color-mix(in srgb, var(--line), transparent 35%);
+    }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, #7c63ff, #21c7b5);
+      box-shadow: 0 0 14px rgba(99, 102, 241, .6);
+      transition: width .1s linear;
+    }
+    .mobile-bar {
+      display: none;
+      position: sticky;
+      z-index: 70;
+      top: 0;
+      align-items: center;
+      justify-content: space-between;
+      padding: .7rem .8rem;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface-solid), transparent 8%);
+      backdrop-filter: blur(18px);
+    }
+    .mobile-title { color: var(--ink); font-weight: 800; }
+    html[data-theme="dark"] .mobile-title { color: #f4f6ff; }
+    .icon-button {
+      display: inline-grid;
+      width: 2.65rem;
+      height: 2.65rem;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-raised);
+      color: var(--ink);
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+    }
+    .icon-button:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+    .layout {
+      display: grid;
+      grid-template-columns: 282px minmax(0, 870px);
+      gap: 2rem;
+      width: min(1210px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 2rem 0 5rem;
+    }
+    .sidebar {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      scrollbar-width: thin;
+      padding: .9rem;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      display: flex;
+      gap: .8rem;
+      align-items: center;
+      padding: .55rem .55rem 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand-mark {
+      display: grid;
+      flex: 0 0 2.7rem;
+      width: 2.7rem;
+      height: 2.7rem;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--nav-active);
+      color: #fff;
+      box-shadow: 0 8px 22px rgba(85,72,232,.27);
+      font-size: 1.2rem;
+      font-weight: 900;
+    }
+    .brand strong { display: block; font-size: .95rem; line-height: 1.2; }
+    .brand span { color: var(--muted); font-size: .78rem; }
+    .sidebar-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .55rem;
+      padding: .85rem .4rem .4rem;
+    }
+    .theme-button {
+      display: flex;
+      gap: .55rem;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: .45rem .7rem;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface-soft);
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 720;
+    }
+    .theme-button:hover { border-color: var(--line-strong); }
+    .repo-link { text-decoration: none; }
+    .nav-progress {
+      padding: .65rem .5rem .45rem;
+      color: var(--muted);
+      font-size: .79rem;
+    }
+    .nav-progress strong { color: var(--ink); }
+    .mini-track {
+      height: 6px;
+      margin-top: .45rem;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--line);
+    }
+    .mini-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #7462f1, #18aa9d);
+    }
+    .nav-group { margin-top: .85rem; }
+    .nav-group-title {
+      margin: 0 .65rem .38rem;
+      color: var(--faint);
+      font-size: .7rem;
+      font-weight: 850;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .nav-link {
+      display: grid;
+      grid-template-columns: 1.8rem 1fr;
+      gap: .55rem;
+      align-items: center;
+      margin: .12rem 0;
+      padding: .52rem .62rem;
+      border-radius: 11px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .89rem;
+      line-height: 1.22;
+      transition: background .15s ease, color .15s ease, transform .15s ease;
+    }
+    .nav-link:hover { background: var(--surface-soft); color: var(--ink); transform: translateX(2px); }
+    .nav-link[aria-current="true"] {
+      background: var(--nav-active);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(85,72,232,.23);
+    }
+    .nav-number {
+      display: grid;
+      width: 1.65rem;
+      height: 1.65rem;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 8px;
+      font-size: .7rem;
+      font-weight: 850;
+      opacity: .78;
+    }
+    main { min-width: 0; }
+    .top-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      justify-content: flex-end;
+      margin-bottom: .8rem;
+    }
+    .tool-link {
+      display: inline-flex;
+      gap: .45rem;
+      align-items: center;
+      padding: .45rem .7rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      box-shadow: var(--shadow-sm);
+      text-decoration: none;
+      font-size: .8rem;
+      font-weight: 730;
+    }
+    .tool-link:hover { color: var(--ink); border-color: var(--line-strong); }
+    button.tool-link { color: var(--muted); font: inherit; cursor: pointer; }
+    .hero {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      padding: clamp(2.2rem, 6vw, 4.8rem);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 32px;
+      background: var(--hero);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+    .hero::before, .hero::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border-radius: 999px;
+      filter: blur(1px);
+    }
+    .hero::before {
+      top: -6rem;
+      right: -4rem;
+      width: 18rem;
+      height: 18rem;
+      border: 2.2rem solid rgba(255,255,255,.07);
+      transform: rotate(22deg);
+    }
+    .hero::after {
+      right: 7rem;
+      bottom: -10rem;
+      width: 22rem;
+      height: 22rem;
+      background: radial-gradient(circle, rgba(255,255,255,.13), transparent 65%);
+    }
+    .eyebrow {
+      display: inline-flex;
+      gap: .5rem;
+      align-items: center;
+      padding: .38rem .72rem;
+      border: 1px solid rgba(255,255,255,.34);
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      font-size: .79rem;
+      font-weight: 850;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 780px;
+      margin: 1rem 0 .8rem;
+      font-size: clamp(2.35rem, 7vw, 4.8rem);
+      line-height: 1.01;
+      letter-spacing: -.052em;
+    }
+    .hero > p { max-width: 720px; margin: 0; color: rgba(255,255,255,.9); font-size: 1.14rem; }
+    .outcomes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .65rem;
+      margin-top: 1.7rem;
+    }
+    .outcome {
+      display: flex;
+      gap: .55rem;
+      align-items: center;
+      padding: .68rem .75rem;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      background: rgba(255,255,255,.105);
+      font-size: .86rem;
+      font-weight: 730;
+      backdrop-filter: blur(8px);
+    }
+    .outcome b {
+      display: grid;
+      flex: 0 0 1.45rem;
+      width: 1.45rem;
+      height: 1.45rem;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(255,255,255,.18);
+      font-size: .72rem;
+    }
+    .section {
+      position: relative;
+      margin-top: 1.45rem;
+      padding: clamp(1.35rem, 4vw, 2.3rem);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(15px);
+      scroll-margin-top: 1rem;
+      transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+    }
+    .section::before {
+      content: "";
+      position: absolute;
+      top: 1.1rem;
+      bottom: 1.1rem;
+      left: 0;
+      width: 4px;
+      border-radius: 0 999px 999px 0;
+      background: linear-gradient(180deg, var(--primary), var(--teal));
+      opacity: .82;
+    }
+    .section:hover { border-color: var(--line-strong); box-shadow: var(--shadow); }
+    .heading {
+      display: flex;
+      gap: .9rem;
+      align-items: center;
+      margin-bottom: .85rem;
+    }
+    .section-icon {
+      display: grid;
+      flex: 0 0 3rem;
+      width: 3rem;
+      height: 3rem;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--primary), transparent 72%);
+      border-radius: 14px;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-size: 1.35rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    .step-label {
+      display: block;
+      margin-bottom: .15rem;
+      color: var(--faint);
+      font-size: .7rem;
+      font-weight: 850;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h2 { margin: 0; font-size: clamp(1.38rem, 3vw, 1.9rem); line-height: 1.17; }
+    h3 { margin: 1.5rem 0 .42rem; }
+    p { margin: .65rem 0; }
+    ol, ul { padding-left: 1.4rem; }
+    li + li { margin-top: .4rem; }
+    .terms {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .8rem;
+      margin: 1rem 0;
+    }
+    .term {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface-soft);
+    }
+    .term strong { display: block; margin-bottom: .18rem; color: var(--primary-dark); }
+    .callout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .7rem;
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      border: 1px solid color-mix(in srgb, var(--teal), transparent 72%);
+      border-radius: 14px;
+      background: var(--teal-soft);
+    }
+    .callout.warning { border-color: color-mix(in srgb, var(--amber), transparent 70%); background: var(--amber-soft); }
+    .callout.danger { border-color: color-mix(in srgb, var(--danger), transparent 70%); background: var(--danger-soft); }
+    .callout-symbol { font-size: 1.1rem; }
+    .learn-panel {
+      margin-top: 1.15rem;
+      padding: .9rem;
+      border: 1px dashed var(--line-strong);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--surface-soft), transparent 20%);
+    }
+    .learn-label {
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      margin-bottom: .55rem;
+      color: var(--muted);
+      font-size: .88rem;
+      font-weight: 850;
+    }
+    .links { display: grid; gap: .48rem; }
+    .links a {
+      display: flex;
+      gap: .55rem;
+      align-items: center;
+      justify-content: space-between;
+      padding: .68rem .78rem;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface-raised);
+      text-decoration: none;
+    }
+    .links a:hover { border-color: var(--line-strong); background: var(--primary-soft); }
+    .link-title { display: flex; gap: .5rem; align-items: center; }
+    .new-tab { color: var(--faint); font-size: .72rem; font-weight: 650; white-space: nowrap; }
+    .copy {
+      position: absolute;
+      top: .62rem;
+      right: .62rem;
+      min-width: 3.2rem;
+      padding: .38rem .58rem;
+      border: 1px solid #53607a;
+      border-radius: 8px;
+      background: #27324a;
+      color: #fff;
+      cursor: pointer;
+      font-size: .75rem;
+      font-weight: 800;
+    }
+    .copy:hover { background: #35425e; }
+    .copy.copied { background: #0b766e; border-color: #41c7b9; }
+    .ideas {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .85rem;
+      margin-top: 1rem;
+    }
+    .idea {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 1.05rem;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--surface-soft);
+    }
+    .idea:nth-child(1) { box-shadow: inset 0 3px 0 #6b5ce7; }
+    .idea:nth-child(2) { box-shadow: inset 0 3px 0 #0e9286; }
+    .idea:nth-child(3) { box-shadow: inset 0 3px 0 #d38520; }
+    .idea h3 { margin: 0 0 .45rem; font-size: 1.05rem; }
+    .idea p { font-size: .93rem; }
+    .idea pre { margin-top: auto; font-size: .78rem; }
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .55rem;
+      margin-top: 1.2rem;
+    }
+    .workflow-step {
+      position: relative;
+      padding: .85rem .5rem;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--surface-soft);
+      text-align: center;
+      font-size: .8rem;
+      font-weight: 780;
+    }
+    .workflow-step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -.56rem;
+      z-index: 2;
+      width: 1rem;
+      color: var(--faint);
+      transform: translateY(-50%);
+    }
+    footer {
+      padding: 2.2rem 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: .86rem;
+    }
+    .back-top {
+      position: fixed;
+      z-index: 65;
+      right: 1rem;
+      bottom: 1rem;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(.5rem);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .back-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .overlay { display: none; }
+
+    @media (max-width: 1020px) {
+      .layout { grid-template-columns: 250px minmax(0, 1fr); }
+      .ideas { grid-template-columns: 1fr; }
+      .idea pre { margin-top: 1rem; }
+    }
+    @media (max-width: 820px) {
+      .mobile-bar { display: flex; }
+      .layout { display: block; width: min(100% - 1rem, 900px); padding-top: .8rem; }
+      .sidebar {
+        position: fixed;
+        z-index: 85;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(88vw, 310px);
+        max-height: none;
+        border-radius: 0 24px 24px 0;
+        transform: translateX(-105%);
+        transition: transform .23s ease;
+      }
+      body.nav-open .sidebar { transform: translateX(0); }
+      .overlay {
+        position: fixed;
+        z-index: 80;
+        inset: 0;
+        background: rgba(5, 10, 24, .55);
+        backdrop-filter: blur(3px);
+      }
+      body.nav-open .overlay { display: block; }
+      .top-tools { justify-content: flex-start; }
+      .outcomes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 600px) {
+      body { font-size: 16px; }
+      .hero { padding: 2rem 1.35rem; border-radius: 22px; }
+      h1 { font-size: clamp(2.25rem, 13vw, 3.35rem); }
+      .outcomes, .terms, .workflow { grid-template-columns: 1fr; }
+      .workflow-step:not(:last-child)::after { content: "↓"; top: auto; right: 50%; bottom: -.8rem; transform: translateX(50%); }
+      .section { padding: 1.25rem 1.05rem; border-radius: 17px; }
+      .section::before { top: .9rem; bottom: .9rem; }
+      pre { padding: 3.2rem .95rem 1rem; font-size: .82rem; }
+      .copy { top: .55rem; right: .55rem; }
+      .new-tab { display: none; }
+      .tool-link { font-size: .74rem; }
+    }
+    @media print {
+      .sidebar, .mobile-bar, .progress-track, .top-tools, .copy, .back-top, .overlay { display: none !important; }
+      body { background: #fff; color: #000; }
+      .layout { display: block; width: auto; padding: 0; }
+      .hero, .section { break-inside: avoid; box-shadow: none; }
+      .hero { color: #000; background: #eee; }
+      .hero > p { color: #222; }
+      a { color: #000; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
   </style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to tutorial</a>
+<div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+
+<header class="mobile-bar">
+  <button class="icon-button" id="menu-button" type="button" aria-label="Open section menu" aria-expanded="false">☰</button>
+  <div class="mobile-title">GitHub + ChatGPT</div>
+  <button class="icon-button mobile-theme" type="button" aria-label="Toggle dark mode">☾</button>
+</header>
+
+<div class="overlay" id="overlay"></div>
+
 <div class="layout">
-  <nav aria-label="Tutorial sections">
-    <strong>On this page</strong>
-    <a href="#basics">1. Basic ideas</a><a href="#account">2. Create an account</a><a href="#repository">3. Create a repository</a><a href="#connect">4. Connect ChatGPT</a><a href="#first-task">5. First task</a><a href="#check">6. Check the result</a><a href="#create-file">7. Create a file</a><a href="#future">8. Future changes</a><a href="#ideas">9. Ideas</a><a href="#pr">10. Pull requests</a><a href="#access">11. More repositories</a><a href="#safety">Safety</a>
-  </nav>
-  <main>
-    <header class="hero">
-      <div class="eyebrow">◆ Beginner tutorial</div>
+  <aside class="sidebar" aria-label="Tutorial navigation">
+    <div class="brand">
+      <div class="brand-mark">GH</div>
+      <div><strong>GitHub + ChatGPT</strong><span>Beginner tutorial</span></div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="theme-button" id="theme-button" type="button"><span class="theme-icon">☾</span><span class="theme-label">Dark mode</span></button>
+      <a class="icon-button repo-link" href="https://github.com/bortlip/SharedInfo/tree/main/tutorials/github-chatgpt-setup" target="_blank" rel="noopener" aria-label="Open tutorial files on GitHub">↗</a>
+    </div>
+
+    <div class="nav-progress">
+      <strong id="progress-label">0% read</strong>
+      <div class="mini-track"><div class="mini-bar" id="mini-bar"></div></div>
+    </div>
+
+    <nav>
+      <div class="nav-group">
+        <div class="nav-group-title">Get set up</div>
+        <a class="nav-link" href="#basics"><span class="nav-number">1</span><span>Basic ideas</span></a>
+        <a class="nav-link" href="#account"><span class="nav-number">2</span><span>Create an account</span></a>
+        <a class="nav-link" href="#repository"><span class="nav-number">3</span><span>Create a repository</span></a>
+        <a class="nav-link" href="#connect"><span class="nav-number">4</span><span>Connect ChatGPT</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Start using it</div>
+        <a class="nav-link" href="#first-task"><span class="nav-number">5</span><span>First task</span></a>
+        <a class="nav-link" href="#check"><span class="nav-number">6</span><span>Check the result</span></a>
+        <a class="nav-link" href="#create-file"><span class="nav-number">7</span><span>Create a file</span></a>
+        <a class="nav-link" href="#future"><span class="nav-number">8</span><span>Future changes</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-title">Go further</div>
+        <a class="nav-link" href="#ideas"><span class="nav-number">9</span><span>Project ideas</span></a>
+        <a class="nav-link" href="#pr"><span class="nav-number">10</span><span>Pull requests</span></a>
+        <a class="nav-link" href="#access"><span class="nav-number">11</span><span>More repositories</span></a>
+        <a class="nav-link" href="#safety"><span class="nav-number">✓</span><span>Safety and workflow</span></a>
+      </div>
+    </nav>
+  </aside>
+
+  <main id="main-content">
+    <div class="top-tools" aria-label="Tutorial resources">
+      <a class="tool-link" href="tutorial.md">▤ Markdown version</a>
+      <a class="tool-link" href="https://github.com/bortlip/SharedInfo/blob/main/tutorials/github-chatgpt-setup/tutorial.html" target="_blank" rel="noopener">⌘ HTML source ↗</a>
+      <button class="tool-link" type="button" onclick="window.print()">⎙ Print</button>
+    </div>
+
+    <header class="hero" id="top">
+      <div class="eyebrow">◆ Beginner-friendly walkthrough</div>
       <h1>Use GitHub with ChatGPT</h1>
       <p>Create a GitHub account and repository, connect it to ChatGPT, and let ChatGPT create and edit files — no programming or Git commands required.</p>
-      <div class="outcomes"><span>✓ Create an account</span><span>✓ Connect the plugin</span><span>✓ Edit a README</span><span>✓ Try useful project ideas</span></div>
+      <div class="outcomes" aria-label="What you will do">
+        <div class="outcome"><b>1</b>Create an account</div>
+        <div class="outcome"><b>2</b>Create a private repository</div>
+        <div class="outcome"><b>3</b>Connect the plugin</div>
+        <div class="outcome"><b>4</b>Edit a README</div>
+        <div class="outcome"><b>5</b>Create a new file</div>
+        <div class="outcome"><b>6</b>Review a pull request</div>
+      </div>
     </header>
 
     <section class="section" id="basics">
-      <div class="heading"><div class="icon">🧭</div><h2>1. The basic ideas</h2></div>
-      <div class="terms"><div class="term"><strong>GitHub</strong>A website for storing projects and keeping a history of their files.</div><div class="term"><strong>Repository (repo)</strong>A project folder on GitHub.</div><div class="term"><strong>Commit</strong>A saved change or checkpoint.</div><div class="term"><strong>Git</strong>The underlying system GitHub uses to track changes.</div></div>
+      <div class="heading"><div class="section-icon">🧭</div><div><span class="step-label">Step 1</span><h2>The basic ideas</h2></div></div>
+      <div class="terms">
+        <div class="term"><strong>GitHub</strong>A website for storing projects and keeping a history of their files.</div>
+        <div class="term"><strong>Repository (repo)</strong>A project folder on GitHub.</div>
+        <div class="term"><strong>Commit</strong>A saved change or checkpoint.</div>
+        <div class="term"><strong>Git</strong>The underlying system GitHub uses to track changes.</div>
+      </div>
       <p>You do not need to learn Git commands for this tutorial.</p>
-      <div class="learn-label">📖 For more information, read:</div>
-      <div class="links"><a href="https://docs.github.com/en/get-started/start-your-journey/about-github-and-git" target="_blank" rel="noopener">↗ About GitHub and Git <span class="new-tab">(opens in new tab)</span></a><a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories" target="_blank" rel="noopener">↗ About repositories <span class="new-tab">(opens in new tab)</span></a><a href="https://docs.github.com/en/get-started/using-git/about-git" target="_blank" rel="noopener">↗ About Git <span class="new-tab">(opens in new tab)</span></a></div>
+      <div class="learn-panel">
+        <div class="learn-label">📖 For more information, read:</div>
+        <div class="links">
+          <a href="https://docs.github.com/en/get-started/start-your-journey/about-github-and-git" target="_blank" rel="noopener"><span class="link-title">↗ About GitHub and Git</span><span class="new-tab">opens in new tab</span></a>
+          <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories" target="_blank" rel="noopener"><span class="link-title">↗ About repositories</span><span class="new-tab">opens in new tab</span></a>
+          <a href="https://docs.github.com/en/get-started/using-git/about-git" target="_blank" rel="noopener"><span class="link-title">↗ About Git</span><span class="new-tab">opens in new tab</span></a>
+        </div>
+      </div>
     </section>
 
     <section class="section" id="account">
-      <div class="heading"><div class="icon">👤</div><h2>2. Create a GitHub account</h2></div>
-      <ol><li>Go to <a href="https://github.com/" target="_blank" rel="noopener">github.com <span class="new-tab">(opens in new tab)</span></a>.</li><li>Select <strong>Sign up</strong>.</li><li>Use an email address, or choose <strong>Continue with Google</strong> or <strong>Continue with Apple</strong>.</li><li>Choose a username and verify your email address.</li></ol>
+      <div class="heading"><div class="section-icon">👤</div><div><span class="step-label">Step 2</span><h2>Create a GitHub account</h2></div></div>
+      <ol>
+        <li>Go to <a href="https://github.com/" target="_blank" rel="noopener">github.com <span class="new-tab">(opens in new tab)</span></a>.</li>
+        <li>Select <strong>Sign up</strong>.</li>
+        <li>Sign up with an email address, or choose <strong>Continue with Google</strong> or <strong>Continue with Apple</strong>.</li>
+        <li>Choose a username.</li>
+        <li>Follow the instructions to verify your email address.</li>
+      </ol>
       <p>Choose a username you are comfortable showing other people. It may appear on your GitHub profile and in repository addresses.</p>
-      <div class="callout"><strong>Recommended:</strong> Enable two-factor authentication and save the recovery codes somewhere safe.</div>
-      <div class="learn-label">📖 For more information, read:</div><div class="links"><a href="https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github" target="_blank" rel="noopener">↗ Creating a GitHub account <span class="new-tab">(opens in new tab)</span></a></div>
+      <div class="callout"><div class="callout-symbol">🔐</div><div><strong>Recommended:</strong> Enable two-factor authentication and save the recovery codes somewhere safe.</div></div>
+      <div class="learn-panel"><div class="learn-label">📖 For more information, read:</div><div class="links"><a href="https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github" target="_blank" rel="noopener"><span class="link-title">↗ Creating a GitHub account</span><span class="new-tab">opens in new tab</span></a></div></div>
     </section>
 
     <section class="section" id="repository">
-      <div class="heading"><div class="icon">📁</div><h2>3. Create your first repository</h2></div>
-      <ol><li>Select the <strong>+</strong> button near the upper-right corner of GitHub.</li><li>Select <strong>New repository</strong>.</li><li>Name it <code>my-chatgpt-files</code>.</li><li>Add an optional description such as <code>Files and notes that I manage with ChatGPT.</code></li><li>Select <strong>Private</strong>.</li><li>Turn on <strong>Add a README file</strong>.</li><li>Select <strong>Create repository</strong>.</li></ol>
-      <p>The README is the repository's introductory page. Leave its default text in place; updating it will be ChatGPT's first task.</p>
-      <div class="callout danger"><strong>Do not store secrets:</strong> Keep passwords, recovery codes, API keys, banking information, and similar private material out of the repository.</div>
-      <div class="learn-label">📖 For more information, read:</div><div class="links"><a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository" target="_blank" rel="noopener">↗ Creating a new repository <span class="new-tab">(opens in new tab)</span></a></div>
+      <div class="heading"><div class="section-icon">📁</div><div><span class="step-label">Step 3</span><h2>Create your first repository</h2></div></div>
+      <ol>
+        <li>Select the <strong>+</strong> button near the upper-right corner of GitHub.</li>
+        <li>Select <strong>New repository</strong>.</li>
+        <li>Enter a name, such as <code>my-chatgpt-files</code>.</li>
+        <li>Add an optional description, such as <code>Files and notes that I manage with ChatGPT.</code></li>
+        <li>Select <strong>Private</strong>.</li>
+        <li>Turn on <strong>Add a README file</strong>.</li>
+        <li>Select <strong>Create repository</strong>.</li>
+      </ol>
+      <p>The README is the introductory page for the repository. Leave the default text in place for now; updating it will be ChatGPT's first task.</p>
+      <div class="callout danger"><div class="callout-symbol">⚠️</div><div><strong>Do not store secrets:</strong> Keep passwords, recovery codes, API keys, banking information, and similar private material out of the repository.</div></div>
+      <div class="learn-panel"><div class="learn-label">📖 For more information, read:</div><div class="links"><a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository" target="_blank" rel="noopener"><span class="link-title">↗ Creating a new repository</span><span class="new-tab">opens in new tab</span></a></div></div>
     </section>
 
     <section class="section" id="connect">
-      <div class="heading"><div class="icon">🔌</div><h2>4. Connect GitHub to ChatGPT</h2></div>
-      <ol><li>In ChatGPT, open <strong>Plugins</strong>.</li><li>Scroll down and select <strong>Browse plugins</strong>.</li><li>Find the <strong>GitHub</strong> plugin and choose <strong>Connect</strong>.</li><li>On GitHub, authorize the <strong>ChatGPT Codex Connector</strong>.</li><li>Choose <strong>Only select repositories</strong> and select <code>my-chatgpt-files</code>.</li><li>Complete the installation and return to ChatGPT.</li></ol>
-      <div class="callout">A newly connected repository may take a few minutes to appear.</div>
-      <div class="learn-label">📖 For more information, read:</div><div class="links"><a href="https://help.openai.com/en/articles/20001256-plugins-in-codex" target="_blank" rel="noopener">↗ Plugins in ChatGPT and Codex <span class="new-tab">(opens in new tab)</span></a><a href="https://github.com/apps/chatgpt-codex-connector" target="_blank" rel="noopener">↗ ChatGPT Codex Connector <span class="new-tab">(opens in new tab)</span></a></div>
+      <div class="heading"><div class="section-icon">🔌</div><div><span class="step-label">Step 4</span><h2>Connect GitHub to ChatGPT</h2></div></div>
+      <ol>
+        <li>In ChatGPT, open <strong>Plugins</strong>.</li>
+        <li>Scroll down and select <strong>Browse plugins</strong>.</li>
+        <li>Find the <strong>GitHub</strong> plugin.</li>
+        <li>Select it and choose <strong>Connect</strong>.</li>
+      </ol>
+      <div class="callout warning"><div class="callout-symbol">☰</div><div>If <strong>Plugins</strong> is not visible in the sidebar, open <strong>Settings → Plugins</strong>.</div></div>
+      <p>ChatGPT will send you to GitHub to install or authorize the <strong>ChatGPT Codex Connector</strong>.</p>
+      <p>When GitHub asks which repositories it may access:</p>
+      <ol>
+        <li>Choose <strong>Only select repositories</strong>.</li>
+        <li>Select <code>my-chatgpt-files</code>.</li>
+        <li>Review the requested permissions.</li>
+        <li>Select <strong>Install</strong> or the equivalent confirmation button.</li>
+      </ol>
+      <div class="callout"><div class="callout-symbol">⏳</div><div>A newly connected repository may take a few minutes to appear.</div></div>
+      <div class="callout warning"><div class="callout-symbol">@</div><div>ChatGPT may select GitHub automatically. If it does not, start the request with <code>@GitHub</code>, or select <strong>+ → More → GitHub</strong>.</div></div>
+      <div class="learn-panel">
+        <div class="learn-label">📖 For more information, read:</div>
+        <div class="links">
+          <a href="https://help.openai.com/en/articles/20001256" target="_blank" rel="noopener"><span class="link-title">↗ Plugins in ChatGPT and Codex</span><span class="new-tab">opens in new tab</span></a>
+          <a href="https://github.com/apps/chatgpt-codex-connector" target="_blank" rel="noopener"><span class="link-title">↗ ChatGPT Codex Connector</span><span class="new-tab">opens in new tab</span></a>
+        </div>
+      </div>
     </section>
 
     <section class="section" id="first-task">
-      <div class="heading"><div class="icon">✨</div><h2>5. Give ChatGPT its first task</h2></div>
+      <div class="heading"><div class="section-icon">✨</div><div><span class="step-label">Step 5</span><h2>Give ChatGPT its first task</h2></div></div>
       <p>Start a normal ChatGPT conversation and enter:</p>
       <pre><button class="copy" type="button">Copy</button><code>Use GitHub to update README.md in my repository named my-chatgpt-files.
 
 Replace the default README with a short, beginner-friendly explanation that this repository contains files and notes that I manage with ChatGPT.</code></pre>
-      <p>ChatGPT may ask you to approve the action. Approve it when it matches what you requested.</p>
+      <p>ChatGPT may ask you to approve the action. Review the request and approve it when it matches what you asked for.</p>
     </section>
 
     <section class="section" id="check">
-      <div class="heading"><div class="icon">🔎</div><h2>6. Check the result</h2></div>
-      <p>Return to GitHub, open the <code>my-chatgpt-files</code> repository, and select <code>README.md</code>. You should see the text created by ChatGPT.</p><p>GitHub keeps a record of the change, allowing you to inspect what changed and see earlier versions later.</p>
+      <div class="heading"><div class="section-icon">🔎</div><div><span class="step-label">Step 6</span><h2>Check the result</h2></div></div>
+      <p>Return to GitHub and open the <code>my-chatgpt-files</code> repository.</p>
+      <p>Open <code>README.md</code>. You should see the text created by ChatGPT.</p>
+      <p>GitHub also keeps a record of the change, so you can inspect what changed and see earlier versions later.</p>
     </section>
 
     <section class="section" id="create-file">
-      <div class="heading"><div class="icon">📝</div><h2>7. Ask ChatGPT to create a file</h2></div>
+      <div class="heading"><div class="section-icon">📝</div><div><span class="step-label">Step 7</span><h2>Ask ChatGPT to create a file</h2></div></div>
       <pre><button class="copy" type="button">Copy</button><code>Create a file named ideas.md in my repository named my-chatgpt-files.
 
 Add the heading "Ideas" and a short list of useful things I could store in this repository.</code></pre>
-      <p>Return to GitHub and confirm that <code>ideas.md</code> appears. You have now edited an existing file and created a new one.</p>
+      <p>Return to GitHub and confirm that <code>ideas.md</code> appears.</p>
+      <p>You have now used ChatGPT to edit an existing file and create a new one.</p>
     </section>
 
     <section class="section" id="future">
-      <div class="heading"><div class="icon">💬</div><h2>8. How to ask for future changes</h2></div>
-      <p>A useful request normally needs the repository name, the desired change, and any important requirements.</p>
+      <div class="heading"><div class="section-icon">💬</div><div><span class="step-label">Step 8</span><h2>How to ask for future changes</h2></div></div>
+      <p>A useful request normally needs only:</p>
+      <ul><li>The repository name</li><li>What you want created or changed</li><li>Any important requirements for the result</li></ul>
+      <p>For example:</p>
       <pre><button class="copy" type="button">Copy</button><code>Update ideas.md in my repository named my-chatgpt-files.
 
-Organize the ideas into Personal, Home, and Work sections.</code></pre><p>Concentrate on describing the result you want.</p>
+Organize the ideas into Personal, Home, and Work sections.</code></pre>
+      <p>Concentrate on describing the result you want.</p>
     </section>
 
     <section class="section" id="ideas">
-      <div class="heading"><div class="icon">💡</div><h2>9. Ideas for using GitHub with ChatGPT</h2></div>
+      <div class="heading"><div class="section-icon">💡</div><div><span class="step-label">Step 9</span><h2>Ideas for using GitHub with ChatGPT</h2></div></div>
       <p>Once everything is connected, a repository can become a shared workspace where ChatGPT collects information, creates documents, and keeps the supporting material organized.</p>
       <div class="ideas">
-        <article class="idea"><h3>🔎 Research a topic deeply</h3><p>Ask ChatGPT to find and evaluate up to 50 credible sources. It can save detailed source notes, track gaps, and create a referenced report after enough good evidence has been collected.</p><p><strong>Example prompt:</strong></p><pre><button class="copy" type="button">Copy</button><code>Use my repository named [repository name] to create a research project about [topic].
+        <article class="idea">
+          <h3>🔎 Research a topic deeply</h3>
+          <p>Ask ChatGPT to find and evaluate up to 50 credible sources. It can save detailed source notes, track gaps, and create a referenced report after enough good evidence has been collected.</p>
+          <p><strong>Example prompt:</strong></p>
+          <pre><button class="copy" type="button">Copy</button><code>Use my repository named [repository name] to create a research project about [topic].
 
 Find and evaluate up to 50 credible sources. For each source, save its title, author or publisher, date, link, detailed notes, key findings, and important limitations. Maintain a source index that shows what has been collected and what gaps remain.
 
-After the source collection is strong enough, create a detailed report based on the collected research, with references back to the source notes.</code></pre></article>
-        <article class="idea"><h3>⚖️ Compare a major decision</h3><p>Use a repository to research a purchase, trip, move, school, service, or another important decision while preserving requirements, sources, comparisons, and unanswered questions.</p><p><strong>Example prompt:</strong></p><pre><button class="copy" type="button">Copy</button><code>Use my repository named [repository name] to help me decide between [options].
+After the source collection is strong enough, create a detailed report based on the collected research, with references back to the source notes.</code></pre>
+        </article>
+        <article class="idea">
+          <h3>⚖️ Compare a major decision</h3>
+          <p>Use a repository to research a purchase, trip, move, school, service, or another important decision while preserving requirements, sources, comparisons, and unanswered questions.</p>
+          <p><strong>Example prompt:</strong></p>
+          <pre><button class="copy" type="button">Copy</button><code>Use my repository named [repository name] to help me decide between [options].
 
-Create a document listing my requirements and priorities. Research each option, record the sources and findings, compare the tradeoffs, identify unanswered questions, and maintain a current recommendation that can change as new evidence is added.</code></pre></article>
-        <article class="idea"><h3>✍️ Develop a writing or learning project</h3><p>Store notes, outlines, drafts, lessons, glossaries, exercises, and progress records in one place, then ask ChatGPT to organize and combine them.</p><p><strong>Example prompt:</strong></p><pre><button class="copy" type="button">Copy</button><code>Use my repository named [repository name] to help me [learn a subject or develop a writing project].
+Create a document listing my requirements and priorities. Research each option, record the sources and findings, compare the tradeoffs, identify unanswered questions, and maintain a current recommendation that can change as new evidence is added.</code></pre>
+        </article>
+        <article class="idea">
+          <h3>✍️ Develop a writing or learning project</h3>
+          <p>Store notes, outlines, drafts, lessons, glossaries, exercises, and progress records in one place, then ask ChatGPT to organize and combine them.</p>
+          <p><strong>Example prompt:</strong></p>
+          <pre><button class="copy" type="button">Copy</button><code>Use my repository named [repository name] to help me [learn a subject or develop a writing project].
 
-Create an outline, glossary, notes, exercises or drafts, and a progress checklist. Update them as we work, explain difficult ideas, and combine the completed material into a polished final document.</code></pre></article>
+Create an outline, glossary, notes, exercises or drafts, and a progress checklist. Update them as we work, explain difficult ideas, and combine the completed material into a polished final document.</code></pre>
+        </article>
       </div>
     </section>
 
     <section class="section" id="pr">
-      <div class="heading"><div class="icon">⑂</div><h2>10. What a pull request is</h2></div>
-      <p>A <strong>pull request (PR)</strong> lets you review proposed changes before adding them to the repository's main version. It is useful for larger or important changes.</p>
+      <div class="heading"><div class="section-icon">⑂</div><div><span class="step-label">Step 10</span><h2>What a pull request is</h2></div></div>
+      <p>A <strong>pull request (PR)</strong> lets you review proposed changes before adding them to the main version of a repository.</p>
+      <p>PRs are useful for larger or important changes because GitHub clearly shows what will change. To ask for one, add:</p>
       <pre><button class="copy" type="button">Copy</button><code>Make the changes on a new branch and open a pull request for me to review.</code></pre>
-      <h3>Review and merge a PR</h3><ol><li>Open the pull request link in GitHub.</li><li>Read the summary on the <strong>Conversation</strong> tab.</li><li>Open <strong>Files changed</strong>.</li><li>Review the changes. Green lines were added; red lines were removed.</li><li>Ask ChatGPT to correct anything that is wrong.</li><li>Select <strong>Merge pull request</strong>, then <strong>Confirm merge</strong>.</li></ol>
-      <div class="callout"><strong>Merge</strong> means accepting the proposed changes and adding them to the repository's main version.</div>
-      <div class="learn-label">📖 For more information, read:</div><div class="links"><a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests" target="_blank" rel="noopener">↗ About pull requests <span class="new-tab">(opens in new tab)</span></a><a href="https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request" target="_blank" rel="noopener">↗ Reviewing proposed changes <span class="new-tab">(opens in new tab)</span></a><a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/merging-a-pull-request" target="_blank" rel="noopener">↗ Merging a pull request <span class="new-tab">(opens in new tab)</span></a></div>
+      <h3>Review and merge a PR</h3>
+      <ol>
+        <li>Open the pull request link in GitHub.</li>
+        <li>Read the summary on the <strong>Conversation</strong> tab.</li>
+        <li>Open <strong>Files changed</strong>.</li>
+        <li>Review the changes. Green lines were added; red lines were removed.</li>
+        <li>To flag a problem, leave a comment in GitHub or ask ChatGPT to correct it.</li>
+        <li>Check the updated files after corrections are made.</li>
+        <li>When the result looks right, select <strong>Merge pull request</strong>, then <strong>Confirm merge</strong>.</li>
+      </ol>
+      <div class="callout"><div class="callout-symbol">✓</div><div><strong>Merge</strong> means accepting the proposed changes and adding them to the repository's main version. GitHub may then offer to delete the temporary branch used for the PR.</div></div>
+      <div class="learn-panel">
+        <div class="learn-label">📖 For more information, read:</div>
+        <div class="links">
+          <a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests" target="_blank" rel="noopener"><span class="link-title">↗ About pull requests</span><span class="new-tab">opens in new tab</span></a>
+          <a href="https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request" target="_blank" rel="noopener"><span class="link-title">↗ Reviewing proposed changes</span><span class="new-tab">opens in new tab</span></a>
+          <a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/merging-a-pull-request" target="_blank" rel="noopener"><span class="link-title">↗ Merging a pull request</span><span class="new-tab">opens in new tab</span></a>
+        </div>
+      </div>
     </section>
 
     <section class="section" id="access">
-      <div class="heading"><div class="icon">🔐</div><h2>11. Give ChatGPT access to another repository</h2></div>
-      <ol><li>Open GitHub <strong>Settings</strong>.</li><li>Open <strong>Applications</strong>.</li><li>Find <strong>ChatGPT Codex Connector</strong> under installed GitHub apps.</li><li>Select <strong>Configure</strong>.</li><li>Add the repository under <strong>Repository access</strong> and save.</li></ol><p>You normally do not need to reinstall the connector; just add the new repository to its allowed list.</p>
+      <div class="heading"><div class="section-icon">🔐</div><div><span class="step-label">Step 11</span><h2>Give ChatGPT access to another repository</h2></div></div>
+      <p>The ChatGPT Codex Connector can use only repositories you authorize.</p>
+      <p>After creating another repository:</p>
+      <ol>
+        <li>Open GitHub <strong>Settings</strong>.</li>
+        <li>Open <strong>Applications</strong>.</li>
+        <li>Find <strong>ChatGPT Codex Connector</strong> under installed GitHub apps.</li>
+        <li>Select <strong>Configure</strong>.</li>
+        <li>Add the new repository under <strong>Repository access</strong>.</li>
+        <li>Save the change.</li>
+      </ol>
+      <p>You normally do not need to reinstall the connector. You only need to add the new repository to its allowed list.</p>
     </section>
 
     <section class="section" id="safety">
-      <div class="heading"><div class="icon">🛡️</div><h2>Basic safety</h2></div>
-      <ul><li>Do not store passwords, recovery codes, API keys, or financial information in GitHub.</li><li>Give the connector access only to repositories it needs.</li><li>Review important changes after ChatGPT makes them.</li><li>Use a pull request when you want a separate review step.</li><li>Remove repository access when it is no longer needed.</li></ul>
-      <div class="workflow"><div>1. Create repo</div><div>2. Grant access</div><div>3. Ask ChatGPT</div><div>4. Review result</div><div>5. Merge PR if used</div></div>
+      <div class="heading"><div class="section-icon">🛡️</div><div><span class="step-label">Finish</span><h2>Basic safety and the complete workflow</h2></div></div>
+      <ul>
+        <li>Do not store passwords, recovery codes, API keys, or financial information in GitHub.</li>
+        <li>Give the connector access only to repositories it needs.</li>
+        <li>Review the result after ChatGPT changes a repository, especially for important work.</li>
+        <li>Use a pull request when you want a separate review step.</li>
+        <li>Remove repository access when it is no longer needed.</li>
+      </ul>
+      <div class="workflow" aria-label="Complete workflow">
+        <div class="workflow-step">1. Create repo</div>
+        <div class="workflow-step">2. Grant access</div>
+        <div class="workflow-step">3. Ask ChatGPT</div>
+        <div class="workflow-step">4. Review result</div>
+        <div class="workflow-step">5. Merge PR if used</div>
+      </div>
     </section>
-    <footer>GitHub + ChatGPT beginner tutorial · Self-contained HTML version</footer>
+
+    <footer>GitHub + ChatGPT beginner tutorial · <a href="https://github.com/bortlip/SharedInfo" target="_blank" rel="noopener">SharedInfo on GitHub ↗</a></footer>
   </main>
 </div>
-<script>document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',async()=>{const t=b.nextElementSibling.innerText;try{await navigator.clipboard.writeText(t);const o=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=o,1400)}catch{b.textContent='Select text'}}));</script>
+
+<button class="icon-button back-top" id="back-top" type="button" aria-label="Back to top">↑</button>
+
+<script>
+  const root = document.documentElement;
+  const body = document.body;
+  const themeButtons = [document.getElementById("theme-button"), ...document.querySelectorAll(".mobile-theme")].filter(Boolean);
+  const menuButton = document.getElementById("menu-button");
+  const overlay = document.getElementById("overlay");
+  const progressBar = document.getElementById("progress-bar");
+  const miniBar = document.getElementById("mini-bar");
+  const progressLabel = document.getElementById("progress-label");
+  const backTop = document.getElementById("back-top");
+  const navLinks = [...document.querySelectorAll(".nav-link")];
+  const sections = [...document.querySelectorAll("main section[id]")];
+
+  function setTheme(theme, persist = true) {
+    root.dataset.theme = theme;
+    if (persist) { try { localStorage.setItem("tutorial-theme", theme); } catch {} }
+    const dark = theme === "dark";
+    document.querySelectorAll(".theme-icon").forEach(el => el.textContent = dark ? "☀" : "☾");
+    document.querySelectorAll(".theme-label").forEach(el => el.textContent = dark ? "Light mode" : "Dark mode");
+    document.querySelectorAll(".mobile-theme").forEach(el => el.textContent = dark ? "☀" : "☾");
+    document.querySelectorAll(".mobile-theme").forEach(el => el.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode"));
+  }
+
+  themeButtons.forEach(button => button.addEventListener("click", () => setTheme(root.dataset.theme === "dark" ? "light" : "dark")));
+  setTheme(root.dataset.theme, false);
+
+  function closeNav() {
+    body.classList.remove("nav-open");
+    menuButton?.setAttribute("aria-expanded", "false");
+  }
+  menuButton?.addEventListener("click", () => {
+    const open = body.classList.toggle("nav-open");
+    menuButton.setAttribute("aria-expanded", String(open));
+  });
+  overlay?.addEventListener("click", closeNav);
+  navLinks.forEach(link => link.addEventListener("click", closeNav));
+
+  document.querySelectorAll(".copy").forEach(button => {
+    button.addEventListener("click", async () => {
+      const text = button.nextElementSibling.innerText;
+      try {
+        await navigator.clipboard.writeText(text);
+        const old = button.textContent;
+        button.textContent = "Copied!";
+        button.classList.add("copied");
+        setTimeout(() => {
+          button.textContent = old;
+          button.classList.remove("copied");
+        }, 1500);
+      } catch {
+        button.textContent = "Select text";
+      }
+    });
+  });
+
+  function updateProgress() {
+    const scrollable = document.documentElement.scrollHeight - innerHeight;
+    const ratio = scrollable > 0 ? Math.min(1, Math.max(0, scrollY / scrollable)) : 0;
+    const percent = Math.round(ratio * 100);
+    progressBar.style.width = `${percent}%`;
+    miniBar.style.width = `${percent}%`;
+    progressLabel.textContent = `${percent}% read`;
+    backTop.classList.toggle("visible", scrollY > 650);
+  }
+  addEventListener("scroll", updateProgress, { passive: true });
+  addEventListener("resize", updateProgress);
+  updateProgress();
+
+  const observer = new IntersectionObserver(entries => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (!visible) return;
+    navLinks.forEach(link => link.setAttribute("aria-current", String(link.getAttribute("href") === `#${visible.target.id}`)));
+  }, { rootMargin: "-18% 0px -67% 0px", threshold: [0, .15, .35, .6] });
+  sections.forEach(section => observer.observe(section));
+
+  backTop.addEventListener("click", () => scrollTo({ top: 0, behavior: "smooth" }));
+  addEventListener("keydown", event => {
+    if (event.key === "Escape") closeNav();
+  });
+</script>
 </body>
 </html>
