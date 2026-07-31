@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A beginner-friendly guide to creating a GitHub account and repository, connecting GitHub to ChatGPT, and using ChatGPT to create and edit files.">
+  <title>Using GitHub with ChatGPT — Beginner's Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #eef3ff;
+      --ink: #182238;
+      --muted: #58647a;
+      --line: #dce3ef;
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --secondary: #0f766e;
+      --accent: #f59e0b;
+      --danger: #b42318;
+      --shadow: 0 18px 55px rgba(30, 41, 59, .10);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(79,70,229,.13), transparent 30rem),
+        radial-gradient(circle at 100% 15%, rgba(15,118,110,.10), transparent 26rem),
+        var(--bg);
+      color: var(--ink);
+      font: 17px/1.68 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--primary-dark); }
+    a:hover { text-decoration-thickness: 2px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code {
+      padding: .12rem .35rem;
+      border-radius: .4rem;
+      background: #eef0f7;
+      font-size: .92em;
+    }
+    pre {
+      position: relative;
+      margin: 1rem 0;
+      padding: 1.2rem 3.6rem 1.2rem 1.2rem;
+      overflow-x: auto;
+      border: 1px solid #303b55;
+      border-radius: 14px;
+      background: #172033;
+      color: #f7f9ff;
+      white-space: pre-wrap;
+    }
+    pre code { padding: 0; background: transparent; color: inherit; }
+    .copy {
+      position: absolute;
+      top: .65rem;
+      right: .65rem;
+      border: 1px solid #64718d;
+      border-radius: 8px;
+      padding: .35rem .55rem;
+      background: #26324a;
+      color: white;
+      cursor: pointer;
+    }
+    .copy:hover { background: #34415d; }
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 850px);
+      gap: 2rem;
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 2rem 0 5rem;
+    }
+    nav {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 10px 30px rgba(30,41,59,.07);
+      backdrop-filter: blur(14px);
+    }
+    nav strong {
+      display: block;
+      margin: .2rem .5rem .65rem;
+      color: var(--muted);
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    nav a {
+      display: block;
+      padding: .5rem .65rem;
+      border-radius: 9px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: .93rem;
+    }
+    nav a:hover { background: var(--surface-soft); color: var(--primary-dark); }
+    main { min-width: 0; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(2rem, 6vw, 4.4rem);
+      border-radius: 28px;
+      background: linear-gradient(135deg, #3730a3, #4f46e5 55%, #0f766e);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: "⌘";
+      position: absolute;
+      right: -1rem;
+      bottom: -5rem;
+      color: rgba(255,255,255,.09);
+      font-size: 19rem;
+      font-weight: 800;
+      transform: rotate(-12deg);
+    }
+    .eyebrow {
+      display: inline-flex;
+      gap: .5rem;
+      align-items: center;
+      padding: .35rem .7rem;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      font-size: .82rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 1rem 0 .8rem;
+      font-size: clamp(2.2rem, 7vw, 4.5rem);
+      line-height: 1.02;
+      letter-spacing: -.045em;
+    }
+    .hero p {
+      position: relative;
+      z-index: 1;
+      max-width: 700px;
+      margin: 0;
+      color: rgba(255,255,255,.9);
+      font-size: 1.12rem;
+    }
+    .outcomes {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .65rem;
+      margin-top: 1.5rem;
+    }
+    .outcomes span {
+      padding: .4rem .7rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      font-size: .9rem;
+    }
+    .section {
+      margin-top: 1.5rem;
+      padding: clamp(1.3rem, 4vw, 2.2rem);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 10px 30px rgba(30,41,59,.055);
+    }
+    .section-heading {
+      display: flex;
+      gap: .9rem;
+      align-items: center;
+      margin-bottom: .8rem;
+    }
+    .icon {
+      display: grid;
+      flex: 0 0 2.7rem;
+      width: 2.7rem;
+      height: 2.7rem;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--surface-soft);
+      color: var(--primary-dark);
+      font-size: 1.3rem;
+    }
+    h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 1.85rem); line-height: 1.2; }
+    h3 { margin-top: 1.6rem; }
+    p { margin: .65rem 0; }
+    ol, ul { padding-left: 1.35rem; }
+    li + li { margin-top: .35rem; }
+    .callout {
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      border-left: 5px solid var(--secondary);
+      border-radius: 0 12px 12px 0;
+      background: #edf9f7;
+    }
+    .danger { border-left-color: var(--danger); background: #fff1f0; }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .8rem;
+      margin: 1rem 0;
+    }
+    .term {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fafbfe;
+    }
+    .term strong { display: block; color: var(--primary-dark); }
+    .links {
+      display: grid;
+      gap: .55rem;
+      margin-top: 1rem;
+    }
+    .links a {
+      display: flex;
+      gap: .65rem;
+      align-items: center;
+      padding: .7rem .85rem;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #fafbfe;
+      text-decoration: none;
+    }
+    .links a:hover { border-color: #aab4cc; background: var(--surface-soft); }
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .5rem;
+      margin-top: 1.2rem;
+    }
+    .workflow div {
+      padding: .85rem .45rem;
+      border-radius: 12px;
+      background: var(--surface-soft);
+      text-align: center;
+      font-size: .84rem;
+      font-weight: 700;
+    }
+    footer { padding: 2rem 0; color: var(--muted); text-align: center; font-size: .9rem; }
+    @media (max-width: 900px) {
+      .layout { display: block; }
+      nav { position: static; margin-bottom: 1rem; max-height: none; }
+      nav strong { margin-bottom: .4rem; }
+      nav a { display: inline-block; }
+    }
+    @media (max-width: 620px) {
+      .layout { width: min(100% - 1rem, 1180px); padding-top: .5rem; }
+      .hero { border-radius: 20px; }
+      .mini-grid, .workflow { grid-template-columns: 1fr; }
+      .section { border-radius: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav aria-label="Tutorial sections">
+      <strong>On this page</strong>
+      <a href="#basics">1. Basic ideas</a>
+      <a href="#account">2. Create an account</a>
+      <a href="#repository">3. Create a repository</a>
+      <a href="#connect">4. Connect ChatGPT</a>
+      <a href="#first-task">5. First task</a>
+      <a href="#check">6. Check the result</a>
+      <a href="#create-file">7. Create a file</a>
+      <a href="#future">8. Future changes</a>
+      <a href="#pr">9. Pull requests</a>
+      <a href="#access">10. More repositories</a>
+      <a href="#safety">Safety</a>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <div class="eyebrow">◆ Beginner tutorial</div>
+        <h1>Use GitHub with ChatGPT</h1>
+        <p>Create a GitHub account and repository, connect it to ChatGPT, and let ChatGPT create and edit files — no programming or Git commands required.</p>
+        <div class="outcomes">
+          <span>✓ Create an account</span>
+          <span>✓ Connect the plugin</span>
+          <span>✓ Edit a README</span>
+          <span>✓ Review a pull request</span>
+        </div>
+      </header>
+
+      <section class="section" id="basics">
+        <div class="section-heading"><div class="icon">🧭</div><h2>1. The basic ideas</h2></div>
+        <div class="mini-grid">
+          <div class="term"><strong>GitHub</strong>A website for storing projects and keeping a history of their files.</div>
+          <div class="term"><strong>Repository (repo)</strong>A project folder on GitHub.</div>
+          <div class="term"><strong>Commit</strong>A saved change or checkpoint.</div>
+          <div class="term"><strong>Git</strong>The underlying system GitHub uses to track changes.</div>
+        </div>
+        <p>You do not need to learn Git commands for this tutorial.</p>
+        <div class="links">
+          <a href="https://docs.github.com/en/get-started/start-your-journey/about-github-and-git">↗ About GitHub and Git</a>
+          <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/about-repositories">↗ About repositories</a>
+          <a href="https://docs.github.com/en/get-started/using-git/about-git">↗ About Git</a>
+        </div>
+      </section>
+
+      <section class="section" id="account">
+        <div class="section-heading"><div class="icon">👤</div><h2>2. Create a GitHub account</h2></div>
+        <ol>
+          <li>Go to <a href="https://github.com/">github.com</a>.</li>
+          <li>Select <strong>Sign up</strong>.</li>
+          <li>Use an email address, or choose <strong>Continue with Google</strong> or <strong>Continue with Apple</strong>.</li>
+          <li>Choose a username and verify your email address.</li>
+        </ol>
+        <div class="callout"><strong>Recommended:</strong> Enable two-factor authentication and save the recovery codes somewhere safe.</div>
+        <div class="links"><a href="https://docs.github.com/en/get-started/start-your-journey/creating-an-account-on-github">↗ Creating a GitHub account</a></div>
+      </section>
+
+      <section class="section" id="repository">
+        <div class="section-heading"><div class="icon">📁</div><h2>3. Create your first repository</h2></div>
+        <ol>
+          <li>Select the <strong>+</strong> button near the upper-right corner of GitHub.</li>
+          <li>Select <strong>New repository</strong>.</li>
+          <li>Name it <code>my-chatgpt-files</code>.</li>
+          <li>Select <strong>Private</strong>.</li>
+          <li>Turn on <strong>Add a README file</strong>.</li>
+          <li>Select <strong>Create repository</strong>.</li>
+        </ol>
+        <p>The README is the repository's introductory page. Leave its default text in place; updating it will be ChatGPT's first task.</p>
+        <div class="callout danger"><strong>Do not store secrets:</strong> Keep passwords, recovery codes, API keys, and financial information out of the repository.</div>
+        <div class="links"><a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository">↗ Creating a new repository</a></div>
+      </section>
+
+      <section class="section" id="connect">
+        <div class="section-heading"><div class="icon">🔌</div><h2>4. Connect GitHub to ChatGPT</h2></div>
+        <ol>
+          <li>In ChatGPT, open <strong>Plugins</strong>.</li>
+          <li>Scroll down and select <strong>Browse plugins</strong>.</li>
+          <li>Find the <strong>GitHub</strong> plugin and choose <strong>Connect</strong>.</li>
+          <li>On GitHub, authorize the <strong>ChatGPT Codex Connector</strong>.</li>
+          <li>Choose <strong>Only select repositories</strong> and select <code>my-chatgpt-files</code>.</li>
+          <li>Complete the installation and return to ChatGPT.</li>
+        </ol>
+        <div class="callout">A newly connected repository may take a few minutes to appear.</div>
+        <div class="links">
+          <a href="https://help.openai.com/en/articles/20001256-plugins-in-codex">↗ Plugins in ChatGPT and Codex</a>
+          <a href="https://github.com/apps/chatgpt-codex-connector">↗ ChatGPT Codex Connector</a>
+        </div>
+      </section>
+
+      <section class="section" id="first-task">
+        <div class="section-heading"><div class="icon">✨</div><h2>5. Give ChatGPT its first task</h2></div>
+        <p>Start a normal ChatGPT conversation and enter:</p>
+        <pre><button class="copy" type="button">Copy</button><code>Use GitHub to update README.md in my repository named my-chatgpt-files.
+
+Replace the default README with a short, beginner-friendly explanation that this repository contains files and notes that I manage with ChatGPT.</code></pre>
+        <p>ChatGPT may ask you to approve the action. Approve it when it matches what you requested.</p>
+      </section>
+
+      <section class="section" id="check">
+        <div class="section-heading"><div class="icon">🔎</div><h2>6. Check the result</h2></div>
+        <p>Return to GitHub, open the <code>my-chatgpt-files</code> repository, and select <code>README.md</code>. You should see the text created by ChatGPT.</p>
+        <p>GitHub keeps a record of the change, allowing you to inspect what changed and see earlier versions later.</p>
+      </section>
+
+      <section class="section" id="create-file">
+        <div class="section-heading"><div class="icon">📝</div><h2>7. Ask ChatGPT to create a file</h2></div>
+        <pre><button class="copy" type="button">Copy</button><code>Create a file named ideas.md in my repository named my-chatgpt-files.
+
+Add the heading "Ideas" and a short list of useful things I could store in this repository.</code></pre>
+        <p>Return to GitHub and confirm that <code>ideas.md</code> appears. You have now edited an existing file and created a new one.</p>
+      </section>
+
+      <section class="section" id="future">
+        <div class="section-heading"><div class="icon">💬</div><h2>8. How to ask for future changes</h2></div>
+        <p>A useful request normally needs the repository name, the desired change, and any important requirements.</p>
+        <pre><button class="copy" type="button">Copy</button><code>Update ideas.md in my repository named my-chatgpt-files.
+
+Organize the ideas into Personal, Home, and Work sections.</code></pre>
+        <p>Concentrate on describing the result you want.</p>
+      </section>
+
+      <section class="section" id="pr">
+        <div class="section-heading"><div class="icon">⑂</div><h2>9. What a pull request is</h2></div>
+        <p>A <strong>pull request (PR)</strong> lets you review proposed changes before adding them to the repository's main version. It is useful for larger or important changes.</p>
+        <pre><button class="copy" type="button">Copy</button><code>Make the changes on a new branch and open a pull request for me to review.</code></pre>
+        <h3>Review and merge a PR</h3>
+        <ol>
+          <li>Open the pull request link in GitHub.</li>
+          <li>Read the summary on the <strong>Conversation</strong> tab.</li>
+          <li>Open <strong>Files changed</strong>.</li>
+          <li>Review the changes. Green lines were added; red lines were removed.</li>
+          <li>Ask ChatGPT to correct anything that is wrong.</li>
+          <li>Select <strong>Merge pull request</strong>, then <strong>Confirm merge</strong>.</li>
+        </ol>
+        <div class="callout"><strong>Merge</strong> means accepting the proposed changes and adding them to the repository's main version.</div>
+        <div class="links">
+          <a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests">↗ About pull requests</a>
+          <a href="https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request">↗ Reviewing proposed changes</a>
+          <a href="https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/merging-a-pull-request">↗ Merging a pull request</a>
+        </div>
+      </section>
+
+      <section class="section" id="access">
+        <div class="section-heading"><div class="icon">🔐</div><h2>10. Give ChatGPT access to another repository</h2></div>
+        <ol>
+          <li>Open GitHub <strong>Settings</strong>.</li>
+          <li>Open <strong>Applications</strong>.</li>
+          <li>Find <strong>ChatGPT Codex Connector</strong> under installed GitHub apps.</li>
+          <li>Select <strong>Configure</strong>.</li>
+          <li>Add the repository under <strong>Repository access</strong> and save.</li>
+        </ol>
+        <p>You normally do not need to reinstall the connector; just add the new repository to its allowed list.</p>
+      </section>
+
+      <section class="section" id="safety">
+        <div class="section-heading"><div class="icon">🛡️</div><h2>Basic safety</h2></div>
+        <ul>
+          <li>Do not store passwords, recovery codes, API keys, or financial information in GitHub.</li>
+          <li>Give the connector access only to repositories it needs.</li>
+          <li>Review important changes after ChatGPT makes them.</li>
+          <li>Use a pull request when you want a separate review step.</li>
+          <li>Remove repository access when it is no longer needed.</li>
+        </ul>
+        <div class="workflow" aria-label="Complete workflow">
+          <div>1. Create repo</div>
+          <div>2. Grant access</div>
+          <div>3. Ask ChatGPT</div>
+          <div>4. Review result</div>
+          <div>5. Merge PR if used</div>
+        </div>
+      </section>
+
+      <footer>GitHub + ChatGPT beginner tutorial · Self-contained HTML version</footer>
+    </main>
+  </div>
+
+  <script>
+    document.querySelectorAll(".copy").forEach(button => {
+      button.addEventListener("click", async () => {
+        const text = button.nextElementSibling.innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          const old = button.textContent;
+          button.textContent = "Copied";
+          setTimeout(() => button.textContent = old, 1400);
+        } catch {
+          button.textContent = "Select text";
+        }
+      });
+    });
+  </script>
+</body>
+</html>
