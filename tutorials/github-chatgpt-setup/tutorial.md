@@ -6,6 +6,15 @@ This guide shows you how to create a GitHub account and repository, connect GitH
 
 You do not need to know programming, Git, or source control. You also do not need to install anything.
 
+## What you will do
+
+1. Create a free GitHub account.
+2. Create a private repository.
+3. Connect the GitHub plugin to ChatGPT.
+4. Ask ChatGPT to edit the repository's README.
+5. Ask ChatGPT to create a new file.
+6. Learn when a pull request is useful.
+
 ## 1. The basic ideas
 
 **GitHub** is a website for storing projects and keeping a history of their files.
@@ -63,6 +72,8 @@ In ChatGPT:
 3. Find the **GitHub** plugin.
 4. Select it and choose **Connect**.
 
+If **Plugins** is not visible in the sidebar, open **Settings → Plugins**.
+
 ChatGPT will send you to GitHub to install or authorize the **ChatGPT Codex Connector**.
 
 When GitHub asks which repositories it may access:
@@ -74,9 +85,11 @@ When GitHub asks which repositories it may access:
 
 Return to ChatGPT when the connection is complete. A newly connected repository may take a few minutes to appear.
 
+When you ask ChatGPT to use the repository, it may select GitHub automatically. If it does not, start the request with `@GitHub`, or select **+ → More → GitHub** before sending it.
+
 **For more information, read:**
 
-- [Plugins in ChatGPT and Codex](https://help.openai.com/en/articles/20001256-plugins-in-codex)
+- [Plugins in ChatGPT and Codex](https://help.openai.com/en/articles/20001256)
 - [ChatGPT Codex Connector on GitHub](https://github.com/apps/chatgpt-codex-connector)
 
 ## 5. Give ChatGPT its first task
@@ -189,8 +202,9 @@ Make the changes on a new branch and open a pull request for me to review.
 2. Read the summary on the **Conversation** tab.
 3. Open **Files changed**.
 4. Review the changes. Green lines were added; red lines were removed.
-5. Ask ChatGPT to correct anything that is wrong.
-6. When the result looks right, select **Merge pull request**, then **Confirm merge**.
+5. To flag a problem, leave a comment in GitHub or ask ChatGPT to correct it.
+6. Check the updated files after corrections are made.
+7. When the result looks right, select **Merge pull request**, then **Confirm merge**.
 
 **Merging** means accepting the proposed changes and adding them to the repository's main version. GitHub may then offer to delete the temporary branch used for the PR.
 
@@ -219,7 +233,7 @@ You normally do not need to reinstall the connector. You only need to add the ne
 
 - Do not store passwords, recovery codes, API keys, or financial information in GitHub.
 - Give the connector access only to repositories it needs.
-- Review important changes after ChatGPT makes them.
+- Review the result after ChatGPT changes a repository, especially for important work.
 - Use a pull request when you want a separate review step.
 - Remove repository access when it is no longer needed.
 
