@@ -21,7 +21,17 @@ jobs:
           fetch-depth: 0
 
       - name: Apply race HUD source changes
-        run: python .github/scripts/apply_live_race_hud.py
+        shell: bash
+        run: |
+          python .github/scripts/apply_live_race_hud.py
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('simulations/group-aware-boarding/src/js/app.js')
+          text=path.read_text(encoding='utf-8')
+          text=text.replace('  lastPaint:0\n};','  lastPaint:-Infinity\n};',1)
+          text=text.replace('  raceHud.lastPaint=0;','  raceHud.lastPaint=-Infinity;',1)
+          path.write_text(text,encoding='utf-8')
+          PY
 
       - name: Validate JavaScript and race ranking helpers
         shell: bash
@@ -113,6 +123,7 @@ jobs:
           assert 'const APP_VERSION = "3.1.0"' in dist
           assert 'function renderRaceHud' in dist
           assert 'function detectRaceEvents' in dist
+          assert 'lastPaint:-Infinity' in dist
           assert 'for(const method of METHODS) sims[method].step(FIXED_DT)' in dist
           assert 'Live race HUD and visual event callouts' in model
           assert 'First visual slice — done in candidate' in task
@@ -148,14 +159,15 @@ jobs:
           from pathlib import Path
           for path in ['/tmp/source.html','/tmp/dist.html']:
               html=Path(path).read_text(encoding='utf-8')
-              rows=re.findall(r'<button[^>]+class="race-row[^"]*"[^>]+data-method="([^"]+)"',html)
-              visible=[method for method,attrs in re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',html) if 'hidden' not in attrs]
-              status=re.search(r'id="methodSelectionStatus"[^>]*>(.*?)</span>',html,re.S)
+              rendered=re.sub(r'<script\b.*?</script>','',html,flags=re.S)
+              rows=re.findall(r'<button[^>]+class="race-row[^"]*"[^>]+data-method="([^"]+)"',rendered)
+              visible=[method for method,attrs in re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',rendered) if 'hidden' not in attrs]
+              status=re.search(r'id="methodSelectionStatus"[^>]*>(.*?)</span>',rendered,re.S)
               print(path,'rows=',rows,'visible=',visible,'status=',status.group(1).strip() if status else 'missing')
               assert rows==['random','steffen'], (path,rows)
-              assert 'v3.1.0' in html
-              assert 'id="raceClock"' in html
-              assert 'class="race-events-empty"' in html
+              assert 'v3.1.0' in rendered
+              assert 'id="raceClock"' in rendered
+              assert 'class="race-events-empty"' in rendered
               assert visible==['random','steffen'], visible
           model=Path('/tmp/model.html').read_text(encoding='utf-8')
           assert 'Live race HUD and visual event callouts' in model
