@@ -21,7 +21,10 @@ jobs:
           fetch-depth: 0
 
       - name: Apply modular source changes
-        run: python .github/scripts/apply_method_selection_layout.py
+        shell: bash
+        run: |
+          sed -i "s/'        for(const method of METHODS){'/'      for(const method of METHODS){'/" .github/scripts/apply_method_selection_layout.py
+          python .github/scripts/apply_method_selection_layout.py
 
       - name: Validate JavaScript and race-view helpers
         shell: bash
