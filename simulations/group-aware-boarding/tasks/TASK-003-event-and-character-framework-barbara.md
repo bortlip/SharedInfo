@@ -1,88 +1,64 @@
-# TASK-003: Event and Character Framework — Barbara
+# TASK-003: Event and Character Framework — Barbara and Cabin Incidents
 
-**Status:** Ready after TASK-002 hover slice  
-**Depends on:** TASK-002 hover foundation
+**Status:** Barbara, cabin incidents, and visible crew assistance implemented in candidate
 
-## Goal
+## Implemented
 
-Create a deterministic framework for memorable passenger incidents, then prove it with a visible "Barbara" scenario.
+### Barbara
 
-## Foundation now available
+- deterministic late insertion, heavy carry-on, true front-lavatory trip, return travel, and squeeze penalties
+- visible marker, direction changes, lavatory, speech bubbles, and detailed hover state
+- shared intrinsic definition across all boarding methods
 
-The passenger/seat hover slice provides reusable character presentation hooks before Barbara changes behavior:
+### Configurable disruptive passengers
 
-- optional passenger display name, role, status, and current-event fields
-- a tooltip renderer that automatically displays those fields
-- lateral row-entry motion that future character actions can reuse
-- canvas hit testing for following a named passenger while the race continues
+The advanced controls allow 0 through 3 disruptive passengers. A separate seeded stream selects eligible adult individual travelers without disturbing ordinary manifest draws.
 
-Barbara is not active yet; these fields are inert for ordinary passengers and no event timing has been introduced.
+Implemented archetypes:
 
-## Barbara concept
+- **Chatty:** two seeded story pauses that visibly block the aisle
+- **Tipsy/slow:** reduced walking speed, visible sway, and one seeded bearings pause
 
-Barbara arrives late, rejoins the queue at an inconvenient point, struggles with a heavy carry-on, requires assistance, and realizes she needs the restroom during boarding.
+Every selected traveler has a marker, role, live status, incident progress, and direct event delay in hover details. Their identity and intrinsic behavior are shared across methods; congestion-dependent consequences may differ.
 
-The humor should come from a recognizable cascade of visible actions, while the mechanics remain explicit and fair across methods.
+### Ambient cabin chatter
 
-## Presentation direction
+- Off: no ambient lines
+- Light: five seeded passengers receive one line each
+- Lively: twelve seeded passengers receive one line each
 
-Barbara's story should be shown where it happens rather than in a separate event ticker or post-race recap:
+Ambient chatter is visual only. It never changes movement or results, and each selected passenger speaks at most once.
 
-- a distinctive but tasteful visual marker around Barbara
-- short speech or thought bubbles anchored near her passenger marker
-- live character status in her hover tooltip
-- visible luggage, pauses, assistance, and movement inside the aircraft
-- optional camera emphasis that never pauses or changes the simulation
+## Fairness and safety properties
 
-## Phased delivery
+- passenger IDs remain unique and complete
+- named characters and incidents use separate random streams
+- all mechanical effects are visible in the cabin, a bubble, or hover state
+- character and incident behavior can be disabled
+- no Race Moments ticker or post-race recap
 
-### Phase 1: Deterministic character and event framework
+## Visible crew assistance — implemented
 
-- event definitions generated from the scenario seed
-- one shared Barbara definition applied identically to every boarding method
-- deterministic passenger selection or insertion without duplication
-- named-character metadata and current-event state
-- short anchored speech/thought bubbles
-- late queue insertion
-- heavy-bag stow delay
-- bounded restroom-realization pause
-- event timing and direct-delay measurements available to the model, without adding a post-race recap
+- deterministic cabin-crew actor Maya starts near the front door
+- Barbara and the third disruptive archetype perform a failed overhead-bin lift
+- requests are served first-come without teleporting the crew actor
+- crew travel, passenger yields, assistance time, and return travel are animated
+- assisted bags visibly move into their correct overhead compartment
+- passenger and crew hover details explain the live interaction and accumulated delay
+- intrinsic crew and assistance values are shared across methods
 
-### Phase 2: Assistance
+## Next slice — broader crew interactions
 
-- failed lift animation
-- selected helper or crew intervention
-- explicit assistance duration
-- visible helper-to-Barbara interaction
-
-### Phase 3: True restroom movement
-
-- bidirectional aisle travel
-- yielding and passing rules
-- front or rear restroom configuration
-- return trip to the assigned seat
-
-Phase 3 should not begin until reverse movement is designed independently; faking it invisibly would make the animation dishonest.
-
-## Fairness
-
-Barbara's intrinsic event script, timing draws, bag difficulty, and decisions are shared across all methods. Consequences may differ because she encounters different aisle and queue states.
-
-## Metrics
-
-- delay directly caused by event actions
-- passengers delayed
-- queue positions displaced
-- event duration
-- whether the event changed the winner
-
-These measurements support testing and future analysis; they do not require a post-race recap UI.
+- optional seat-finding and family-coordination requests
+- a second crew member for high-chaos scenarios
+- bounded crew-request controls separate from disruptive-passenger count
+- clearer visual signaling when multiple requests are queued
 
 ## Acceptance criteria
 
-- Event script is deterministic by seed
-- No passenger is duplicated or lost during insertion
-- Every mechanical effect is visible in the cabin, an anchored bubble, or Barbara's hover status
-- The same Barbara definition is used in every method
-- Event behavior can be disabled completely
-- No separate Race Moments ticker or post-race recap is introduced
+- scripts are deterministic by seed
+- no passenger is duplicated or lost
+- ordinary scenarios with zero disruptions preserve previous mechanical results
+- ambient chatter never changes results
+- shared links preserve incident and chatter settings
+- no separate event ticker or post-race recap is introduced

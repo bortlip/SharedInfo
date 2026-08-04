@@ -30,7 +30,62 @@ function drawBag(ctx,x,y,w,h,color,alpha=1){
 
 function bagColor(item){
   if(item.groupType==="family") return item.color||palette.family;
-  return palette[item.groupType]||palette.single;
+  return item.color||palette[item.groupType]||palette.single;
+}
+
+function wrapBubbleText(ctx,text,maxWidth){
+  const words=String(text).split(/\s+/);
+  const lines=[];
+  let line="";
+  for(const word of words){
+    const next=line?`${line} ${word}`:word;
+    if(line && ctx.measureText(next).width>maxWidth){
+      lines.push(line);
+      line=word;
+    }else line=next;
+  }
+  if(line) lines.push(line);
+  if(lines.length>3){
+    lines.length=3;
+    lines[2]=`${lines[2].replace(/[.…]*$/u,"")}…`;
+  }
+  return lines;
+}
+
+function drawCharacterBubble(ctx,text,x,y,w,h){
+  ctx.save();
+  ctx.font="700 9px system-ui";
+  const lines=wrapBubbleText(ctx,text,112);
+  const bubbleW=Math.min(132,Math.max(72,...lines.map(line=>ctx.measureText(line).width+14)));
+  const bubbleH=10+lines.length*11;
+  let bubbleX=clamp(x+12,4,w-bubbleW-4);
+  let bubbleY=y-bubbleH-15;
+  let below=false;
+  if(bubbleY<4){
+    bubbleY=y+14;
+    below=true;
+  }
+  bubbleY=clamp(bubbleY,4,h-bubbleH-4);
+  roundedRect(ctx,bubbleX,bubbleY,bubbleW,bubbleH,7);
+  ctx.fillStyle="rgba(255,249,218,.96)";
+  ctx.fill();
+  ctx.strokeStyle="#d8ae45";
+  ctx.lineWidth=1.2;
+  ctx.stroke();
+  ctx.beginPath();
+  const tailY=below?bubbleY:bubbleY+bubbleH;
+  ctx.moveTo(clamp(x,bubbleX+8,bubbleX+bubbleW-8),tailY);
+  ctx.lineTo(x,below?y+7:y-7);
+  ctx.lineTo(clamp(x+8,bubbleX+8,bubbleX+bubbleW-8),tailY);
+  ctx.fillStyle="rgba(255,249,218,.96)";
+  ctx.fill();
+  ctx.strokeStyle="#d8ae45";
+  ctx.stroke();
+  ctx.fillStyle="#34270d";
+  ctx.textAlign="left";
+  ctx.textBaseline="top";
+  lines.forEach((line,index)=>ctx.fillText(line,bubbleX+7,bubbleY+6+index*11));
+  ctx.restore();
 }
 
 export function cabinGeometry(w,h){
@@ -60,12 +115,36 @@ export function seatRect(geometry,row,col){
   return {x,y,w:geometry.seatW,h:geometry.rowH-2,cx:x+geometry.seatW/2,cy:y+(geometry.rowH-2)/2};
 }
 
+export function crewPoint(crew,geometry){
+  const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+  let x=aisleCenter;
+  let y=geometry.top+(clamp(crew.pos,0,ROWS)-.5)*geometry.rowH;
+  if(crew.state==="idle"){
+    x=aisleCenter-geometry.aisleW*.28;
+    y=geometry.top-18;
+  }else if(crew.state==="walking-to-passenger") x=aisleCenter-geometry.aisleW*.24;
+  else if(crew.state==="returning-front") x=aisleCenter+geometry.aisleW*.24;
+  else if(crew.state==="assisting") x=aisleCenter+(crew.targetPassengerId%2?1:-1)*geometry.aisleW*.2;
+  if((crew.squeezeDelayRemaining||0)>0) x+=Math.sin(crew.pos*8)*2;
+  return {crew,x,y};
+}
+
 export function passengerPoint(passenger,geometry){
   const aisleCenter=geometry.aisleX+geometry.aisleW/2;
   const baseX=aisleCenter+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08);
   let x=baseX;
   let y=geometry.top+(clamp(passenger.pos,0,ROWS)-.5)*geometry.rowH;
   let seatingProgress=0;
+  if(passenger.state==="walking-to-restroom") x=aisleCenter-geometry.aisleW*.22;
+  else if(passenger.state==="walking-from-restroom") x=aisleCenter+geometry.aisleW*.22;
+  else if(passenger.state==="restroom"){
+    x=aisleCenter+geometry.aisleW*.32;
+    y=geometry.top-18;
+  }else if((passenger.squeezeDelayRemaining||0)>0 || (passenger.crewYieldRemaining||0)>0){
+    x=baseX+geometry.aisleW*.18;
+  }else if(passenger.incidentType==="tipsy" && passenger.state==="walking"){
+    x=baseX+Math.sin((passenger.pos+passenger.id)*5)*2.4;
+  }
   if(passenger.state==="seating"){
     const target=seatRect(geometry,passenger.row,passenger.col);
     const duration=Math.max(.001,passenger.seatingDuration||passenger.remaining||1);
@@ -85,6 +164,11 @@ export function hitTestSim(sim,canvas,clientX,clientY){
   const x=(clientX-rect.left)*canvas.width/rect.width;
   const y=(clientY-rect.top)*canvas.height/rect.height;
   const geometry=cabinGeometry(canvas.width,canvas.height);
+
+  const crew=crewPoint(sim.crew,geometry);
+  if(Math.hypot(x-crew.x,y-crew.y)<=12){
+    return {kind:"crew",crew:sim.crew,point:crew};
+  }
 
   const active=(sim.active||[]).map(passenger=>passengerPoint(passenger,geometry));
   for(let index=active.length-1;index>=0;index--){
@@ -133,7 +217,7 @@ export function drawSim(sim,canvas){
   }
   const activeStows=new Set(
     sim.active
-      .filter(p=>p.state==="stowing" && p.hasBag)
+      .filter(p=>(p.state==="stowing" || p.state==="crew-assist") && p.hasBag)
       .map(p=>`${p.row}${p.side}`)
   );
 
@@ -203,6 +287,19 @@ export function drawSim(sim,canvas){
   ctx.font="10px system-ui";
   ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
 
+  const lavW=Math.min(36,Math.max(28,seatW*1.25));
+  const lavH=22;
+  const lavX=Math.min(w-lavW-4,rightX+3*seatW+2*gap-lavW);
+  const lavY=top-29;
+  roundedRect(ctx,lavX,lavY,lavW,lavH,5);
+  ctx.fillStyle="#10283c";
+  ctx.fill();
+  ctx.strokeStyle="#4c7898";
+  ctx.stroke();
+  ctx.fillStyle="#b8c9df";
+  ctx.font="800 8px system-ui";
+  ctx.fillText("LAV",lavX+lavW/2,lavY+lavH/2+.5);
+
   const points=sim.active.map(passenger=>passengerPoint(passenger,geometry));
   const activeFamilies=new Map();
   for(const point of points){
@@ -226,7 +323,7 @@ export function drawSim(sim,canvas){
   }
 
   for(const {p,x,y,seatingProgress} of points){
-    const color=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+    const color=p.characterColor||(p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType]);
     if(p.state==="seating"){
       const target=seatRect(geometry,p.row,p.col);
       ctx.save();
@@ -243,9 +340,9 @@ export function drawSim(sim,canvas){
     if(p.hasBag && !p.bagStowed){
       let bagX=x+(p.side==="L"?-10:4);
       let bagY=y-2;
-      if(p.state==="stowing"){
+      if(p.state==="stowing" || p.state==="crew-assist"){
         const targetX=p.side==="L"?leftBinX+binW/2:rightBinX+binW/2;
-        const duration=Math.max(.001,p.stowDuration||p.remaining||1);
+        const duration=Math.max(.001,p.state==="crew-assist"?(p.crewAssistTotal||p.remaining||1):(p.stowDuration||p.remaining||1));
         const progress=clamp(1-p.remaining/duration,0,1);
         const eased=1-Math.pow(1-progress,2);
         bagX=(x-3.5)+(targetX-x)*eased;
@@ -263,13 +360,32 @@ export function drawSim(sim,canvas){
     }
 
     const radius=p.isChild?4.3:5.6;
-    if(p.characterId){
+    if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+      ctx.save();
+      ctx.fillStyle="rgba(255,240,168,.9)";
+      ctx.font="900 9px system-ui";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText(p.state==="walking-to-restroom"?"↑":"↓",x,y-10);
+      ctx.restore();
+    }
+    if((p.squeezeDelayRemaining||0)>0 && !p.characterId){
       ctx.beginPath();
-      ctx.arc(x,y,radius+3.5,0,Math.PI*2);
-      ctx.strokeStyle="#fff0a8";
-      ctx.lineWidth=1.7;
+      ctx.arc(x,y,radius+2.6,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,207,102,.75)";
+      ctx.lineWidth=1.2;
       ctx.stroke();
     }
+if(p.characterId){
+
+  const pulse=3.5+Math.sin(sim.time*5)*.7;
+  ctx.beginPath();
+  ctx.arc(x,y,radius+pulse,0,Math.PI*2);
+  ctx.strokeStyle="#fff0a8";
+  ctx.lineWidth=1.7;
+  ctx.stroke();
+}
+
     ctx.beginPath();
     ctx.arc(x,y,radius,0,Math.PI*2);
     ctx.fillStyle=color;
@@ -283,6 +399,58 @@ export function drawSim(sim,canvas){
       ctx.lineWidth=1.7;
       ctx.stroke();
     }
+    if(p.characterId){
+      ctx.fillStyle="#2b2108";
+      ctx.font="900 7px system-ui";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText(p.characterLabel||"•",x,y+.3);
+    }
+  }
+
+  const crewVisual=crewPoint(sim.crew,geometry);
+  const crewTarget=sim.crew.targetPassengerId==null?null:points.find(point=>point.p.id===sim.crew.targetPassengerId);
+  if(sim.crew.state==="assisting" && crewTarget){
+    ctx.save();
+    ctx.setLineDash([3,3]);
+    ctx.strokeStyle="rgba(86,224,181,.7)";
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(crewVisual.x,crewVisual.y);
+    ctx.lineTo(crewTarget.x,crewTarget.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.save();
+  const crewRadius=6.2;
+  if(sim.crew.state==="assisting"){
+    ctx.beginPath();
+    ctx.arc(crewVisual.x,crewVisual.y,crewRadius+3+Math.sin(sim.time*6)*.7,0,Math.PI*2);
+    ctx.strokeStyle="rgba(141,255,218,.88)";
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(crewVisual.x,crewVisual.y,crewRadius,0,Math.PI*2);
+  ctx.fillStyle=sim.crew.color||"#56e0b5";
+  ctx.fill();
+  ctx.strokeStyle="#eafff7";
+  ctx.lineWidth=1.2;
+  ctx.stroke();
+  ctx.fillStyle="#09261e";
+  ctx.font="900 6px system-ui";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText("FA",crewVisual.x,crewVisual.y+.2);
+  ctx.restore();
+
+  for(const {p,x,y} of points){
+    if(p.bubbleText && (p.bubbleUntil||0)>=sim.time){
+      drawCharacterBubble(ctx,p.bubbleText,x,y,w,h);
+    }
+  }
+  if(sim.crew.bubbleText && (sim.crew.bubbleUntil||0)>=sim.time){
+    drawCharacterBubble(ctx,sim.crew.bubbleText,crewVisual.x,crewVisual.y,w,h);
   }
 
   for(const members of activeFamilies.values()){

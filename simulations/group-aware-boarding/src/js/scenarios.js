@@ -8,89 +8,67 @@ export const DEFAULT_SCENARIO_SETTINGS = {
   bagRate:70,
   sequenceCompliance:100,
   priorityPolicy:"assist",
+  disruptivePassengers:0,
+  chatter:"light",
   speed:16,
   seed:12345,
-  trials:40
+  trials:40,
+  characterScenario:"none"
 };
 
 // Set `included` to false to remove a scenario from the selector without deleting its definition.
 export const SCENARIO_PRESETS = [
   {
-    id:"smooth-business",
-    included:true,
-    name:"Smooth Business Route",
-    emoji:"💼",
+    id:"smooth-business",included:true,name:"Smooth Business Route",emoji:"💼",
     description:"Experienced travelers, lots of carry-ons, and almost everyone follows the plan.",
-    settings:{loadFactor:85,familyShare:5,partyWeights:[60,25,10,5],assistedParties:1,bagRate:80,sequenceCompliance:95,priorityPolicy:"assist",speed:16,seed:81317,trials:40}
+    settings:{loadFactor:85,familyShare:5,partyWeights:[60,25,10,5],assistedParties:1,bagRate:80,sequenceCompliance:95,priorityPolicy:"assist",disruptivePassengers:0,chatter:"off",speed:16,seed:81317,trials:40}
   },
   {
-    id:"family-vacation",
-    included:true,
-    name:"Family Vacation",
-    emoji:"🏖️",
+    id:"family-vacation",included:true,name:"Family Vacation",emoji:"🏖️",
     description:"A full flight with plenty of families, children, bags, and respectable queue manners.",
     settings:{...DEFAULT_SCENARIO_SETTINGS}
   },
   {
-    id:"holiday-crush",
-    included:true,
-    name:"Holiday Crush",
-    emoji:"🎄",
+    id:"holiday-crush",included:true,name:"Holiday Crush",emoji:"🎄",
     description:"The cabin is full, the bags are plentiful, and every third person appears to know someone ahead of them.",
-    settings:{loadFactor:100,familyShare:45,partyWeights:[10,28,38,24],assistedParties:4,bagRate:85,sequenceCompliance:75,priorityPolicy:"allgroups",speed:16,seed:122425,trials:40}
+    settings:{loadFactor:100,familyShare:45,partyWeights:[10,28,38,24],assistedParties:4,bagRate:85,sequenceCompliance:75,priorityPolicy:"allgroups",disruptivePassengers:2,chatter:"lively",speed:16,seed:122425,trials:40}
   },
   {
-    id:"light-hop",
-    included:true,
-    name:"Lightly Loaded Hop",
-    emoji:"🪽",
+    id:"light-hop",included:true,name:"Lightly Loaded Hop",emoji:"🪽",
     description:"Half the seats are empty, the aisle can breathe, and nobody needs to make this complicated.",
-    settings:{loadFactor:55,familyShare:15,partyWeights:[40,35,18,7],assistedParties:1,bagRate:45,sequenceCompliance:95,priorityPolicy:"none",speed:16,seed:5517,trials:40}
+    settings:{loadFactor:55,familyShare:15,partyWeights:[40,35,18,7],assistedParties:1,bagRate:45,sequenceCompliance:95,priorityPolicy:"none",disruptivePassengers:0,chatter:"light",speed:16,seed:5517,trials:40}
   },
   {
-    id:"perfect-lab",
-    included:true,
-    name:"Perfect Laboratory Conditions",
-    emoji:"🧪",
+    id:"perfect-lab",included:true,name:"Perfect Laboratory Conditions",emoji:"🧪",
     description:"A controlled baseline: perfect compliance and no dramatic improvisation from the passengers.",
-    settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:70,sequenceCompliance:100,priorityPolicy:"assist",speed:16,seed:24680,trials:40}
+    settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:70,sequenceCompliance:100,priorityPolicy:"assist",disruptivePassengers:0,chatter:"off",speed:16,seed:24680,trials:40}
   },
   {
-    id:"assisted-heavy",
-    included:true,
-    name:"Assisted-Heavy Flight",
-    emoji:"🫶",
+    id:"assisted-heavy",included:true,name:"Assisted-Heavy Flight",emoji:"🫶",
     description:"More travelers need extra time and companions, so priority policy matters much more.",
-    settings:{loadFactor:90,familyShare:20,partyWeights:[38,34,20,8],assistedParties:10,bagRate:60,sequenceCompliance:95,priorityPolicy:"assist",speed:16,seed:77001,trials:40}
+    settings:{loadFactor:90,familyShare:20,partyWeights:[38,34,20,8],assistedParties:10,bagRate:60,sequenceCompliance:95,priorityPolicy:"assist",disruptivePassengers:0,chatter:"light",speed:16,seed:77001,trials:40}
   },
   {
-    id:"maximum-carryons",
-    included:true,
-    name:"Maximum Carry-ons",
-    emoji:"🧳",
+    id:"maximum-carryons",included:true,name:"Maximum Carry-ons",emoji:"🧳",
     description:"Everyone brought a bag. The overhead bins have entered the chat.",
-    settings:{loadFactor:100,familyShare:25,partyWeights:[25,35,25,15],assistedParties:3,bagRate:100,sequenceCompliance:90,priorityPolicy:"assist",speed:16,seed:99991,trials:40}
+    settings:{loadFactor:100,familyShare:25,partyWeights:[25,35,25,15],assistedParties:3,bagRate:100,sequenceCompliance:90,priorityPolicy:"assist",disruptivePassengers:1,chatter:"light",speed:16,seed:99991,trials:40}
   },
   {
-    id:"low-compliance-chaos",
-    included:true,
-    name:"Low-Compliance Chaos",
-    emoji:"🌪️",
+    id:"low-compliance-chaos",included:true,name:"Low-Compliance Chaos",emoji:"🌪️",
     description:"The boarding order is more of a gentle suggestion than an enforceable policy.",
-    settings:{loadFactor:100,familyShare:35,partyWeights:[15,30,35,20],assistedParties:5,bagRate:85,sequenceCompliance:35,priorityPolicy:"none",speed:16,seed:40404,trials:40}
+    settings:{loadFactor:100,familyShare:35,partyWeights:[15,30,35,20],assistedParties:5,bagRate:85,sequenceCompliance:35,priorityPolicy:"none",disruptivePassengers:3,chatter:"lively",speed:16,seed:40404,trials:40}
   },
   {
-    id:"barbara",
-    included:true,
-    name:"Barbara Mode",
-    emoji:"🍷",
+    id:"barbara",included:true,name:"Barbara Mode",emoji:"🍷",
     description:"She is late. Her bag is heavy. She has made several decisions.",
-    disabled:true
+    settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:82,sequenceCompliance:88,priorityPolicy:"assist",disruptivePassengers:1,chatter:"lively",speed:16,seed:8675309,trials:40,characterScenario:"barbara"}
   }
 ];
 
 const PRIORITY_POLICIES = new Set(["assist","allgroups","none"]);
 const SPEEDS = new Set([4,16,64,256]);
+const CHARACTER_SCENARIOS = new Set(["none","barbara"]);
+const CHATTER_LEVELS = new Set(["off","light","lively"]);
 
 function bounded(value,min,max,fallback,integer=false){
   const n=Number(value);
@@ -119,9 +97,12 @@ export function normalizeScenarioSettings(input={}){
     bagRate:bounded(input.bagRate,0,100,fallback.bagRate),
     sequenceCompliance:bounded(input.sequenceCompliance,0,100,fallback.sequenceCompliance),
     priorityPolicy:priority,
+    disruptivePassengers:bounded(input.disruptivePassengers,0,3,fallback.disruptivePassengers,true),
+    chatter:CHATTER_LEVELS.has(input.chatter)?input.chatter:fallback.chatter,
     speed:SPEEDS.has(speedValue)?speedValue:fallback.speed,
     seed:bounded(input.seed,1,2147483646,fallback.seed,true),
-    trials:bounded(input.trials,5,200,fallback.trials,true)
+    trials:bounded(input.trials,5,200,fallback.trials,true),
+    characterScenario:CHARACTER_SCENARIOS.has(input.characterScenario)?input.characterScenario:fallback.characterScenario
   };
 }
 
@@ -135,9 +116,12 @@ export function settingsEqual(left,right){
     && a.bagRate===b.bagRate
     && a.sequenceCompliance===b.sequenceCompliance
     && a.priorityPolicy===b.priorityPolicy
+    && a.disruptivePassengers===b.disruptivePassengers
+    && a.chatter===b.chatter
     && a.speed===b.speed
     && a.seed===b.seed
-    && a.trials===b.trials;
+    && a.trials===b.trials
+    && a.characterScenario===b.characterScenario;
 }
 
 export function matchingPreset(settings){
@@ -146,24 +130,18 @@ export function matchingPreset(settings){
 
 export function parseScenarioSearch(search){
   const params=new URLSearchParams(search||"");
-  if(!params.has("v")) return null;
-  if(Number(params.get("v"))!==SCENARIO_SCHEMA_VERSION) return null;
-
+  if(!params.has("v") || Number(params.get("v"))!==SCENARIO_SCHEMA_VERSION) return null;
   const defaults=DEFAULT_SCENARIO_SETTINGS;
   const get=(key,fallback)=>params.has(key)?params.get(key):fallback;
   const weights=params.has("pw")?params.get("pw").split(","):defaults.partyWeights;
-  const partyWeights=weights.length===4?weights:defaults.partyWeights;
   return normalizeScenarioSettings({
-    loadFactor:get("lf",defaults.loadFactor),
-    familyShare:get("fs",defaults.familyShare),
-    partyWeights,
-    assistedParties:get("ap",defaults.assistedParties),
-    bagRate:get("br",defaults.bagRate),
-    sequenceCompliance:get("sc",defaults.sequenceCompliance),
-    priorityPolicy:get("pp",defaults.priorityPolicy),
-    speed:get("sp",defaults.speed),
-    seed:get("sd",defaults.seed),
-    trials:get("tr",defaults.trials)
+    loadFactor:get("lf",defaults.loadFactor),familyShare:get("fs",defaults.familyShare),
+    partyWeights:weights.length===4?weights:defaults.partyWeights,
+    assistedParties:get("ap",defaults.assistedParties),bagRate:get("br",defaults.bagRate),
+    sequenceCompliance:get("sc",defaults.sequenceCompliance),priorityPolicy:get("pp",defaults.priorityPolicy),
+    disruptivePassengers:get("dp",defaults.disruptivePassengers),chatter:get("ct",defaults.chatter),
+    speed:get("sp",defaults.speed),seed:get("sd",defaults.seed),trials:get("tr",defaults.trials),
+    characterScenario:get("ch",defaults.characterScenario)
   });
 }
 
@@ -172,15 +150,11 @@ export function serializeScenarioSettings(settings,presetId="custom"){
   const params=new URLSearchParams();
   params.set("v",String(SCENARIO_SCHEMA_VERSION));
   params.set("pr",presetId||"custom");
-  params.set("lf",String(value.loadFactor));
-  params.set("fs",String(value.familyShare));
-  params.set("pw",value.partyWeights.join(","));
-  params.set("ap",String(value.assistedParties));
-  params.set("br",String(value.bagRate));
-  params.set("sc",String(value.sequenceCompliance));
-  params.set("pp",value.priorityPolicy);
-  params.set("sp",String(value.speed));
-  params.set("sd",String(value.seed));
-  params.set("tr",String(value.trials));
+  params.set("lf",String(value.loadFactor));params.set("fs",String(value.familyShare));
+  params.set("pw",value.partyWeights.join(","));params.set("ap",String(value.assistedParties));
+  params.set("br",String(value.bagRate));params.set("sc",String(value.sequenceCompliance));
+  params.set("pp",value.priorityPolicy);params.set("dp",String(value.disruptivePassengers));
+  params.set("ct",value.chatter);params.set("sp",String(value.speed));params.set("sd",String(value.seed));
+  params.set("tr",String(value.trials));params.set("ch",value.characterScenario);
   return params.toString();
 }

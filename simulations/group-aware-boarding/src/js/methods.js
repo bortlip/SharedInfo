@@ -1,4 +1,5 @@
 import { ROWS } from "./constants.js";
+import { repositionCharacterPassengers } from "./characters.js";
 
 function internalOrder(unit){
   const p=unit.passengers.slice();
@@ -78,6 +79,7 @@ export function makeQueue(manifest,method,priorityPolicy,sequenceCompliance){
       partySeatedColor:unit.partySeatedColor||null
     }));
   }
+  repositionCharacterPassengers(queue);
   queue.forEach((p,index)=>p.queueIndex=index);
   return queue;
 }

@@ -52,7 +52,7 @@
   <details class="card controls advanced-controls">
     <summary>
       <span>Advanced flight settings</span>
-      <small>Load, families, luggage, compliance, speed, and seed</small>
+      <small>Load, families, luggage, compliance, cabin personality, speed, and seed</small>
     </summary>
     <div class="advanced-body">
       <div class="control-grid">
@@ -93,6 +93,23 @@
             <option value="assist">Assisted parties first</option>
             <option value="allgroups">All grouped parties first</option>
             <option value="none">No preboarding</option>
+          </select>
+        </label>
+        <label>
+          Disruptive passengers
+          <select id="disruptivePassengers">
+            <option value="0">None</option>
+            <option value="1">1 passenger</option>
+            <option value="2">2 passengers</option>
+            <option value="3">3 passengers</option>
+          </select>
+        </label>
+        <label>
+          Cabin chatter
+          <select id="chatter">
+            <option value="off">Off</option>
+            <option value="light" selected>Light</option>
+            <option value="lively">Lively</option>
           </select>
         </label>
         <label>

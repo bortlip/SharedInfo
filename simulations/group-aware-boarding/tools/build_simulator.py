@@ -36,6 +36,7 @@ MODULE_ORDER = [
     "version.js",
     "random.js",
     "scenarios.js",
+    "characters.js",
     "manifest.js",
     "methods.js",
     "simulation.js",

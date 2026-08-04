@@ -30,6 +30,9 @@ export function benchmarkSignature(cfg,trials,methods=[]){
     bagRate:cfg.bagRate,
     sequenceCompliance:cfg.sequenceCompliance,
     priorityPolicy:cfg.priorityPolicy,
+    disruptivePassengers:cfg.disruptivePassengers||0,
+    chatter:cfg.chatter||"off",
+    characterScenario:cfg.characterScenario||"none",
     seed:cfg.seed,
     trials,
     methods:[...methods]

@@ -70,9 +70,53 @@ Hovering a visible passenger dot or seat shows a non-blocking tooltip. Passenger
 
 During the existing `seating` state, the renderer now interpolates the passenger laterally from the aisle toward the assigned seat. The interpolation uses the already-calculated seating duration, including any seat-conflict delay, but it is visual only: the state transition still completes at exactly the same simulated time.
 
-Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara and do not introduce event behavior on their own.
+Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara.
+
+### Barbara Mode and the character-event foundation
+
+Barbara Mode activates one deterministic named-passenger script. A character-specific pseudorandom stream selects an eligible adult individual after the ordinary manifest has been generated, so enabling or disabling Barbara does not disturb the ordinary seat, family, speed, or timing draws. Her seat and intrinsic character values are shared by all six methods.
+
+Each method first constructs its normal queue. Barbara is then removed exactly once and reinserted at the same seed-derived late-arrival fraction of that queue. Her hover tooltip shows both the resulting boarding position and the position she would have occupied under that method before arriving late. Queue construction tests require every passenger ID to remain present exactly once.
+
+Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay.
+
+Before reaching her seat, Barbara turns around at a seeded row and walks to the front lavatory. After a seeded lavatory duration she walks back to her assigned row and resumes the ordinary stow-and-seat sequence. Her turn row, travel speed, lavatory duration, and squeeze durations are intrinsic seeded values shared by every method.
+
+The aisle remains a one-dimensional movement model rather than becoming two full lanes. When Barbara's travel path crosses another active passenger, the simulator records one squeeze interaction for that direction. Barbara shifts to one side of the aisle, the other passenger shifts to the other side, and both receive deterministic temporary speed penalties. The crossed passenger's hover details show the accumulated disruption time. Barbara may cross the same passenger once outbound and once on her return, but repeated time steps cannot count the same directional crossing twice.
+
+The front door stops releasing new passengers while Barbara occupies the doorway area or lavatory. Her live hover details report total trip time, estimated extra delay above the forward walk she abandoned, and the number of passenger crossings. The exact number of crossings can differ by boarding method because surrounding congestion differs, while Barbara's intrinsic script remains identical.
+
+A pulsing marker, direction arrows, a visible front-lavatory marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.
+
+### Configurable cabin incidents and chatter
+
+The advanced settings independently control `Disruptive passengers` and `Cabin chatter`.
+
+Disruptive-passenger count is clamped to 0 through 3. A separate seeded incident stream selects eligible adult individual travelers after the ordinary manifest is complete, so incident selection does not consume or shift the random draws used for seats, families, bags, or normal timing. The same selected travelers and intrinsic incident values are shared across all methods.
+
+The current mechanical archetypes are:
+
+- **Chatty:** pauses twice at seeded aisle rows to finish a story. Each pause blocks the aisle, produces a visible bubble, and adds to that passenger's direct event delay.
+- **Tipsy/slow:** receives a seeded walking-speed reduction, a visible lateral sway, and one seeded aisle pause to regain their bearings.
+
+The number and timing of downstream delays can differ by method because nearby passengers and congestion differ. These travelers have distinct markers and live hover status. `Disruptive passengers: None` disables both archetypes completely.
+
+Cabin chatter is separate and presentation-only. `Off`, `Light`, and `Lively` deterministically assign zero, five, or twelve ordinary passengers one short line each. A line appears once when its passenger crosses a seeded row. Ambient bubbles do not pause movement, alter queue order, add delay, or affect benchmark results. The small fixed population and one-line limit prevent the display from becoming a continuous wall of speech.
+
+### Visible cabin-crew assistance
+
+Every manifest includes one deterministic front-cabin crew definition named Maya. The crew actor is visible near the front door even when idle, but an idle crew member has no mechanical effect.
+
+Barbara and the `Needs help` disruptive archetype perform a visible failed-lift attempt when they reach the overhead bin. The passenger then remains in the aisle and submits a first-come crew request. Maya walks from her current position to the passenger rather than teleporting, performs a seeded assistance interval, visibly raises the bag into the correct overhead compartment, and then walks back toward the front before accepting the next waiting request.
+
+Crew travel uses the same one-dimensional squeeze abstraction as Barbara's restroom trip. When Maya crosses an active passenger, both shift laterally in the renderer; Maya slows briefly and the crossed passenger yields for a deterministic interval. The passenger's hover details retain the number and duration of crew yields. A crew hover tooltip shows Maya's current task, position, target, completed assists, traveled aisle distance, and passenger crossings.
+
+The assisted passenger blocks the aisle during the failed lift, crew wait, and lift itself. These intervals are mechanically real and contribute to boarding time. Barbara's and the help-needing passenger's identity, failed-lift duration, assistance duration, and crew definition are shared across methods, while waiting time and actual crossings may differ because each method creates different congestion.
+
+The crew actor is not included in the passenger count, does not occupy a seat, and never changes an ordinary zero-disruption flight while idle.
 
 ### Live race HUD and race graph
+
 
 The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:
 

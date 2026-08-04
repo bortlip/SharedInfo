@@ -1,5 +1,6 @@
 import { ROWS, COLS, TOTAL, familyColor } from "./constants.js";
 import { mulberry32, shuffle, clamp } from "./random.js";
+import { applyCharacterScenario } from "./characters.js";
 
 function weightedSize(rng,weights){
   const total=weights.reduce((a,b)=>a+b,0);
@@ -149,5 +150,6 @@ export function makeManifest(seed,cfg){
     finalizeUnit(unit);
   }
 
-  return {passengers,units,targetPassengers};
+  const manifest={passengers,units,targetPassengers};
+  return applyCharacterScenario(manifest,seed,cfg);
 }
