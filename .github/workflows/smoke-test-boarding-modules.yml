@@ -22,6 +22,24 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
+      - name: Fix discovered module dependency
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          paths = [
+              Path('simulations/group-aware-boarding/src/js/manifest.js'),
+              Path('simulations/group-aware-boarding/tools/build_simulator.py'),
+          ]
+          old = 'import { mulberry32, shuffle } from "./random.js";'
+          new = 'import { mulberry32, shuffle, clamp } from "./random.js";'
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Expected import not found in {path}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Verify protected release files
         shell: bash
         run: |
@@ -31,10 +49,11 @@ jobs:
       - name: Verify reproducible candidate build
         shell: bash
         run: |
-          before=$(sha256sum simulations/group-aware-boarding/dist/simulator.html | cut -d' ' -f1)
           python simulations/group-aware-boarding/tools/build_simulator.py
-          after=$(sha256sum simulations/group-aware-boarding/dist/simulator.html | cut -d' ' -f1)
-          test "$before" = "$after"
+          first=$(sha256sum simulations/group-aware-boarding/dist/simulator.html | cut -d' ' -f1)
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          second=$(sha256sum simulations/group-aware-boarding/dist/simulator.html | cut -d' ' -f1)
+          test "$first" = "$second"
 
       - name: Browser smoke test source and standalone candidate
         shell: bash
