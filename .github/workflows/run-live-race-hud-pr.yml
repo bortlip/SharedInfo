@@ -139,20 +139,23 @@ jobs:
           trap 'kill $server_pid' EXIT
           sleep 1
 
-          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/src/?static=1&m=random,steffen&view=standard' > /tmp/source.html
-          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,steffen&view=compact' > /tmp/dist.html
-          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=1200 --dump-dom 'http://127.0.0.1:8765/model.html' > /tmp/model.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/source-profile --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/src/?static=1&m=random,steffen&view=standard' > /tmp/source.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/dist-profile --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,steffen&view=compact' > /tmp/dist.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/model-profile --virtual-time-budget=1200 --dump-dom 'http://127.0.0.1:8765/model.html' > /tmp/model.html
 
           python - <<'PY'
           import re
           from pathlib import Path
           for path in ['/tmp/source.html','/tmp/dist.html']:
               html=Path(path).read_text(encoding='utf-8')
-              assert html.count('class="race-row')==2, (path,html.count('class="race-row'))
+              rows=re.findall(r'<button[^>]+class="race-row[^"]*"[^>]+data-method="([^"]+)"',html)
+              visible=[method for method,attrs in re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',html) if 'hidden' not in attrs]
+              status=re.search(r'id="methodSelectionStatus"[^>]*>(.*?)</span>',html,re.S)
+              print(path,'rows=',rows,'visible=',visible,'status=',status.group(1).strip() if status else 'missing')
+              assert rows==['random','steffen'], (path,rows)
               assert 'v3.1.0' in html
               assert 'id="raceClock"' in html
               assert 'class="race-events-empty"' in html
-              visible=[method for method,attrs in re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',html) if 'hidden' not in attrs]
               assert visible==['random','steffen'], visible
           model=Path('/tmp/model.html').read_text(encoding='utf-8')
           assert 'Live race HUD and visual event callouts' in model
