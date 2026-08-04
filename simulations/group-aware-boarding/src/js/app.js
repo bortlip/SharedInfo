@@ -5,7 +5,7 @@ import { makeManifest } from "./manifest.js";
 import { BoardingSim } from "./simulation.js";
 import { drawSim } from "./render.js";
 import { benchmarkSignature, formatTime, sameBenchmarkResults, stats } from "./format.js";
-import { rankRace, simultaneousBlockers } from "./race.js";
+import { rankRace } from "./race.js";
 import {
   SCENARIO_PRESETS,
   DEFAULT_SCENARIO_SETTINGS,
@@ -45,13 +45,11 @@ let selectedMethods = new Set(METHODS);
 let raceLayout = "standard";
 const raceHud={
   leader:null,
-  events:[],
-  seen:new Set(),
-  blocking:new Map(),
-  finished:new Set(),
   leadFlash:new Map(),
   spotlightTimer:null,
-  lastPaint:-Infinity
+  lastPaint:-Infinity,
+  chartSize:"small",
+  history:Object.fromEntries(METHODS.map(method=>[method,[]]))
 };
 
 function activeMethods(){
@@ -64,30 +62,22 @@ function ordinal(value){
   return `${value}${value%10===1?"st":value%10===2?"nd":value%10===3?"rd":"th"}`;
 }
 
+function freshRaceHistory(){
+  return Object.fromEntries(METHODS.map(method=>[method,[]]));
+}
+
 function clearRaceHud(){
   raceHud.leader=null;
-  raceHud.events=[];
-  raceHud.seen.clear();
-  raceHud.blocking.clear();
-  raceHud.finished.clear();
   raceHud.leadFlash.clear();
   raceHud.lastPaint=-Infinity;
+  raceHud.history=freshRaceHistory();
   document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
-    card.classList.remove("spotlight","event-pulse","finished-card");
+    card.classList.remove("spotlight","finished-card");
     delete card.dataset.finishPlace;
   });
   $("raceLeaderboard").innerHTML="";
-  $("raceEvents").innerHTML='<span class="race-events-empty">Lead changes, long bag stows, conflict clusters, and finish moments will appear here.</span>';
+  $("raceChartLegend").innerHTML="";
   $("raceClock").textContent="00:00";
-}
-
-function pulseMethod(method){
-  const card=document.querySelector(`.sim-card[data-method="${method}"]`);
-  if(!card || card.hidden) return;
-  card.classList.remove("event-pulse");
-  void card.offsetWidth;
-  card.classList.add("event-pulse");
-  setTimeout(()=>card.classList.remove("event-pulse"),1050);
 }
 
 function focusMethod(method){
@@ -98,79 +88,6 @@ function focusMethod(method){
   card.scrollIntoView({behavior:"smooth",block:"nearest"});
   clearTimeout(raceHud.spotlightTimer);
   raceHud.spotlightTimer=setTimeout(()=>card.classList.remove("spotlight"),1800);
-}
-
-function addRaceEvent(method,icon,text,key){
-  if(key && raceHud.seen.has(key)) return;
-  if(key) raceHud.seen.add(key);
-  raceHud.events.unshift({method,icon,text,time:sims[method]?.time||0});
-  raceHud.events=raceHud.events.slice(0,8);
-  pulseMethod(method);
-}
-
-function detectRaceEvents(rows){
-  if(!rows.length) return;
-  const leader=rows[0].method;
-  const leaderTime=sims[leader]?.time||0;
-  if(!raceHud.leader){
-    raceHud.leader=leader;
-  }else if(running && leaderTime>1 && raceHud.leader!==leader){
-    raceHud.leader=leader;
-    raceHud.leadFlash.set(leader,performance.now()+1200);
-    addRaceEvent(leader,"▲",`${META[leader].label} takes the lead`,`lead:${leader}:${Math.round(leaderTime*10)}`);
-  }
-
-  for(const row of rows){
-    const method=row.method;
-    const sim=sims[method];
-    if(!sim) continue;
-
-    for(const passenger of sim.active){
-      if(passenger.state==="stowing" && passenger.hasBag && passenger.stowDuration>=11.5){
-        addRaceEvent(
-          method,
-          "🧳",
-          `${META[method].label}: ${passenger.stowDuration.toFixed(1)}s carry-on at row ${passenger.row}`,
-          `bag:${method}:${passenger.id}`
-        );
-      }
-      if(passenger.state==="seating" && passenger.visualBlockers>=2){
-        addRaceEvent(
-          method,
-          "💺",
-          `${META[method].label}: double seat conflict at row ${passenger.row}`,
-          `seat:${method}:${passenger.id}`
-        );
-      }
-    }
-
-    const blockers=simultaneousBlockers(sim);
-    const blocking=raceHud.blocking.get(method)||false;
-    if(blockers>=3 && !blocking){
-      raceHud.blocking.set(method,true);
-      addRaceEvent(
-        method,
-        "⛔",
-        `${META[method].label}: ${blockers} simultaneous aisle blockers`,
-        `block:${method}:${Math.round(sim.time*10)}`
-      );
-    }else if(blockers<2){
-      raceHud.blocking.set(method,false);
-    }
-
-    if(sim.done && !raceHud.finished.has(method)){
-      raceHud.finished.add(method);
-      const finishers=METHODS.filter(candidate=>sims[candidate]?.done)
-        .sort((a,b)=>sims[a].time-sims[b].time || METHODS.indexOf(a)-METHODS.indexOf(b));
-      const place=finishers.indexOf(method)+1;
-      addRaceEvent(
-        method,
-        "🏁",
-        `${META[method].label} finishes ${ordinal(place)} at ${formatTime(sim.time)}`,
-        `finish:${method}`
-      );
-    }
-  }
 }
 
 function gapLabel(row,leader){
@@ -184,15 +101,142 @@ function gapLabel(row,leader){
   return `${gap} passenger${gap===1?"":"s"} back`;
 }
 
+function recordRaceHistory(force=false){
+  for(const method of METHODS){
+    const sim=sims[method];
+    if(!sim) continue;
+    const points=raceHud.history[method]||(raceHud.history[method]=[]);
+    const last=points.at(-1);
+    const changed=!last || last.time!==sim.time || last.seated!==sim.completed;
+    const intervalReached=!last || sim.time-last.time>=.5;
+    if(changed && (force || intervalReached || sim.done)){
+      points.push({time:sim.time,seated:sim.completed});
+    }
+  }
+}
+
+function setRaceChartSize(size){
+  const valid=["small","medium","large"];
+  raceHud.chartSize=valid.includes(size)?size:"small";
+  $("raceHud").dataset.chartSize=raceHud.chartSize;
+  document.querySelectorAll("[data-chart-size]").forEach(button=>{
+    const active=button.dataset.chartSize===raceHud.chartSize;
+    button.classList.toggle("active",active);
+    button.setAttribute("aria-pressed",String(active));
+  });
+  raceHud.lastPaint=-Infinity;
+  renderRaceHud(true);
+}
+
+function drawRaceChart(methods){
+  const canvas=$("raceChart");
+  const rect=canvas.getBoundingClientRect();
+  if(rect.width<20 || rect.height<20) return;
+  const dpr=Math.min(2,globalThis.devicePixelRatio||1);
+  const pixelWidth=Math.max(1,Math.round(rect.width*dpr));
+  const pixelHeight=Math.max(1,Math.round(rect.height*dpr));
+  if(canvas.width!==pixelWidth || canvas.height!==pixelHeight){
+    canvas.width=pixelWidth;
+    canvas.height=pixelHeight;
+  }
+  const ctx=canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const width=rect.width;
+  const height=rect.height;
+  ctx.clearRect(0,0,width,height);
+
+  const margin={left:46,right:14,top:13,bottom:27};
+  const plotW=Math.max(1,width-margin.left-margin.right);
+  const plotH=Math.max(1,height-margin.top-margin.bottom);
+  const total=Math.max(1,...METHODS.map(method=>sims[method]?.queue.length||0));
+  const observedMax=Math.max(0,...METHODS.map(method=>sims[method]?.time||0));
+  const maxTime=Math.max(60,observedMax);
+  const x=time=>margin.left+clamp(time/maxTime,0,1)*plotW;
+  const y=seated=>margin.top+plotH-clamp(seated/total,0,1)*plotH;
+
+  ctx.font="10px system-ui";
+  ctx.lineWidth=1;
+  ctx.textBaseline="middle";
+  for(let index=0;index<=4;index++){
+    const seated=Math.round(total*index/4);
+    const py=y(seated);
+    ctx.strokeStyle="rgba(72,102,133,.38)";
+    ctx.beginPath();
+    ctx.moveTo(margin.left,py);
+    ctx.lineTo(width-margin.right,py);
+    ctx.stroke();
+    ctx.fillStyle="#8da6bf";
+    ctx.textAlign="right";
+    ctx.fillText(String(seated),margin.left-7,py);
+  }
+  for(let index=0;index<=4;index++){
+    const time=maxTime*index/4;
+    const px=x(time);
+    ctx.strokeStyle="rgba(72,102,133,.23)";
+    ctx.beginPath();
+    ctx.moveTo(px,margin.top);
+    ctx.lineTo(px,margin.top+plotH);
+    ctx.stroke();
+    ctx.fillStyle="#8da6bf";
+    ctx.textAlign=index===0?"left":index===4?"right":"center";
+    ctx.textBaseline="top";
+    ctx.fillText(formatTime(time),px,height-margin.bottom+7);
+  }
+
+  ctx.save();
+  ctx.translate(12,margin.top+plotH/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillStyle="#8da6bf";
+  ctx.font="10px system-ui";
+  ctx.textAlign="center";
+  ctx.textBaseline="top";
+  ctx.fillText("Passengers seated",0,0);
+  ctx.restore();
+
+  for(const method of methods){
+    const points=raceHud.history[method]||[];
+    if(!points.length) continue;
+    ctx.strokeStyle=META[method].chartColor;
+    ctx.fillStyle=META[method].chartColor;
+    ctx.lineWidth=2.2;
+    ctx.lineJoin="round";
+    ctx.lineCap="round";
+    ctx.beginPath();
+    ctx.moveTo(x(points[0].time),y(points[0].seated));
+    for(let index=1;index<points.length;index++){
+      const previous=points[index-1];
+      const point=points[index];
+      ctx.lineTo(x(point.time),y(previous.seated));
+      ctx.lineTo(x(point.time),y(point.seated));
+    }
+    ctx.stroke();
+    const last=points.at(-1);
+    ctx.beginPath();
+    ctx.arc(x(last.time),y(last.seated),3.2,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  $("raceChartLegend").innerHTML=methods.map(method=>
+    `<span><i style="--series-color:${META[method].chartColor}"></i>${META[method].shortLabel}</span>`
+  ).join("");
+}
+
 function renderRaceHud(force=false){
   const now=performance.now();
   if(!force && now-raceHud.lastPaint<120) return;
   raceHud.lastPaint=now;
+  recordRaceHistory(force);
   const methods=activeMethods();
   if(!methods.length || !methods.every(method=>sims[method])) return;
   const rows=rankRace(methods,sims);
-  detectRaceEvents(rows);
   const leader=rows[0];
+  const leaderTime=sims[leader.method]?.time||0;
+  if(!raceHud.leader){
+    raceHud.leader=leader.method;
+  }else if(running && leaderTime>1 && raceHud.leader!==leader.method){
+    raceHud.leader=leader.method;
+    raceHud.leadFlash.set(leader.method,now+1200);
+  }
   const maxTime=Math.max(...METHODS.map(method=>sims[method]?.time||0));
   $("raceClock").textContent=formatTime(maxTime);
 
@@ -200,9 +244,9 @@ function renderRaceHud(force=false){
     const flash=(raceHud.leadFlash.get(row.method)||0)>now;
     const place=row.done && row.rank<=3?["🥇","🥈","🥉"][row.rank-1]:row.rank;
     const status=row.done?`${formatTime(row.time)} finish`:`${Math.round(row.percent)}% seated`;
-    return `<button type="button" class="race-row${row.rank===1?" leader":""}${row.done?" finished":""}${flash?" lead-change":""}" data-method="${row.method}">
+    return `<button type="button" class="race-row${row.rank===1?" leader":""}${row.done?" finished":""}${flash?" lead-change":""}" data-method="${row.method}" title="${META[row.method].label}">
       <span class="race-rank">${place}</span>
-      <span class="race-name">${META[row.method].label}</span>
+      <span class="race-name">${META[row.method].shortLabel}</span>
       <span class="race-stat">${status}</span>
       <span class="race-progress" aria-hidden="true"><span style="width:${clamp(row.percent,0,100).toFixed(1)}%"></span></span>
       <span class="race-gap">${gapLabel(row,leader)}</span>
@@ -219,29 +263,28 @@ function renderRaceHud(force=false){
     card.classList.add("finished-card");
     card.dataset.finishPlace=ordinal(row.rank);
   }
-
-  const visibleEvents=raceHud.events.filter(event=>selectedMethods.has(event.method)).slice(0,5);
-  $("raceEvents").innerHTML=visibleEvents.length
-    ? visibleEvents.map(event=>`<button type="button" class="race-event" data-method="${event.method}"><span aria-hidden="true">${event.icon}</span> ${event.text} <time>${formatTime(event.time)}</time></button>`).join("")
-    : '<span class="race-events-empty">Lead changes, long bag stows, conflict clusters, and finish moments will appear here.</span>';
+  drawRaceChart(methods);
 }
 
 function initializeRaceHud(){
-  for(const id of ["raceLeaderboard","raceEvents"]){
-    $(id).addEventListener("click",event=>{
-      const target=event.target.closest("[data-method]");
-      if(target) focusMethod(target.dataset.method);
-    });
-  }
+  $("raceLeaderboard").addEventListener("click",event=>{
+    const target=event.target.closest("[data-method]");
+    if(target) focusMethod(target.dataset.method);
+  });
+  document.querySelectorAll("[data-chart-size]").forEach(button=>{
+    button.addEventListener("click",()=>setRaceChartSize(button.dataset.chartSize));
+  });
 }
 
 function parseRaceView(search){
   const params=new URLSearchParams(search||"");
   const requested=(params.get("m")||"").split(",").filter(method=>METHODS.includes(method));
   const methods=[...new Set(requested)];
+  const chartSize=["small","medium","large"].includes(params.get("chart"))?params.get("chart"):"small";
   return {
     methods:methods.length?methods:[...METHODS],
-    layout:params.get("view")==="compact"?"compact":"standard"
+    layout:params.get("view")==="compact"?"compact":"standard",
+    chartSize
   };
 }
 
@@ -279,6 +322,7 @@ function applyMethodSelection(methods,{announce=false}={}){
   updateRaceView();
   clearBenchmark();
   raceHud.leader=null;
+  raceHud.lastPaint=-Infinity;
   renderAll();
   if(announce){
     const count=valid.length;
@@ -736,6 +780,7 @@ async function copyScenarioLink(){
   url.search=serializeScenarioSettings(settings,preset?.id||"custom");
   url.searchParams.set("m",activeMethods().join(","));
   url.searchParams.set("view",raceLayout);
+  url.searchParams.set("chart",raceHud.chartSize);
   url.hash="";
   let copied=false;
   try{
@@ -769,6 +814,7 @@ function initialize(){
   writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);
   applyMethodSelection(raceView.methods);
   setRaceLayout(raceView.layout);
+  setRaceChartSize(raceView.chartSize);
   detectActivePreset();
 
   controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
@@ -788,7 +834,10 @@ function initialize(){
 
   Object.values(controls).forEach(control=>control.addEventListener("change",()=>handleManualControlChange(control)));
 
-  window.addEventListener("resize",renderAll);
+  window.addEventListener("resize",()=>{
+    raceHud.lastPaint=-Infinity;
+    renderAll();
+  });
   reset();
   if(fromUrl){
     $("status").textContent=`Shared ${currentScenarioName().toLowerCase()} loaded from the URL with seed ${Number(controls.seed.value).toLocaleString()}.`;

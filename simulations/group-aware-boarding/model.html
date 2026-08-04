@@ -60,14 +60,14 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
       <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
     </div>
   </div>
-  <div class="version"><span>Model version</span><strong>v3.1.0</strong></div>
+  <div class="version"><span>Model version</span><strong>v3.2.0</strong></div>
 </header>
 <div class="layout">
   <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
 <li class=""><a href="#2-determinism-and-fair-comparison">2. Determinism and fair comparison</a></li>
 <li class="toc-sub"><a href="#scenario-presets-and-shared-links">Scenario presets and shared links</a></li>
 <li class="toc-sub"><a href="#method-visibility-and-synchronized-animation">Method visibility and synchronized animation</a></li>
-<li class="toc-sub"><a href="#live-race-hud-and-visual-event-callouts">Live race HUD and visual event callouts</a></li>
+<li class="toc-sub"><a href="#live-race-hud-and-race-graph">Live race HUD and race graph</a></li>
 <li class="toc-sub"><a href="#roomy-and-compact-fleet-display">Roomy and Compact Fleet display</a></li>
 <li class=""><a href="#3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</a></li>
 <li class="toc-sub"><a href="#load-factor">Load factor</a></li>
@@ -147,7 +147,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <p>The animated comparison creates all six method simulations from the same manifest, even when only one or two method panels are visible. All six continue advancing in lockstep while the race runs.</p>
 <p>Selecting or deselecting a method changes only which panels are rendered and which methods appear in a later benchmark. It does not pause, restart, or recreate the animated simulations. Revealing a previously hidden method therefore shows its current synchronized state.</p>
 <p>&quot;Finish instantly&quot; completes all six animated method simulations. The completion message ranks only the methods currently visible.</p>
-<h3 id="live-race-hud-and-visual-event-callouts">Live race HUD and visual event callouts</h3>
+<h3 id="live-race-hud-and-race-graph">Live race HUD and race graph</h3>
 <p>The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:</p>
 <ol>
 <li>more seated passengers</li>
@@ -156,15 +156,9 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <li>the fixed method-list order as a final tie breaker</li>
 </ol>
 <p>After methods finish, completed methods rank by their final completion time. The displayed progress percentage is simply seated passengers divided by total passengers. A gap such as &quot;3 passengers back&quot; is a difference in seated counts, not a prediction of how many seconds remain.</p>
-<p>The HUD also derives visual-only race moments from existing state:</p>
-<ul>
-<li>a lead change among the visible methods</li>
-<li>a carry-on stow lasting at least 11.5 seconds</li>
-<li>a seating event with two or more already-seated blockers</li>
-<li>an episode with at least three simultaneous stowing or seating passengers</li>
-<li>each method&#x27;s finish position and time</li>
-</ul>
-<p>These rankings, pulses, ribbons, and callouts do not alter queue order, timing, random draws, simulation steps, or results. Clicking a HUD row or event only emphasizes and scrolls to the corresponding aircraft panel.</p>
+<p>The compact leaderboard names are presentation aliases only: Random, Back → Front, Front → Back, Zones, WilMA, and Steffen. The full method names and algorithms are unchanged.</p>
+<p>The live graph places simulated time on the horizontal axis and cumulative seated passengers on the vertical axis. It records display samples for all six synchronized simulations, including methods whose aircraft panels are currently hidden. Revealing a method later therefore reveals its earlier graph trajectory as well as its current aircraft state. The graph draws only the currently selected methods.</p>
+<p>Small, Medium, and Large change only the graph&#x27;s rendered height. Graph sampling happens during UI paints, so points may be farther apart at very high animation speeds; the line is a visual history of existing state rather than a new simulation measurement. The leaderboard, graph, lead animation, finish ribbons, and click-to-emphasize behavior do not alter queue order, timing, random draws, simulation steps, or results.</p>
 <h3 id="roomy-and-compact-fleet-display">Roomy and Compact Fleet display</h3>
 <p>Roomy and Compact Fleet are rendering choices. They change panel width, canvas display size, headings, and metric layout but do not change canvas coordinates, passenger behavior, time steps, or results.</p>
 <h2 id="3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</h2>
@@ -662,7 +656,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </tr>
 </tbody></table></div></article>
 </div>
-<footer>Boarding Rush v3.1.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+<footer>Boarding Rush v3.2.0 · This guide is generated from the canonical MODEL.md specification.</footer>
 </div>
 </body>
 </html>

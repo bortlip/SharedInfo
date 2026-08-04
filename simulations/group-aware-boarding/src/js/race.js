@@ -1,10 +1,6 @@
 import { METHODS } from "./constants.js";
 import { clamp } from "./random.js";
 
-export function simultaneousBlockers(sim){
-  return sim.active.filter(passenger=>passenger.state==="stowing" || passenger.state==="seating").length;
-}
-
 export function aisleProgress(sim){
   return sim.active.reduce((sum,passenger)=>{
     if(passenger.state==="walking"){
