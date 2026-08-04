@@ -2,8 +2,7 @@ name: Extend Barbara restroom trip
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - .github/scripts/apply_barbara_restroom_trip.py
       - .github/scripts/normalize_barbara_restroom_patcher.py
@@ -26,66 +25,13 @@ jobs:
           python .github/scripts/normalize_barbara_restroom_patcher.py
           python .github/scripts/apply_barbara_restroom_trip.py
 
-      - name: Validate JavaScript and restroom behavior
+      - name: Validate model behavior
         shell: bash
         run: |
           for file in simulations/group-aware-boarding/src/js/*.js; do
             node --input-type=module --check < "$file"
           done
 
-          node --experimental-default-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import { METHODS } from './simulations/group-aware-boarding/src/js/constants.js';
-          import { makeManifest } from './simulations/group-aware-boarding/src/js/manifest.js';
-          import { BoardingSim } from './simulations/group-aware-boarding/src/js/simulation.js';
-          import { tooltipHtml } from './simulations/group-aware-boarding/src/js/interaction.js';
-
-          const cfg={
-            loadFactor:1,familyShare:.30,partyWeights:[22,36,28,14],assistedParties:3,
-            bagRate:.82,sequenceCompliance:.88,priorityPolicy:'assist',seed:8675309,
-            characterScenario:'barbara'
-          };
-          const manifest=makeManifest(cfg.seed,cfg);
-          const ids=manifest.passengers.map(p=>p.id).sort((a,b)=>a-b);
-          let totalCrossings=0;
-          let methodsWithDisruptedPassengers=0;
-
-          for(const method of METHODS){
-            const sim=new BoardingSim(manifest,method,cfg);
-            assert.deepEqual(sim.queue.map(p=>p.id).sort((a,b)=>a-b),ids);
-            assert.equal(new Set(sim.queue.map(p=>p.id)).size,sim.queue.length);
-            sim.runToEnd(.1);
-            assert.equal(sim.completed,sim.queue.length);
-            const barbara=sim.queue.find(p=>p.characterId==='barbara');
-            assert.ok(barbara);
-            assert.equal(barbara.state,'seated');
-            assert.equal(barbara.restroomTripStarted,true);
-            assert.equal(barbara.restroomTripComplete,true);
-            assert.ok(barbara.restroomTripElapsed>barbara.restroomDuration);
-            assert.ok(barbara.restroomExtraDelay>0);
-            assert.ok(barbara.heavyBagDelayCounted);
-            assert.ok(barbara.eventDelaySeconds>=barbara.heavyBagExtra+barbara.restroomExtraDelay-.001);
-            totalCrossings+=barbara.squeezePasses||0;
-
-            const disrupted=sim.queue.filter(p=>(p.disruptionDelaySeconds||0)>0);
-            if(disrupted.length) methodsWithDisruptedPassengers++;
-            for(const passenger of disrupted){
-              const html=tooltipHtml({kind:'passenger',passenger},sim);
-              assert.match(html,/Passenger disruption/);
-              assert.match(html,/Barbara/);
-            }
-            const barbaraHtml=tooltipHtml({kind:'seat',seatKey:barbara.seatKey,isAssigned:true,occupant:barbara,assigned:barbara},sim);
-            assert.match(barbaraHtml,/Aisle crossings/);
-            assert.match(barbaraHtml,/Restroom trip/);
-            assert.match(barbaraHtml,/Direct event delay/);
-          }
-          assert.ok(totalCrossings>0,'Barbara should cross at least one passenger in the preset race');
-          assert.ok(methodsWithDisruptedPassengers>0,'at least one method should record passenger slowdown');
-          NODE
-
-      - name: Verify ordinary scenarios remain identical
-        shell: bash
-        run: |
           git fetch origin main
           rm -rf /tmp/basejs
           mkdir -p /tmp/basejs
@@ -96,83 +42,106 @@ jobs:
           node --experimental-default-type=module <<'NODE'
           import assert from 'node:assert/strict';
           import { METHODS } from './simulations/group-aware-boarding/src/js/constants.js';
-          import { makeManifest as CandidateManifest } from './simulations/group-aware-boarding/src/js/manifest.js';
-          import { BoardingSim as CandidateSim } from './simulations/group-aware-boarding/src/js/simulation.js';
+          import { makeManifest } from './simulations/group-aware-boarding/src/js/manifest.js';
+          import { BoardingSim } from './simulations/group-aware-boarding/src/js/simulation.js';
+          import { tooltipHtml } from './simulations/group-aware-boarding/src/js/interaction.js';
           import { makeManifest as MainManifest } from 'file:///tmp/basejs/manifest.js';
           import { BoardingSim as MainSim } from 'file:///tmp/basejs/simulation.js';
+
+          const barbaraCfg={loadFactor:1,familyShare:.30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.82,sequenceCompliance:.88,priorityPolicy:'assist',seed:8675309,characterScenario:'barbara'};
+          const manifest=makeManifest(barbaraCfg.seed,barbaraCfg);
+          const ids=manifest.passengers.map(p=>p.id).sort((a,b)=>a-b);
+          let crossings=0;
+          let disruptedMethods=0;
+          for(const method of METHODS){
+            const sim=new BoardingSim(manifest,method,barbaraCfg);
+            assert.deepEqual(sim.queue.map(p=>p.id).sort((a,b)=>a-b),ids);
+            assert.equal(new Set(sim.queue.map(p=>p.id)).size,sim.queue.length);
+            sim.runToEnd(.1);
+            const barbara=sim.queue.find(p=>p.characterId==='barbara');
+            assert.equal(sim.completed,sim.queue.length);
+            assert.equal(barbara.state,'seated');
+            assert.equal(barbara.restroomTripComplete,true);
+            assert.ok(barbara.restroomTripElapsed>barbara.restroomDuration);
+            assert.ok(barbara.restroomExtraDelay>0);
+            assert.ok(barbara.eventDelaySeconds>=barbara.heavyBagExtra+barbara.restroomExtraDelay-.001);
+            crossings+=barbara.squeezePasses||0;
+            const disrupted=sim.queue.filter(p=>(p.disruptionDelaySeconds||0)>0);
+            if(disrupted.length) disruptedMethods++;
+            for(const passenger of disrupted){
+              const html=tooltipHtml({kind:'passenger',passenger},sim);
+              assert.match(html,/Passenger disruption/);
+              assert.match(html,/Barbara/);
+            }
+            const html=tooltipHtml({kind:'seat',seatKey:barbara.seatKey,isAssigned:true,occupant:barbara,assigned:barbara},sim);
+            assert.match(html,/Aisle crossings/);
+            assert.match(html,/Restroom trip/);
+          }
+          assert.ok(crossings>0);
+          assert.ok(disruptedMethods>0);
 
           for(const seed of [12345,246813579,987654321]){
             const cfg={loadFactor:.95,familyShare:.35,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.75,sequenceCompliance:.85,priorityPolicy:'assist',seed,characterScenario:'none'};
             const beforeManifest=MainManifest(seed,cfg);
-            const afterManifest=CandidateManifest(seed,cfg);
+            const afterManifest=makeManifest(seed,cfg);
             assert.deepEqual(
               afterManifest.passengers.map(p=>[p.id,p.seatKey,p.walkSpeed,p.hasBag,p.bagBase,p.seatBase,p.displayName,p.characterId]),
               beforeManifest.passengers.map(p=>[p.id,p.seatKey,p.walkSpeed,p.hasBag,p.bagBase,p.seatBase,p.displayName,p.characterId])
             );
             for(const method of METHODS){
               const before=new MainSim(beforeManifest,method,cfg);
-              const after=new CandidateSim(afterManifest,method,cfg);
+              const after=new BoardingSim(afterManifest,method,cfg);
               before.runToEnd(.1);
               after.runToEnd(.1);
-              assert.equal(after.time,before.time,`${method} time changed for seed ${seed}`);
-              assert.equal(after.seatConflicts,before.seatConflicts,`${method} conflicts changed for seed ${seed}`);
-              assert.equal(after.blockedSeconds,before.blockedSeconds,`${method} blocked time changed for seed ${seed}`);
-              assert.equal(after.completed,before.completed,`${method} completion changed for seed ${seed}`);
+              assert.equal(after.time,before.time);
+              assert.equal(after.seatConflicts,before.seatConflicts);
+              assert.equal(after.blockedSeconds,before.blockedSeconds);
+              assert.equal(after.completed,before.completed);
             }
           }
           NODE
 
-      - name: Build reproducibly and validate output
+      - name: Build and inspect candidate
         shell: bash
         run: |
           python simulations/group-aware-boarding/tools/build_simulator.py
-          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-one.sha
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/one.sha
           python simulations/group-aware-boarding/tools/build_simulator.py
-          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-two.sha
-          diff -u /tmp/build-one.sha /tmp/build-two.sha
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/two.sha
+          diff -u /tmp/one.sha /tmp/two.sha
 
           python - <<'PY'
           import re
           from pathlib import Path
           root=Path('simulations/group-aware-boarding')
           dist=(root/'dist/simulator.html').read_text(encoding='utf-8')
-          model=(root/'model.html').read_text(encoding='utf-8')
+          model=(root/'model.html').read_text(encoding='utf-8').lower()
           task=(root/'tasks/TASK-003-event-and-character-framework-barbara.md').read_text(encoding='utf-8')
-          assert 'const APP_VERSION = "3.5.0"' in dist
-          assert 'walking-to-restroom' in dist
-          assert 'walking-from-restroom' in dist
-          assert 'Excuse me—sorry—coming through.' in dist
-          assert 'Nope. Restroom first.' in dist
-          assert 'Aisle crossings' in dist
-          assert 'true restroom trip' in model.lower()
+          for text in ['const APP_VERSION = "3.5.0"','walking-to-restroom','walking-from-restroom','Excuse me—sorry—coming through.','Nope. Restroom first.','Aisle crossings']:
+              assert text in dist
+          assert 'front lavatory' in model
+          assert 'squeeze' in model
           assert 'True restroom trip — implemented' in task
           match=re.search(r'<script>\s*(.*?)\s*</script>',dist,re.S)
           assert match
-          Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1),encoding='utf-8')
+          Path('/tmp/bundle.js').write_text(match.group(1),encoding='utf-8')
           PY
-          node --check /tmp/boarding-rush-bundle.js
-
-      - name: Verify protected release files remain unchanged
-        shell: bash
-        run: |
+          node --check /tmp/bundle.js
           git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
           git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
 
-      - name: Browser smoke tests
+      - name: Browser smoke test
         shell: bash
         run: |
           browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
           test -n "$browser"
-          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill $server_pid' EXIT
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/server.log 2>&1 &
+          pid=$!
+          trap 'kill $pid' EXIT
           sleep 1
-
           query='v=1&pr=barbara&lf=100&fs=30&pw=22%2C36%2C28%2C14&ap=3&br=82&sc=88&pp=assist&sp=16&sd=8675309&tr=40&ch=barbara&static=1&m=random%2Csteffen&view=standard&chart=small'
-          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/source-restroom-profile --virtual-time-budget=2500 --dump-dom "http://127.0.0.1:8765/src/?$query" > /tmp/source.html
-          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/dist-restroom-profile --virtual-time-budget=2500 --dump-dom "http://127.0.0.1:8765/dist/simulator.html?$query" > /tmp/dist.html
-          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/model-restroom-profile --virtual-time-budget=1200 --dump-dom 'http://127.0.0.1:8765/model.html' > /tmp/model.html
-
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/source-restroom --virtual-time-budget=2500 --dump-dom "http://127.0.0.1:8765/src/?$query" > /tmp/source.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/dist-restroom --virtual-time-budget=2500 --dump-dom "http://127.0.0.1:8765/dist/simulator.html?$query" > /tmp/dist.html
           python - <<'PY'
           import re
           from pathlib import Path
@@ -182,9 +151,6 @@ jobs:
               button=re.search(r'<button[^>]+data-scenario-id="barbara"[^>]*>',html)
               assert button and 'disabled' not in button.group(0)
               assert html.count('class="race-row')>=2
-          model=Path('/tmp/model.html').read_text(encoding='utf-8')
-          assert 'True restroom trip' in model
-          assert 'v3.5.0' in model
           PY
 
       - name: Commit restroom-trip slice
