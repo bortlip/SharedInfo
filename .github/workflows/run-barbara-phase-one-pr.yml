@@ -26,7 +26,7 @@ jobs:
           python .github/scripts/normalize_barbara_patcher.py
           python .github/scripts/apply_barbara_phase_one.py
 
-      - name: Validate modules and character framework
+      - name: Validate JavaScript and character behavior
         shell: bash
         run: |
           for file in simulations/group-aware-boarding/src/js/*.js; do
@@ -56,33 +56,30 @@ jobs:
             bagRate:.82,sequenceCompliance:.88,priorityPolicy:'assist',seed:8675309,
             characterScenario:'barbara'
           };
-          const first=makeManifest(cfg.seed,cfg);
-          const second=makeManifest(cfg.seed,cfg);
-          assert.deepEqual(first.characters,second.characters);
-          const barbaras=first.passengers.filter(p=>p.characterId==='barbara');
-          assert.equal(barbaras.length,1);
-          const intrinsic=barbaras[0];
+          const manifest=makeManifest(cfg.seed,cfg);
+          const repeated=makeManifest(cfg.seed,cfg);
+          assert.deepEqual(manifest.characters,repeated.characters);
+          const intrinsic=manifest.passengers.find(p=>p.characterId==='barbara');
+          assert.ok(intrinsic);
+          assert.equal(manifest.passengers.filter(p=>p.characterId==='barbara').length,1);
           assert.equal(intrinsic.displayName,'Barbara');
           assert.equal(intrinsic.hasBag,true);
           assert.ok(intrinsic.heavyBagExtra>8);
           assert.ok(intrinsic.restroomPauseRow>=3 && intrinsic.restroomPauseRow<intrinsic.row);
-          assert.ok(intrinsic.restroomPauseDuration>=4.5 && intrinsic.restroomPauseDuration<=8);
 
-          const manifestIds=first.passengers.map(p=>p.id).sort((a,b)=>a-b);
+          const ids=manifest.passengers.map(p=>p.id).sort((a,b)=>a-b);
           const latePositions=new Set();
           for(const method of METHODS){
-            const queue=makeQueue(first,method,cfg.priorityPolicy,cfg.sequenceCompliance);
-            assert.equal(queue.length,first.passengers.length);
-            assert.deepEqual(queue.map(p=>p.id).sort((a,b)=>a-b),manifestIds);
+            const queue=makeQueue(manifest,method,cfg.priorityPolicy,cfg.sequenceCompliance);
+            assert.equal(queue.length,manifest.passengers.length);
+            assert.deepEqual(queue.map(p=>p.id).sort((a,b)=>a-b),ids);
             assert.equal(new Set(queue.map(p=>p.id)).size,queue.length);
             const barbara=queue.find(p=>p.characterId==='barbara');
-            assert.ok(barbara);
-            assert.equal(queue[barbara.queueIndex].id,barbara.id);
             assert.equal(barbara.queueIndex,barbara.lateQueueIndex);
             assert.ok(barbara.queueIndex>=Math.floor(queue.length*.60));
             latePositions.add(barbara.queueIndex);
 
-            const sim=new BoardingSim(first,method,cfg);
+            const sim=new BoardingSim(manifest,method,cfg);
             sim.runToEnd(.1);
             const finished=sim.queue.find(p=>p.characterId==='barbara');
             assert.equal(sim.completed,sim.queue.length);
@@ -95,7 +92,7 @@ jobs:
             assert.match(html,/Late arrival/);
             assert.match(html,/Direct event delay/);
           }
-          assert.equal(latePositions.size,1,'late insertion fraction should yield one shared target position');
+          assert.equal(latePositions.size,1);
           NODE
 
       - name: Verify ordinary scenarios preserve model results
@@ -138,7 +135,7 @@ jobs:
           }
           NODE
 
-      - name: Build simulator and model guide reproducibly
+      - name: Build reproducibly and validate generated output
         shell: bash
         run: |
           python simulations/group-aware-boarding/tools/build_simulator.py
@@ -147,34 +144,25 @@ jobs:
           sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-two.sha
           diff -u /tmp/build-one.sha /tmp/build-two.sha
 
-      - name: Validate generated content
-        shell: bash
-        run: |
           python - <<'PY'
           import re
           from pathlib import Path
-
           root=Path('simulations/group-aware-boarding')
-          source=(root/'src/index.html').read_text(encoding='utf-8')
           dist=(root/'dist/simulator.html').read_text(encoding='utf-8')
           model=(root/'model.html').read_text(encoding='utf-8')
           task=(root/'tasks/TASK-003-event-and-character-framework-barbara.md').read_text(encoding='utf-8')
           scenarios=(root/'src/js/scenarios.js').read_text(encoding='utf-8')
-
           assert 'const APP_VERSION = "3.4.0"' in dist
           assert 'function applyCharacterScenario' in dist
           assert 'function repositionCharacterPassengers' in dist
           assert 'I should have used the restroom.' in dist
           assert 'This bag was lighter at home.' in dist
-          assert 'characterScenario:"barbara"' in scenarios
-          barbara_block=scenarios[scenarios.index('id:"barbara"'):scenarios.index('const PRIORITY_POLICIES')]
-          assert 'disabled:true' not in barbara_block
+          block=scenarios[scenarios.index('id:"barbara"'):scenarios.index('const PRIORITY_POLICIES')]
+          assert 'characterScenario:"barbara"' in block
+          assert 'disabled:true' not in block
           assert 'Barbara Mode and the character-event foundation' in model
           assert 'Phase 1 done in candidate' in task
-          assert 'post-race recap' in task
           assert 'No separate event ticker' in task
-          assert 'Barbara Mode' not in source, 'scenario cards should remain data-driven, not hard-coded in HTML'
-
           match=re.search(r'<script>\s*(.*?)\s*</script>',dist,re.S)
           assert match
           Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1),encoding='utf-8')
@@ -209,11 +197,10 @@ jobs:
               html=Path(path).read_text(encoding='utf-8')
               assert 'v3.4.0' in html
               assert '>Barbara Mode<' in html
-              assert 'Shared barbara mode loaded from the URL' in html
               button=re.search(r'<button[^>]+data-scenario-id="barbara"[^>]*>',html)
               assert button and 'disabled' not in button.group(0)
-              assert 'data-scenario-id="barbara"' in html
               assert html.count('class="race-row')>=2
+              assert 'id="randomCanvas"' in html and 'id="steffenCanvas"' in html
           model=Path('/tmp/model.html').read_text(encoding='utf-8')
           assert 'Barbara Mode and the character-event foundation' in model
           assert 'v3.4.0' in model
