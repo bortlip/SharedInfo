@@ -21,7 +21,7 @@ export function stats(values){
   };
 }
 
-export function benchmarkSignature(cfg,trials){
+export function benchmarkSignature(cfg,trials,methods=[]){
   return JSON.stringify({
     loadFactor:cfg.loadFactor,
     familyShare:cfg.familyShare,
@@ -31,7 +31,8 @@ export function benchmarkSignature(cfg,trials){
     sequenceCompliance:cfg.sequenceCompliance,
     priorityPolicy:cfg.priorityPolicy,
     seed:cfg.seed,
-    trials
+    trials,
+    methods:[...methods]
   });
 }
 

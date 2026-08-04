@@ -139,6 +139,25 @@ header p{margin:0;color:var(--muted);max-width:900px;line-height:1.55}
 .copy-toast.visible{opacity:1;transform:none}
 .race-controls{border-top:0;margin-top:12px}
 
+.method-controls{padding:16px;margin-bottom:16px}
+.method-heading{align-items:center}
+.layout-control{display:grid;gap:5px;justify-items:end}
+.layout-control>span{color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em}
+.segmented-control{display:inline-flex;padding:3px;border:1px solid #36516f;border-radius:12px;background:#081625}
+.segmented-control button{border:0;border-radius:8px;background:transparent;padding:7px 10px;font-size:.75rem}
+.segmented-control button:hover{transform:none;background:#10253d}
+.segmented-control button.active{background:#1a4962;color:#e9faff;box-shadow:inset 0 0 0 1px #4d9bb9}
+.method-picker{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.method-option{position:relative;display:block;min-width:0}
+.method-option input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
+.method-option span{display:flex;min-height:48px;align-items:center;justify-content:center;padding:8px 9px;border:1px solid #36516f;border-radius:11px;background:#091827;color:#9eb0c9;text-align:center;font-size:.72rem;font-weight:650;line-height:1.25;cursor:pointer;transition:.15s ease}
+.method-option span:hover{border-color:#5f86b6;background:#10253d;color:#dbeeff}
+.method-option input:checked+span{border-color:var(--accent);background:linear-gradient(180deg,#17435c,#102d42);color:#e8f8ff;box-shadow:0 0 0 2px rgba(99,215,255,.11)}
+.method-option input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.method-option input:disabled+span{opacity:.55;cursor:wait}
+.method-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px}
+.method-toolbar span{color:var(--muted);font-size:.75rem}
+
 .controls{padding:0;margin-bottom:16px;overflow:hidden}
 .advanced-controls>summary{
   display:flex;
@@ -204,8 +223,13 @@ button:disabled{cursor:wait;transform:none}
 
 .sim-grid{
   display:grid;
-  grid-template-columns:repeat(3,minmax(270px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));
   gap:16px;
+}
+.sim-grid.compact-view{
+  grid-template-columns:repeat(auto-fit,minmax(185px,230px));
+  justify-content:center;
+  gap:10px;
 }
 .sim-card{padding:14px;min-width:0}
 .sim-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}
@@ -220,6 +244,16 @@ canvas{
   border:1px solid #29405f;
   background:linear-gradient(180deg,#07131f,#0b1d30);
 }
+.sim-grid.compact-view .sim-card{padding:9px}
+.sim-grid.compact-view .sim-head{gap:7px;margin-bottom:6px}
+.sim-grid.compact-view .sim-head h2{font-size:.86rem}
+.sim-grid.compact-view .sim-head p{display:none}
+.sim-grid.compact-view .time{font-size:.78rem}
+.sim-grid.compact-view canvas{height:470px}
+.sim-grid.compact-view .metrics{grid-template-columns:repeat(2,1fr);gap:5px;margin-top:6px}
+.sim-grid.compact-view .metric{padding:6px}
+.sim-grid.compact-view .metric>span{font-size:.58rem;white-space:normal;line-height:1.2}
+.sim-grid.compact-view .metric strong{font-size:.76rem}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
 .metric{background:#081625;border:1px solid #243d5a;border-radius:10px;padding:8px;min-width:0}
 .metric>span{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:.67rem;white-space:nowrap}
@@ -295,8 +329,11 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   .scenario-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media(max-width:1100px){
-  .sim-grid{grid-template-columns:repeat(2,minmax(270px,1fr))}
+  .method-picker{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sim-grid:not(.compact-view){grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+  .sim-grid.compact-view{grid-template-columns:repeat(auto-fit,minmax(180px,220px))}
   canvas{height:620px}
+  .sim-grid.compact-view canvas{height:450px}
   .lower{grid-template-columns:1fr}
 }
 @media(max-width:820px){
@@ -309,7 +346,11 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   .scenario-card{min-height:0}
   .scenario-toolbar{align-items:flex-start}
   .copy-toast{width:100%}
-  .sim-grid{grid-template-columns:1fr}
+  .method-heading{align-items:flex-start;flex-direction:column}
+  .layout-control{justify-items:start}
+  .method-picker{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sim-grid:not(.compact-view){grid-template-columns:1fr}
+  .sim-grid.compact-view{grid-template-columns:repeat(2,minmax(0,1fr))}
   .control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .party-size-control{grid-column:1 / -1}
   .seed-control{grid-column:1 / -1}
@@ -324,6 +365,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   .party-size-control{grid-column:auto}
   .weight-grid{grid-template-columns:repeat(2,minmax(58px,1fr))}
   .seed-entry{grid-template-columns:1fr}
+  .method-picker,.sim-grid.compact-view{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -332,7 +374,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   <header>
     <div>
       <h1>Boarding Rush</h1>
-      <p>Pick a flight, press run, and watch six boarding strategies race through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
+      <p>Pick a flight, choose the racers, and watch boarding strategies compete through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
     <div class="badge">scenarios · shareable seeds · deterministic races</div>
   </header>
@@ -428,8 +470,29 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     </div>
   </details>
 
-  <main class="sim-grid">
-    <article class="card sim-card">
+  <section class="card method-controls" aria-labelledby="methodHeading">
+    <div class="section-head method-heading">
+      <div>
+        <h2 id="methodHeading">Choose the racers</h2>
+        <p>Run one method, compare two side by side, or keep the whole field in view.</p>
+      </div>
+      <div class="layout-control">
+        <span>Plane size</span>
+        <div class="segmented-control" role="group" aria-label="Plane display size">
+          <button id="standardLayoutBtn" type="button" data-layout="standard" aria-pressed="true">Roomy</button>
+          <button id="compactLayoutBtn" type="button" data-layout="compact" aria-pressed="false">Compact fleet</button>
+        </div>
+      </div>
+    </div>
+    <div class="method-picker" id="methodPicker" aria-label="Boarding methods"></div>
+    <div class="method-toolbar">
+      <button id="selectAllMethodsBtn" type="button" class="ghost">Select all six</button>
+      <span id="methodSelectionStatus" role="status" aria-live="polite">6 methods selected · Roomy view</span>
+    </div>
+  </section>
+
+  <main class="sim-grid" id="simGrid">
+    <article class="card sim-card" data-method="random">
       <div class="sim-head">
         <div><h2>Random</h2><p>Boarding units shuffled; every party remains contiguous.</p></div>
         <div class="time" id="randomTime">00:00</div>
@@ -443,7 +506,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="back">
       <div class="sim-head">
         <div><h2>Strict back to front</h2><p>Rows 31 → 1, randomized only within each row.</p></div>
         <div class="time" id="backTime">00:00</div>
@@ -457,7 +520,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="front">
       <div class="sim-head">
         <div><h2>Strict front to back</h2><p>Rows 1 → 31, randomized only within each row.</p></div>
         <div class="time" id="frontTime">00:00</div>
@@ -471,7 +534,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="zones">
       <div class="sim-head">
         <div><h2>Airline zones</h2><p>Six-row rear-first zones, shuffled within each zone.</p></div>
         <div class="time" id="zonesTime">00:00</div>
@@ -485,7 +548,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="wilma">
       <div class="sim-head">
         <div><h2>WilMA, group-safe</h2><p>Window, then middle, then aisle; parties remain atomic.</p></div>
         <div class="time" id="wilmaTime">00:00</div>
@@ -499,7 +562,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="steffen">
       <div class="sim-head">
         <div><h2>Steffen, group-safe</h2><p>Alternating rows and window-first, with each party atomic.</p></div>
         <div class="time" id="steffenTime">00:00</div>
@@ -1194,7 +1257,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     };
   }
 
-  function benchmarkSignature(cfg,trials){
+  function benchmarkSignature(cfg,trials,methods=[]){
     return JSON.stringify({
       loadFactor:cfg.loadFactor,
       familyShare:cfg.familyShare,
@@ -1204,7 +1267,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       sequenceCompliance:cfg.sequenceCompliance,
       priorityPolicy:cfg.priorityPolicy,
       seed:cfg.seed,
-      trials
+      trials,
+      methods:[...methods]
     });
   }
 
@@ -1394,6 +1458,104 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   let benchmarkResult = null;
   let activePresetId = "custom";
   let toastTimer = null;
+  let selectedMethods = new Set(METHODS);
+  let raceLayout = "standard";
+
+  function activeMethods(){
+    return METHODS.filter(method=>selectedMethods.has(method));
+  }
+
+  function parseRaceView(search){
+    const params=new URLSearchParams(search||"");
+    const requested=(params.get("m")||"").split(",").filter(method=>METHODS.includes(method));
+    const methods=[...new Set(requested)];
+    return {
+      methods:methods.length?methods:[...METHODS],
+      layout:params.get("view")==="compact"?"compact":"standard"
+    };
+  }
+
+  function updateRaceView(){
+    const methods=activeMethods();
+    document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+      card.hidden=!selectedMethods.has(card.dataset.method);
+    });
+    document.querySelectorAll(".method-option input").forEach(input=>{
+      input.checked=selectedMethods.has(input.value);
+    });
+    const grid=$("simGrid");
+    grid.classList.toggle("compact-view",raceLayout==="compact");
+    grid.dataset.layout=raceLayout;
+    for(const button of document.querySelectorAll("[data-layout]")){
+      const active=button.dataset.layout===raceLayout;
+      button.classList.toggle("active",active);
+      button.setAttribute("aria-pressed",String(active));
+    }
+    $("methodSelectionStatus").textContent=`${methods.length} method${methods.length===1?"":"s"} selected · ${raceLayout==="compact"?"Compact fleet":"Roomy"} view`;
+  }
+
+  function clearBenchmark(){
+    benchmarkResult=null;
+    $("benchBody").innerHTML='<tr><td colspan="5" class="empty">No benchmark results yet.</td></tr>';
+    $("barBox").innerHTML="";
+    $("benchSubtitle").textContent="Run a benchmark to average over different manifests and delays.";
+    $("benchStatus").textContent="Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.";
+  }
+
+  function applyMethodSelection(methods,{resetRace=false}={}){
+    const valid=[...new Set(methods)].filter(method=>METHODS.includes(method));
+    if(!valid.length) return false;
+    selectedMethods=new Set(valid);
+    updateRaceView();
+    if(resetRace){
+      clearBenchmark();
+      reset();
+    }
+    return true;
+  }
+
+  function setRaceLayout(layout){
+    raceLayout=layout==="compact"?"compact":"standard";
+    updateRaceView();
+    renderAll();
+  }
+
+  function setMethodControlsDisabled(disabled){
+    document.querySelectorAll(".method-option input").forEach(input=>input.disabled=disabled);
+    $("selectAllMethodsBtn").disabled=disabled;
+  }
+
+  function renderMethodPicker(){
+    const picker=$("methodPicker");
+    picker.innerHTML="";
+    for(const method of METHODS){
+      const label=document.createElement("label");
+      label.className="method-option";
+      const input=document.createElement("input");
+      input.type="checkbox";
+      input.value=method;
+      input.checked=true;
+      const text=document.createElement("span");
+      text.textContent=META[method].label;
+      label.append(input,text);
+      input.addEventListener("change",()=>{
+        const next=new Set(selectedMethods);
+        if(input.checked) next.add(method);
+        else next.delete(method);
+        if(!next.size){
+          input.checked=true;
+          $("methodSelectionStatus").textContent="At least one boarding method must remain selected.";
+          return;
+        }
+        applyMethodSelection([...next],{resetRace:true});
+      });
+      picker.appendChild(label);
+    }
+    $("selectAllMethodsBtn").addEventListener("click",()=>applyMethodSelection(METHODS,{resetRace:true}));
+    $("standardLayoutBtn").addEventListener("click",()=>setRaceLayout("standard"));
+    $("compactLayoutBtn").addEventListener("click",()=>setRaceLayout("compact"));
+    updateRaceView();
+  }
 
   function normalizedPartyWeights(){
     const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
@@ -1542,7 +1704,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     const cfg=config();
     manifest=makeManifest(cfg.seed,cfg);
     sims={};
-    for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
+    for(const method of activeMethods()) sims[method]=new BoardingSim(manifest,method,cfg);
     running=false;
     accumulator=0;
     $("pauseBtn").textContent="Pause";
@@ -1570,8 +1732,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   }
 
   function renderAll(){
-    let allDone=true;
-    for(const method of METHODS){
+    const methods=activeMethods();
+    let allDone=methods.length>0;
+    for(const method of methods){
       const sim=sims[method];
       if(!sim) continue;
       allDone=allDone&&sim.done;
@@ -1585,8 +1748,10 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     }
     if(allDone && running){
       running=false;
-      const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-      $("status").textContent=`Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
+      const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+      $("status").textContent=methods.length===1
+        ? `Complete. ${META[winner].label} finished ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`
+        : `Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
     }
   }
 
@@ -1597,7 +1762,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       accumulator += elapsed * (+controls.speed.value);
       let guard=0;
       while(accumulator>=FIXED_DT && guard<5000){
-        for(const method of METHODS) sims[method].step(FIXED_DT);
+        for(const method of activeMethods()) sims[method].step(FIXED_DT);
         accumulator-=FIXED_DT;
         guard++;
       }
@@ -1607,14 +1772,15 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   }
 
   function run(){
-    if(!manifest || METHODS.some(m=>sims[m].done)) reset();
+    const methods=activeMethods();
+    if(!manifest || methods.some(method=>sims[method]?.done)) reset();
     running=true;
     $("pauseBtn").textContent="Pause";
-    $("status").textContent=`Running ${currentScenarioName()} through all six boarding methods…`;
+    $("status").textContent=`Running ${currentScenarioName()} through ${methods.length} selected method${methods.length===1?"":"s"}…`;
   }
 
   function pause(){
-    if(!running && METHODS.every(m=>sims[m].time===0)){
+    if(!running && activeMethods().every(method=>sims[method]?.time===0)){
       $("status").textContent="Nothing is running yet.";
       return;
     }
@@ -1626,18 +1792,22 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   function finish(){
     running=false;
     $("pauseBtn").textContent="Pause";
-    for(const method of METHODS) sims[method].runToEnd(.15);
+    const methods=activeMethods();
+    for(const method of methods) sims[method].runToEnd(.15);
     renderAll();
-    const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-    $("status").textContent=`Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
+    const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+    $("status").textContent=methods.length===1
+      ? `Complete. ${META[winner].label} finished ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`
+      : `Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
   }
 
   function renderBenchmark(result){
     const body=$("benchBody");
     body.innerHTML="";
-    const bestMean=Math.min(...METHODS.map(m=>result[m].stats.mean));
-    const maxMean=Math.max(...METHODS.map(m=>result[m].stats.mean));
-    for(const m of METHODS){
+    const methods=result.methods;
+    const bestMean=Math.min(...methods.map(m=>result[m].stats.mean));
+    const maxMean=Math.max(...methods.map(m=>result[m].stats.mean));
+    for(const m of methods){
       const row=document.createElement("tr");
       const st=result[m].stats;
       row.innerHTML=`
@@ -1652,7 +1822,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better${repeatNote}`;
     const box=$("barBox");
     box.innerHTML="";
-    for(const m of METHODS){
+    for(const m of methods){
       const st=result[m].stats;
       const row=document.createElement("div");
       row.className="barrow";
@@ -1669,37 +1839,39 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     const benchStatus=$("benchStatus");
     button.disabled=true;
     button.textContent="Benchmarking…";
+    setMethodControlsDisabled(true);
 
     // Capture an independent scenario snapshot. The visible simulations keep their
     // current state and continue animating while these fresh trial instances run.
     const cfg=config();
+    const methods=activeMethods();
     const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
-    const signature=benchmarkSignature(cfg,trials);
+    const signature=benchmarkSignature(cfg,trials,methods);
     const previousResult=benchmarkResult;
-    const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
-    const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
+    const times=Object.fromEntries(methods.map(m=>[m,[]]));
+    const wins=Object.fromEntries(methods.map(m=>[m,0]));
 
     try{
       for(let t=0;t<trials;t++){
         const trialCfg={...cfg,seed:cfg.seed+t*7919};
         const man=makeManifest(trialCfg.seed,trialCfg);
         const trialTimes={};
-        for(const method of METHODS){
+          for(const method of methods){
           const sim=new BoardingSim(man,method,trialCfg);
           trialTimes[method]=sim.runToEnd(.20);
           times[method].push(trialTimes[method]);
         }
-        const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
+        const win=methods.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
         wins[win]++;
         benchStatus.textContent=`Benchmarking ${t+1}/${trials} from base seed ${cfg.seed.toLocaleString()}… The animation remains independent.`;
 
         // Yield after each trial so the browser can paint and advance a running sim.
         await new Promise(resolve=>setTimeout(resolve,0));
       }
-      const nextResult={trials,seed:cfg.seed,signature};
-      for(const method of METHODS) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
+      const nextResult={trials,seed:cfg.seed,signature,methods:[...methods]};
+      for(const method of methods) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
       const exactRepeat=previousResult?.signature===signature;
-      nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,METHODS);
+      nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,methods);
       benchmarkResult=nextResult;
       renderBenchmark(benchmarkResult);
       if(nextResult.repeated){
@@ -1713,6 +1885,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       benchmarking=false;
       button.disabled=false;
       button.textContent="Run benchmark";
+      setMethodControlsDisabled(false);
     }
   }
 
@@ -1784,6 +1957,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     const preset=matchingPreset(settings);
     const url=new URL(location.href);
     url.search=serializeScenarioSettings(settings,preset?.id||"custom");
+    url.searchParams.set("m",activeMethods().join(","));
+    url.searchParams.set("view",raceLayout);
     url.hash="";
     let copied=false;
     try{
@@ -1793,7 +1968,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       copied=fallbackCopy(url.toString());
     }
     showToast(copied
-      ? `Scenario link copied — seed ${settings.seed.toLocaleString()} included.`
+      ? `Scenario link copied — seed and race view included.`
       : "Could not copy automatically. The scenario URL is now in the address bar.");
     if(!copied) history.replaceState(null,"",url);
   }
@@ -1807,8 +1982,12 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
   function initialize(){
     renderScenarioCards();
+    renderMethodPicker();
     const fromUrl=parseScenarioSearch(location.search);
+    const raceView=parseRaceView(location.search);
     writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);
+    applyMethodSelection(raceView.methods);
+    setRaceLayout(raceView.layout);
     detectActivePreset();
 
     controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});

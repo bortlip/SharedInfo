@@ -13,7 +13,7 @@
   <header>
     <div>
       <h1>Boarding Rush</h1>
-      <p>Pick a flight, press run, and watch six boarding strategies race through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
+      <p>Pick a flight, choose the racers, and watch boarding strategies compete through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
     <div class="badge">scenarios · shareable seeds · deterministic races</div>
   </header>
@@ -109,8 +109,29 @@
     </div>
   </details>
 
-  <main class="sim-grid">
-    <article class="card sim-card">
+  <section class="card method-controls" aria-labelledby="methodHeading">
+    <div class="section-head method-heading">
+      <div>
+        <h2 id="methodHeading">Choose the racers</h2>
+        <p>Run one method, compare two side by side, or keep the whole field in view.</p>
+      </div>
+      <div class="layout-control">
+        <span>Plane size</span>
+        <div class="segmented-control" role="group" aria-label="Plane display size">
+          <button id="standardLayoutBtn" type="button" data-layout="standard" aria-pressed="true">Roomy</button>
+          <button id="compactLayoutBtn" type="button" data-layout="compact" aria-pressed="false">Compact fleet</button>
+        </div>
+      </div>
+    </div>
+    <div class="method-picker" id="methodPicker" aria-label="Boarding methods"></div>
+    <div class="method-toolbar">
+      <button id="selectAllMethodsBtn" type="button" class="ghost">Select all six</button>
+      <span id="methodSelectionStatus" role="status" aria-live="polite">6 methods selected · Roomy view</span>
+    </div>
+  </section>
+
+  <main class="sim-grid" id="simGrid">
+    <article class="card sim-card" data-method="random">
       <div class="sim-head">
         <div><h2>Random</h2><p>Boarding units shuffled; every party remains contiguous.</p></div>
         <div class="time" id="randomTime">00:00</div>
@@ -124,7 +145,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="back">
       <div class="sim-head">
         <div><h2>Strict back to front</h2><p>Rows 31 → 1, randomized only within each row.</p></div>
         <div class="time" id="backTime">00:00</div>
@@ -138,7 +159,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="front">
       <div class="sim-head">
         <div><h2>Strict front to back</h2><p>Rows 1 → 31, randomized only within each row.</p></div>
         <div class="time" id="frontTime">00:00</div>
@@ -152,7 +173,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="zones">
       <div class="sim-head">
         <div><h2>Airline zones</h2><p>Six-row rear-first zones, shuffled within each zone.</p></div>
         <div class="time" id="zonesTime">00:00</div>
@@ -166,7 +187,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="wilma">
       <div class="sim-head">
         <div><h2>WilMA, group-safe</h2><p>Window, then middle, then aisle; parties remain atomic.</p></div>
         <div class="time" id="wilmaTime">00:00</div>
@@ -180,7 +201,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="steffen">
       <div class="sim-head">
         <div><h2>Steffen, group-safe</h2><p>Alternating rows and window-first, with each party atomic.</p></div>
         <div class="time" id="steffenTime">00:00</div>
