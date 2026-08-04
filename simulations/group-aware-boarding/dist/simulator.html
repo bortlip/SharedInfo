@@ -806,7 +806,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return `hsl(${hue} 82% ${lightness}%)`;
   }
 
-  const APP_VERSION = "3.6.0";
+  const APP_VERSION = "3.7.0";
 
   function mulberry32(seed){
     let a = seed >>> 0;
@@ -1010,6 +1010,12 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     "I am walking perfectly straight.",
     "Just getting my bearings."
   ];
+  const HELP_LINES=[
+    "Could I get a little help with this?",
+    "This bag is heavier than it looked.",
+    "I can't quite lift this overhead.",
+    "Excuse me—could someone help?"
+  ];
 
   function seedMix(seed,salt){
     let x=(seed ^ salt)>>>0;
@@ -1029,6 +1035,30 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     );
     if(preferred.length) return preferred;
     return manifest.passengers.filter(p=>!reserved.has(p.id) && !p.isChild && !p.isReduced && p.row>=4);
+  }
+
+  function assignCrew(manifest,seed){
+    const rng=mulberry32(seedMix(seed,0xC0FFEE));
+    manifest.crewDefinition={
+      id:"crew-1",
+      displayName:"Maya",
+      role:"cabin crew",
+      homePos:.12,
+      speed:1.08+rng()*.16,
+      squeezeSelfDuration:.55+rng()*.35,
+      squeezeOtherDuration:.7+rng()*.45,
+      color:"#56e0b5"
+    };
+  }
+
+  function applyCrewHelpProfile(passenger,rng){
+    passenger.requiresCrewHelp=true;
+    passenger.crewFailDuration=1.6+rng()*1.8;
+    passenger.crewAssistDuration=5.2+rng()*3.4;
+    passenger.crewRequestLine=HELP_LINES[Math.floor(rng()*HELP_LINES.length)];
+    passenger.crewAssistLine="I've got it—hold the handle.";
+    passenger.crewAssistanceComplete=false;
+    passenger.crewEventDelay=0;
   }
 
   function assignBarbara(manifest,seed,reserved){
@@ -1064,6 +1094,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     passenger.eventDelaySeconds=0;
     passenger.bubbleText=null;
     passenger.bubbleUntil=0;
+    applyCrewHelpProfile(passenger,rng);
 
     manifest.characters.push({id:"barbara",passengerId:passenger.id,seatKey:passenger.seatKey,type:"barbara"});
   }
@@ -1106,6 +1137,25 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     passenger.eventDelaySeconds=0;
   }
 
+  function assignNeedsHelp(passenger,rng,index){
+    const baselineBagBase=passenger.bagBase;
+    passenger.displayName=`Passenger needing help ${index+1}`;
+    passenger.characterId=`help-${passenger.id}`;
+    passenger.characterLabel="H";
+    passenger.characterRole="passenger needing overhead-bin assistance";
+    passenger.characterStatus="hoping the bag cooperates";
+    passenger.eventState="waiting to board";
+    passenger.characterColor="#b79cff";
+    passenger.incidentType="needs-help";
+    passenger.baselineHasBag=passenger.hasBag;
+    passenger.baselineBagBase=baselineBagBase;
+    passenger.hasBag=true;
+    passenger.bagBase=Math.max(passenger.bagBase,13+rng()*4);
+    passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
+    passenger.eventDelaySeconds=0;
+    applyCrewHelpProfile(passenger,rng);
+  }
+
   function assignDisruptions(manifest,seed,cfg,reserved){
     const count=clamp(Math.floor(Number(cfg.disruptivePassengers)||0),0,3);
     if(!count) return;
@@ -1115,8 +1165,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       const passenger=takeRandom(rng,candidates);
       if(!passenger) break;
       reserved.add(passenger.id);
-      if(index%2===0) assignChatty(passenger,rng,index);
-      else assignTipsy(passenger,rng,index);
+      if(index%3===0) assignChatty(passenger,rng,index);
+      else if(index%3===1) assignTipsy(passenger,rng,index);
+      else assignNeedsHelp(passenger,rng,index);
       manifest.characters.push({id:passenger.characterId,passengerId:passenger.id,seatKey:passenger.seatKey,type:passenger.incidentType});
     }
   }
@@ -1140,6 +1191,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     manifest.characterScenario=cfg.characterScenario||"none";
     manifest.disruptivePassengers=clamp(Math.floor(Number(cfg.disruptivePassengers)||0),0,3);
     manifest.characters=[];
+    assignCrew(manifest,seed);
     const reserved=new Set();
     if(manifest.characterScenario==="barbara") assignBarbara(manifest,seed,reserved);
     assignDisruptions(manifest,seed,cfg,reserved);
@@ -1399,166 +1451,538 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   }
 
   const RESTROOM_TRAVEL_STATES=new Set(["walking-to-restroom","restroom","walking-from-restroom"]);
+  const CREW_BLOCKING_STATES=new Set(["failed-lift","awaiting-crew","crew-assist"]);
 
   class BoardingSim{
     constructor(manifest,method,cfg){
-      this.method=method;this.cfg=cfg;
+      this.method=method;
+      this.cfg=cfg;
       this.queue=makeQueue(manifest,method,cfg.priorityPolicy,cfg.sequenceCompliance);
       this.assignedSeats=new Set(this.queue.map(p=>p.seatKey));
-      this.active=[];this.pending=0;this.time=0;this.completed=0;
-      this.occupancy=new Map();this.binLoad=new Map();this.stowedBags=[];
-      this.seatConflicts=0;this.conflictSeconds=0;this.blockedSeconds=0;this.movementDelay=0;
-      this.done=false;this.doorDelayStarted=false;
-    }
-    showBubble(p,text,duration=2.6){
-      if(!text) return;
-      p.bubbleText=text;p.bubbleUntil=this.time+duration;
+      this.active=[];
+      this.pending=0;
+      this.time=0;
+      this.completed=0;
+      this.occupancy=new Map();
+      this.binLoad=new Map();
+      this.stowedBags=[];
+      this.seatConflicts=0;
+      this.conflictSeconds=0;
+      this.blockedSeconds=0;
+      this.movementDelay=0;
+      this.done=false;
+      this.doorDelayStarted=false;
+      const definition=manifest.crewDefinition||{
+        id:"crew-1",displayName:"Maya",role:"cabin crew",homePos:.12,speed:1.15,
+        squeezeSelfDuration:.7,squeezeOtherDuration:.9,color:"#56e0b5"
+      };
+      this.crew={
+        ...definition,
+        pos:definition.homePos,
+        state:"idle",
+        status:"watching the cabin",
+        eventState:"available near the front door",
+        targetPassengerId:null,
+        remaining:0,
+        bubbleText:null,
+        bubbleUntil:0,
+        passedIds:new Set(),
+        assistsCompleted:0,
+        travelDistance:0,
+        squeezePasses:0,
+        squeezeDelayRemaining:0
+      };
+      this.crewRequests=[];
     }
     setCharacterMoment(p,status,eventState,bubble=null,duration=0){
       if(!p.characterId) return;
-      p.characterStatus=status;p.eventState=eventState;
-      if(bubble) this.showBubble(p,bubble,duration);
+      p.characterStatus=status;
+      p.eventState=eventState;
+      if(bubble){
+        p.bubbleText=bubble;
+        p.bubbleUntil=this.time+duration;
+      }
+    }
+    setCrewMoment(status,eventState,bubble=null,duration=0){
+      this.crew.status=status;
+      this.crew.eventState=eventState;
+      if(bubble){
+        this.crew.bubbleText=bubble;
+        this.crew.bubbleUntil=this.time+duration;
+      }
+    }
+    passengerById(id){
+      return this.queue.find(p=>p.id===id)||null;
     }
     nearestToDoor(){
       let nearest=Infinity;
       for(const p of this.active) if(p.state!=="seated") nearest=Math.min(nearest,p.pos);
+      if(this.crew.state!=="idle") nearest=Math.min(nearest,this.crew.pos);
       return nearest;
     }
     computeStow(p){
-      const key=`${p.row}${p.side}`;const load=this.binLoad.get(key)||0;
+      const key=`${p.row}${p.side}`;
+      const load=this.binLoad.get(key)||0;
       if(p.hasBag) this.binLoad.set(key,load+1);
-      return p.bagBase+(p.hasBag?Math.max(0,load-2)*1.45:0);
+      const congestion=p.hasBag?Math.max(0,load-2)*1.45:0;
+      return p.bagBase+congestion;
     }
     computeSeat(p){
-      let blockers=0,penalty=0;
-      for(const occ of this.occupancy.values()) if(occ.row===p.row && occ.side===p.side && occ.depth<p.depth){
-        blockers++;penalty+=occ.unitId===p.unitId?2.2:5.4;
+      let blockers=0;
+      let penalty=0;
+      for(const [,occ] of this.occupancy){
+        if(occ.row===p.row && occ.side===p.side && occ.depth<p.depth){
+          blockers++;
+          penalty += occ.unitId===p.unitId ? 2.2 : 5.4;
+        }
       }
-      if(blockers){this.seatConflicts+=blockers;this.conflictSeconds+=penalty;}
+      if(blockers){
+        this.seatConflicts+=blockers;
+        this.conflictSeconds+=penalty;
+      }
       return p.seatBase+penalty;
     }
+    countHeavyBagDelay(p){
+      if(p.heavyBagDelayCounted) return;
+      p.eventDelaySeconds=(p.eventDelaySeconds||0)+(p.heavyBagExtra||0);
+      p.heavyBagDelayCounted=true;
+    }
     beginStowing(p){
-      p.state="stowing";p.stowDuration=this.computeStow(p);p.remaining=p.stowDuration;
-      if(p.characterId==="barbara"){
-        if(!p.heavyBagDelayCounted){p.eventDelaySeconds=(p.eventDelaySeconds||0)+(p.heavyBagExtra||0);p.heavyBagDelayCounted=true;}
-        this.setCharacterMoment(p,"wrestling with the carry-on","struggling with a very heavy bag","This bag was lighter at home.",Math.min(7,p.stowDuration));
-      }else if(p.characterId){
-        this.setCharacterMoment(p,"handling the carry-on",p.hasBag?"stowing a carry-on":"getting ready to sit");
+      if(p.requiresCrewHelp && !p.crewAssistanceComplete){
+        this.countHeavyBagDelay(p);
+        if(!p.crewAttemptStarted){
+          p.crewAttemptStarted=true;
+          p.crewAttemptStartTime=this.time;
+          p.state="failed-lift";
+          p.remaining=p.crewFailDuration||2;
+          this.setCharacterMoment(
+            p,
+            "trying to lift the carry-on",
+            "the first overhead-bin attempt is not going well",
+            "I can get this... I think.",
+            Math.min(3,p.remaining)
+          );
+        }
+        return;
+      }
+      p.state="stowing";
+      p.stowDuration=this.computeStow(p);
+      p.remaining=p.stowDuration;
+      if(p.characterId){
+        this.countHeavyBagDelay(p);
+        this.setCharacterMoment(
+          p,
+          "wrestling with the carry-on",
+          "struggling with a very heavy bag",
+          "This bag was lighter at home.",
+          Math.min(7,p.stowDuration)
+        );
       }
     }
     beginSeating(p){
-      p.state="seating";p.seatingDuration=this.computeSeat(p);p.remaining=p.seatingDuration;
+      p.state="seating";
+      p.seatingDuration=this.computeSeat(p);
+      p.remaining=p.seatingDuration;
       this.setCharacterMoment(p,"almost there",`entering row ${p.row} toward ${p.seatKey}`);
     }
     release(dt){
-      if(this.pending>=this.queue.length || this.nearestToDoor()<SPACING) return;
+      if(this.pending>=this.queue.length) return;
+      if(this.nearestToDoor()<SPACING) return;
       const p=this.queue[this.pending];
-      if(!p.delayRemainingInitialized){p.delayRemaining=p.entryDelay;p.delayRemainingInitialized=true;}
-      if(p.delayRemaining>0){p.delayRemaining=Math.max(0,p.delayRemaining-dt);return;}
-      p.state="walking";p.pos=0;p.remaining=0;p.eventDelaySeconds=p.eventDelaySeconds||0;
-      this.active.push(p);this.pending++;
-      if(p.characterId==="barbara") this.setCharacterMoment(p,"finally aboard","heading down the aisle","Made it!",3.5);
-      else if(p.incidentType==="chatty") this.setCharacterMoment(p,"ready to mingle","looking for conversation","Long flight, huh?",3);
-      else if(p.incidentType==="tipsy") this.setCharacterMoment(p,"finding the aisle","moving carefully","We're moving already?",3);
-    }
-    beginIncidentPause(p,stop){
-      p.state="incident-pause";p.remaining=stop.duration;
-      p.incidentStopIndex=(p.incidentStopIndex||0)+1;
-      const status=p.incidentType==="chatty"?"finishing a story":"getting their bearings";
-      this.setCharacterMoment(p,status,`${p.incidentType} aisle delay`,stop.line,Math.min(stop.duration,5));
-    }
-    maybeTriggerAmbient(p){
-      if(p.ambientSpoken || !p.ambientLine || p.pos+1e-7<(p.ambientTriggerRow||0)) return;
-      p.ambientSpoken=true;
-      this.showBubble(p,p.ambientLine,p.ambientBubbleDuration||2.5);
+      if(!p.delayRemainingInitialized){
+        p.delayRemaining=p.entryDelay;
+        p.delayRemainingInitialized=true;
+      }
+      if(p.delayRemaining>0){
+        p.delayRemaining=Math.max(0,p.delayRemaining-dt);
+        return;
+      }
+      p.state="walking";
+      p.pos=0;
+      p.remaining=0;
+      p.eventDelaySeconds=p.eventDelaySeconds||0;
+      this.active.push(p);
+      this.pending++;
+      this.setCharacterMoment(p,"finally aboard","heading down the aisle",p.characterId==="barbara"?"Made it!":null,3.5);
     }
     beginRestroomTrip(p){
-      p.state="walking-to-restroom";p.restroomTripElapsed=0;
+      p.state="walking-to-restroom";
+      p.restroomTripElapsed=0;
       p.restroomBaselineRemaining=Math.max(0,(p.row-p.pos)/Math.max(.001,p.walkSpeed));
-      p.restroomPassedIds={outbound:new Set(),return:new Set()};p.squeezePasses=0;
+      p.restroomPassedIds={outbound:new Set(),return:new Set()};
+      p.squeezePasses=0;
       this.setCharacterMoment(p,"doubling back","walking toward the front lavatory","Nope. Restroom first.",4.2);
     }
     registerSqueeze(p,other,phase){
-      const passed=p.restroomPassedIds?.[phase];if(!passed || passed.has(other.id)) return;
-      passed.add(other.id);p.squeezePasses=(p.squeezePasses||0)+1;
+      const passed=p.restroomPassedIds?.[phase];
+      if(!passed || passed.has(other.id)) return;
+      passed.add(other.id);
+      p.squeezePasses=(p.squeezePasses||0)+1;
       p.squeezeDelayRemaining=Math.max(p.squeezeDelayRemaining||0,p.squeezeSelfDuration||.9);
       const otherDelay=p.squeezeOtherDuration||1.8;
-      if(other.state==="walking") other.squeezeDelayRemaining=Math.max(other.squeezeDelayRemaining||0,otherDelay);
-      else if(other.state==="stowing" || other.state==="seating" || other.state==="incident-pause"){
-        other.remaining=(other.remaining||0)+otherDelay;other.disruptionDelaySeconds=(other.disruptionDelaySeconds||0)+otherDelay;
+      if(other.state==="walking"){
+        other.squeezeDelayRemaining=Math.max(other.squeezeDelayRemaining||0,otherDelay);
+      }else if(other.state==="stowing" || other.state==="seating" || CREW_BLOCKING_STATES.has(other.state)){
+        other.remaining=(other.remaining||0)+otherDelay;
+        other.disruptionDelaySeconds=(other.disruptionDelaySeconds||0)+otherDelay;
       }
-      other.disruptedByCharacter=p.displayName||"a disruptive passenger";other.disruptionCount=(other.disruptionCount||0)+1;
-      if(p.squeezePasses===1 || p.squeezePasses%4===0) this.setCharacterMoment(
-        p,"squeezing past passengers",`${phase==="outbound"?"backtracking":"returning"} through the aisle · ${p.squeezePasses} crossings`,
-        p.squeezePasses===1?"Excuse me—sorry—coming through.":"Sorry. Again.",2.8
-      );
+      other.disruptedByCharacter=p.displayName||"a disruptive passenger";
+      other.disruptionCount=(other.disruptionCount||0)+1;
+      if(p.squeezePasses===1 || p.squeezePasses%4===0){
+        this.setCharacterMoment(
+          p,
+          "squeezing past passengers",
+          `${phase==="outbound"?"backtracking":"returning"} through the aisle · ${p.squeezePasses} crossings`,
+          p.squeezePasses===1?"Excuse me—sorry—coming through.":"Sorry. Again.",
+          2.8
+        );
+      }
     }
     stepRestroomTravel(p,dt){
       p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
-      const outbound=p.state==="walking-to-restroom",target=outbound?(p.restroomTarget??.15):p.row;
-      const direction=outbound?-1:1,phase=outbound?"outbound":"return";
-      const slowed=(p.squeezeDelayRemaining||0)>0;if(slowed) p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
-      const oldPos=p.pos,move=Math.min(Math.abs(target-oldPos),(p.restroomWalkSpeed||.68)*(slowed ? .42 : 1)*dt);
+      const outbound=p.state==="walking-to-restroom";
+      const target=outbound?(p.restroomTarget??.15):p.row;
+      const direction=outbound?-1:1;
+      const phase=outbound?"outbound":"return";
+      const slowed=(p.squeezeDelayRemaining||0)>0;
+      if(slowed) p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+      const speed=(p.restroomWalkSpeed||.68)*(slowed ? .42 : 1);
+      const oldPos=p.pos;
+      const distance=Math.abs(target-oldPos);
+      const move=Math.min(distance,speed*dt);
       p.pos=oldPos+direction*move;
-      const low=Math.min(oldPos,p.pos)-.015,high=Math.max(oldPos,p.pos)+.015;
-      for(const other of this.active) if(other!==p && other.state!=="seated" && !RESTROOM_TRAVEL_STATES.has(other.state) && other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerSqueeze(p,other,phase);
+
+      const low=Math.min(oldPos,p.pos)-.015;
+      const high=Math.max(oldPos,p.pos)+.015;
+      for(const other of this.active){
+        if(other===p || other.state==="seated" || RESTROOM_TRAVEL_STATES.has(other.state)) continue;
+        if(other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerSqueeze(p,other,phase);
+      }
+
       if(Math.abs(p.pos-target)>.001) return;
       p.pos=target;
-      if(outbound){p.state="restroom";p.remaining=p.restroomDuration;this.setCharacterMoment(p,"in the lavatory","using the front lavatory","Finally.",2.4);return;}
-      p.restroomTripComplete=true;p.restroomExtraDelay=Math.max(0,(p.restroomTripElapsed||0)-(p.restroomBaselineRemaining||0));
-      p.eventDelaySeconds=(p.heavyBagDelayCounted?p.heavyBagExtra||0:0)+p.restroomExtraDelay;
-      this.setCharacterMoment(p,"back at her row",`restroom trip complete · squeezed past ${p.squeezePasses||0} passengers`,"Much better.",3);
+      if(outbound){
+        p.state="restroom";
+        p.remaining=p.restroomDuration;
+        this.setCharacterMoment(p,"in the lavatory","using the front lavatory","Finally.",2.4);
+        return;
+      }
+
+      p.restroomTripComplete=true;
+      p.restroomExtraDelay=Math.max(0,(p.restroomTripElapsed||0)-(p.restroomBaselineRemaining||0));
+      p.eventDelaySeconds=(p.eventDelaySeconds||0)+p.restroomExtraDelay;
+      this.setCharacterMoment(
+        p,
+        "back at her row",
+        `restroom trip complete · squeezed past ${p.squeezePasses||0} passengers`,
+        "Much better.",
+        3
+      );
       this.beginStowing(p);
     }
+    maybeBeginIncident(p){
+      if(!p.incidentStops || p.state!=="walking") return false;
+      const index=p.incidentStopIndex||0;
+      const stop=p.incidentStops[index];
+      if(!stop || p.pos+1e-7<stop.row) return false;
+      p.pos=stop.row;
+      p.state="incident-pause";
+      p.remaining=stop.duration;
+      p.incidentStopIndex=index;
+      this.setCharacterMoment(
+        p,
+        p.incidentType==="tipsy"?"getting her bearings":"finishing a story",
+        `${p.incidentType} aisle pause ${index+1} of ${p.incidentStops.length}`,
+        stop.line,
+        stop.duration
+      );
+      return true;
+    }
+    maybeShowAmbientLine(p){
+      if(!p.ambientLine || p.ambientSpoken || p.state!=="walking") return;
+      if(p.pos+1e-7<p.ambientTriggerRow) return;
+      p.ambientSpoken=true;
+      p.bubbleText=p.ambientLine;
+      p.bubbleUntil=this.time+(p.ambientBubbleDuration||2.5);
+    }
+    queueCrewHelp(p){
+      if(p.crewRequestQueued || p.crewAssistanceComplete) return;
+      p.crewRequestQueued=true;
+      p.crewRequestTime=this.time;
+      p.state="awaiting-crew";
+      p.remaining=0;
+      this.crewRequests.push(p.id);
+      this.setCharacterMoment(
+        p,
+        "waiting for cabin crew",
+        "carry-on lift failed; help requested",
+        p.crewRequestLine||"Could I get some help with this?",
+        4.2
+      );
+    }
+    beginNextCrewRequest(){
+      while(this.crewRequests.length){
+        const passenger=this.passengerById(this.crewRequests.shift());
+        if(!passenger || passenger.crewAssistanceComplete || passenger.state!=="awaiting-crew") continue;
+        this.crew.state="walking-to-passenger";
+        this.crew.targetPassengerId=passenger.id;
+        this.crew.passedIds=new Set();
+        this.setCrewMoment("responding to a passenger",`walking to row ${passenger.row}`,"On my way.",2.4);
+        passenger.crewResponseStarted=this.time;
+        return;
+      }
+      this.crew.state="idle";
+      this.crew.targetPassengerId=null;
+      this.crew.pos=this.crew.homePos;
+      this.setCrewMoment("watching the cabin","available near the front door");
+    }
+    registerCrewSqueeze(other){
+      if(!other || other.state==="seated" || this.crew.passedIds.has(other.id)) return;
+      this.crew.passedIds.add(other.id);
+      this.crew.squeezePasses++;
+      this.crew.squeezeDelayRemaining=Math.max(this.crew.squeezeDelayRemaining||0,this.crew.squeezeSelfDuration||.7);
+      const delay=this.crew.squeezeOtherDuration||.9;
+      if(other.state==="walking"){
+        other.crewYieldRemaining=Math.max(other.crewYieldRemaining||0,delay);
+      }else if(other.state==="stowing" || other.state==="seating" || CREW_BLOCKING_STATES.has(other.state)){
+        other.remaining=(other.remaining||0)+delay;
+        other.crewYieldSeconds=(other.crewYieldSeconds||0)+delay;
+      }
+      other.crewYieldedTo=this.crew.displayName;
+      other.crewYieldCount=(other.crewYieldCount||0)+1;
+    }
+    startCrewAssistance(passenger){
+      this.crew.state="assisting";
+      this.crew.pos=passenger.row;
+      this.crew.remaining=passenger.crewAssistDuration||6;
+      passenger.state="crew-assist";
+      passenger.remaining=this.crew.remaining;
+      passenger.crewAssistTotal=this.crew.remaining;
+      passenger.crewAssistanceStarted=this.time;
+      this.setCrewMoment("helping with a carry-on",`lifting a bag at row ${passenger.row}`,"I've got it.",3);
+      this.setCharacterMoment(
+        passenger,
+        "getting cabin-crew help",
+        `${this.crew.displayName} is lifting the carry-on`,
+        passenger.crewAssistLine||"Thank you!",
+        3.2
+      );
+    }
+    finishCrewAssistance(passenger){
+      passenger.crewAssistanceComplete=true;
+      passenger.crewAssistanceFinished=this.time;
+      passenger.crewEventDelay=Math.max(0,this.time-(passenger.crewAttemptStartTime||this.time));
+      if(passenger.hasBag && !passenger.bagStowed){
+        passenger.bagStowed=true;
+        const key=`${passenger.row}${passenger.side}`;
+        const load=this.binLoad.get(key)||0;
+        this.binLoad.set(key,load+1);
+        this.stowedBags.push({
+          passengerId:passenger.id,
+          row:passenger.row,
+          side:passenger.side,
+          groupType:passenger.groupType,
+          color:passenger.partyColor||passenger.characterColor||null
+        });
+      }
+      this.crew.assistsCompleted++;
+      this.setCharacterMoment(
+        passenger,
+        "bag safely overhead",
+        `assisted by ${this.crew.displayName} after ${(passenger.crewEventDelay||0).toFixed(1)}s`,
+        "Thank you!",
+        2.8
+      );
+      this.beginSeating(passenger);
+      this.crew.state="returning-front";
+      this.crew.targetPassengerId=null;
+      this.crew.passedIds=new Set();
+      this.setCrewMoment("returning to the front","walking back toward the door","All set.",2.4);
+    }
+    stepCrewTravel(dt,target,arrive){
+      const oldPos=this.crew.pos;
+      const direction=target>=oldPos?1:-1;
+      const slowed=(this.crew.squeezeDelayRemaining||0)>0;
+      if(slowed) this.crew.squeezeDelayRemaining=Math.max(0,this.crew.squeezeDelayRemaining-dt);
+      const speed=this.crew.speed*(slowed ? .52 : 1);
+      const move=Math.min(Math.abs(target-oldPos),speed*dt);
+      this.crew.pos=oldPos+direction*move;
+      this.crew.travelDistance+=move;
+
+      const low=Math.min(oldPos,this.crew.pos)-.015;
+      const high=Math.max(oldPos,this.crew.pos)+.015;
+      for(const other of this.active){
+        if(other.id===this.crew.targetPassengerId || other.state==="seated" || RESTROOM_TRAVEL_STATES.has(other.state)) continue;
+        if(other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerCrewSqueeze(other);
+      }
+      if(Math.abs(this.crew.pos-target)<=.001){
+        this.crew.pos=target;
+        arrive();
+      }
+    }
+    stepCrew(dt){
+      if(this.crew.state==="idle"){
+        if(this.crewRequests.length) this.beginNextCrewRequest();
+        return;
+      }
+      if(this.crew.state==="walking-to-passenger"){
+        const passenger=this.passengerById(this.crew.targetPassengerId);
+        if(!passenger || passenger.state!=="awaiting-crew"){
+          this.crew.state="returning-front";
+          this.crew.targetPassengerId=null;
+          this.crew.passedIds=new Set();
+          return;
+        }
+        this.stepCrewTravel(dt,passenger.row,()=>this.startCrewAssistance(passenger));
+        return;
+      }
+      if(this.crew.state==="assisting"){
+        const passenger=this.passengerById(this.crew.targetPassengerId);
+        if(!passenger){
+          this.crew.state="returning-front";
+          this.crew.targetPassengerId=null;
+          return;
+        }
+        this.crew.remaining=Math.max(0,this.crew.remaining-dt);
+        passenger.remaining=this.crew.remaining;
+        passenger.eventDelaySeconds=(passenger.eventDelaySeconds||0)+dt;
+        if(this.crew.remaining<=0) this.finishCrewAssistance(passenger);
+        return;
+      }
+      if(this.crew.state==="returning-front"){
+        this.stepCrewTravel(dt,this.crew.homePos,()=>this.beginNextCrewRequest());
+      }
+    }
     step(dt){
-      if(this.done) return;this.time+=dt;
+      if(this.done) return;
+      this.time+=dt;
+
       let anyBlocking=false;
       for(const p of this.active){
         if(p.state==="restroom"){
-          anyBlocking=true;p.remaining-=dt;p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
-          if(p.remaining<=0){p.state="walking-from-restroom";p.remaining=0;this.setCharacterMoment(p,"heading back","returning from the front lavatory","Coming back through.",3.2);}
-        }else if(p.state==="incident-pause"){
-          anyBlocking=true;p.remaining-=dt;p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;p.incidentDelaySeconds=(p.incidentDelaySeconds||0)+dt;
-          if(p.remaining<=0){p.state="walking";p.remaining=0;this.setCharacterMoment(p,"moving again","continuing toward the assigned row");}
-        }else if(p.state==="stowing"){
-          anyBlocking=true;p.remaining-=dt;
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
           if(p.remaining<=0){
-            if(p.hasBag && !p.bagStowed){p.bagStowed=true;this.stowedBags.push({passengerId:p.id,row:p.row,side:p.side,groupType:p.groupType,color:p.partyColor||p.characterColor||null});}
+            p.state="walking-from-restroom";
+            p.remaining=0;
+            this.setCharacterMoment(p,"heading back","returning from the front lavatory","Coming back through.",3.2);
+          }
+        }else if(p.state==="incident-pause"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+          if(p.remaining<=0){
+            p.incidentStopIndex=(p.incidentStopIndex||0)+1;
+            p.state="walking";
+            p.remaining=0;
+            this.setCharacterMoment(p,"moving again",`${p.incidentType} pause complete`);
+          }
+        }else if(p.state==="failed-lift"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+          if(p.remaining<=0) this.queueCrewHelp(p);
+        }else if(p.state==="awaiting-crew"){
+          anyBlocking=true;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+        }else if(p.state==="crew-assist"){
+          anyBlocking=true;
+        }else if(p.state==="stowing"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          if(p.remaining<=0){
+            if(p.hasBag && !p.bagStowed){
+              p.bagStowed=true;
+              this.stowedBags.push({
+                passengerId:p.id,row:p.row,side:p.side,groupType:p.groupType,
+                color:p.partyColor||p.characterColor||null
+              });
+            }
             this.beginSeating(p);
           }
         }else if(p.state==="seating"){
-          anyBlocking=true;p.remaining-=dt;
-          if(p.remaining<=0){p.state="seated";this.occupancy.set(p.seatKey,p);this.completed++;this.setCharacterMoment(p,"settled, for now","seated");}
+          anyBlocking=true;
+          p.remaining-=dt;
+          if(p.remaining<=0){
+            p.state="seated";
+            this.occupancy.set(p.seatKey,p);
+            this.completed++;
+            this.setCharacterMoment(p,"settled, for now","seated");
+          }
         }
       }
-      for(const p of this.active) if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){anyBlocking=true;this.stepRestroomTravel(p,dt);}
+
+      for(const p of this.active){
+        if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+          anyBlocking=true;
+          this.stepRestroomTravel(p,dt);
+        }
+      }
+
+      this.stepCrew(dt);
+      if(this.crew.state==="assisting") anyBlocking=true;
+
       if(anyBlocking) this.blockedSeconds+=dt;
-      if(this.active.some(p=>p.state==="seated")) this.active=this.active.filter(p=>p.state!=="seated");
+      if(this.active.some(p=>p.state==="seated")){
+        this.active=this.active.filter(p=>p.state!=="seated");
+      }
 
       let leadPos=Infinity;
       for(const p of this.active){
         if(p.state==="walking"){
-          let allowed=p.row;if(leadPos<Infinity) allowed=Math.min(allowed,leadPos-SPACING);
-          const available=Math.max(0,allowed-p.pos),squeezed=(p.squeezeDelayRemaining||0)>0;
-          if(squeezed){p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);p.disruptionDelaySeconds=(p.disruptionDelaySeconds||0)+dt;}
-          const freeMove=p.walkSpeed*(squeezed ? .28 : 1)*dt,move=Math.min(available,freeMove);
-          p.pos+=move;if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
-          this.maybeTriggerAmbient(p);
+          let allowed=p.row;
+          if(leadPos<Infinity) allowed=Math.min(allowed,leadPos-SPACING);
+          const available=Math.max(0,allowed-p.pos);
+          const squeezed=(p.squeezeDelayRemaining||0)>0;
+          const yielding=(p.crewYieldRemaining||0)>0;
+          if(squeezed){
+            p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+            p.disruptionDelaySeconds=(p.disruptionDelaySeconds||0)+dt;
+          }
+          if(yielding){
+            p.crewYieldRemaining=Math.max(0,p.crewYieldRemaining-dt);
+            p.crewYieldSeconds=(p.crewYieldSeconds||0)+dt;
+          }
+          const factor=squeezed ? .28 : yielding ? .38 : 1;
+          const freeMove=p.walkSpeed*factor*dt;
+          const move=Math.min(available,freeMove);
+          p.pos+=move;
+          if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
+          this.maybeShowAmbientLine(p);
 
-          const stop=p.incidentStops?.[p.incidentStopIndex||0];
-          if(p.characterId==="barbara" && !p.restroomTripStarted && p.row>p.restroomTurnRow+.001 && p.pos+1e-7>=p.restroomTurnRow){
-            p.pos=p.restroomTurnRow;p.restroomTripStarted=true;this.beginRestroomTrip(p);
-          }else if(stop && p.pos+1e-7>=stop.row){
-            p.pos=Math.min(p.pos,stop.row);this.beginIncidentPause(p,stop);
-          }else if(p.row-p.pos<=.001){p.pos=p.row;this.beginStowing(p);}
+          if(
+            p.characterId==="barbara"
+            && !p.restroomTripStarted
+            && p.row>p.restroomTurnRow+.001
+            && p.pos+1e-7>=p.restroomTurnRow
+          ){
+            p.pos=p.restroomTurnRow;
+            p.restroomTripStarted=true;
+            this.beginRestroomTrip(p);
+          }else if(this.maybeBeginIncident(p)){
+            // Incident state set above.
+          }else if(p.row-p.pos<=.001){
+            p.pos=p.row;
+            this.beginStowing(p);
+          }
         }
         if(!RESTROOM_TRAVEL_STATES.has(p.state)) leadPos=p.pos;
       }
+
       this.release(dt);
-      if(this.completed===this.queue.length) this.done=true;
-      if(this.time>7200){this.done=true;console.warn("Simulation safety stop",this.method);}
+      if(this.completed===this.queue.length){
+        this.done=true;
+      }
+      if(this.time>7200){
+        this.done=true;
+        console.warn("Simulation safety stop",this.method);
+      }
     }
-    runToEnd(dt=.2){while(!this.done) this.step(dt);return this.time;}
+    runToEnd(dt=.2){
+      while(!this.done) this.step(dt);
+      return this.time;
+    }
   }
 
   function formatTime(seconds){
@@ -1769,6 +2193,20 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return {x,y,w:geometry.seatW,h:geometry.rowH-2,cx:x+geometry.seatW/2,cy:y+(geometry.rowH-2)/2};
   }
 
+  function crewPoint(crew,geometry){
+    const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+    let x=aisleCenter;
+    let y=geometry.top+(clamp(crew.pos,0,ROWS)-.5)*geometry.rowH;
+    if(crew.state==="idle"){
+      x=aisleCenter-geometry.aisleW*.28;
+      y=geometry.top-18;
+    }else if(crew.state==="walking-to-passenger") x=aisleCenter-geometry.aisleW*.24;
+    else if(crew.state==="returning-front") x=aisleCenter+geometry.aisleW*.24;
+    else if(crew.state==="assisting") x=aisleCenter+(crew.targetPassengerId%2?1:-1)*geometry.aisleW*.2;
+    if((crew.squeezeDelayRemaining||0)>0) x+=Math.sin(crew.pos*8)*2;
+    return {crew,x,y};
+  }
+
   function passengerPoint(passenger,geometry){
     const aisleCenter=geometry.aisleX+geometry.aisleW/2;
     const baseX=aisleCenter+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08);
@@ -1780,7 +2218,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     else if(passenger.state==="restroom"){
       x=aisleCenter+geometry.aisleW*.32;
       y=geometry.top-18;
-    }else if((passenger.squeezeDelayRemaining||0)>0){
+    }else if((passenger.squeezeDelayRemaining||0)>0 || (passenger.crewYieldRemaining||0)>0){
       x=baseX+geometry.aisleW*.18;
     }else if(passenger.incidentType==="tipsy" && passenger.state==="walking"){
       x=baseX+Math.sin((passenger.pos+passenger.id)*5)*2.4;
@@ -1804,6 +2242,11 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     const x=(clientX-rect.left)*canvas.width/rect.width;
     const y=(clientY-rect.top)*canvas.height/rect.height;
     const geometry=cabinGeometry(canvas.width,canvas.height);
+
+    const crew=crewPoint(sim.crew,geometry);
+    if(Math.hypot(x-crew.x,y-crew.y)<=12){
+      return {kind:"crew",crew:sim.crew,point:crew};
+    }
 
     const active=(sim.active||[]).map(passenger=>passengerPoint(passenger,geometry));
     for(let index=active.length-1;index>=0;index--){
@@ -1852,7 +2295,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     }
     const activeStows=new Set(
       sim.active
-        .filter(p=>p.state==="stowing" && p.hasBag)
+        .filter(p=>(p.state==="stowing" || p.state==="crew-assist") && p.hasBag)
         .map(p=>`${p.row}${p.side}`)
     );
 
@@ -1975,9 +2418,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       if(p.hasBag && !p.bagStowed){
         let bagX=x+(p.side==="L"?-10:4);
         let bagY=y-2;
-        if(p.state==="stowing"){
+        if(p.state==="stowing" || p.state==="crew-assist"){
           const targetX=p.side==="L"?leftBinX+binW/2:rightBinX+binW/2;
-          const duration=Math.max(.001,p.stowDuration||p.remaining||1);
+          const duration=Math.max(.001,p.state==="crew-assist"?(p.crewAssistTotal||p.remaining||1):(p.stowDuration||p.remaining||1));
           const progress=clamp(1-p.remaining/duration,0,1);
           const eased=1-Math.pow(1-progress,2);
           bagX=(x-3.5)+(targetX-x)*eased;
@@ -2043,10 +2486,49 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       }
     }
 
+    const crewVisual=crewPoint(sim.crew,geometry);
+    const crewTarget=sim.crew.targetPassengerId==null?null:points.find(point=>point.p.id===sim.crew.targetPassengerId);
+    if(sim.crew.state==="assisting" && crewTarget){
+      ctx.save();
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle="rgba(86,224,181,.7)";
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(crewVisual.x,crewVisual.y);
+      ctx.lineTo(crewTarget.x,crewTarget.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    const crewRadius=6.2;
+    if(sim.crew.state==="assisting"){
+      ctx.beginPath();
+      ctx.arc(crewVisual.x,crewVisual.y,crewRadius+3+Math.sin(sim.time*6)*.7,0,Math.PI*2);
+      ctx.strokeStyle="rgba(141,255,218,.88)";
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(crewVisual.x,crewVisual.y,crewRadius,0,Math.PI*2);
+    ctx.fillStyle=sim.crew.color||"#56e0b5";
+    ctx.fill();
+    ctx.strokeStyle="#eafff7";
+    ctx.lineWidth=1.2;
+    ctx.stroke();
+    ctx.fillStyle="#09261e";
+    ctx.font="900 6px system-ui";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText("FA",crewVisual.x,crewVisual.y+.2);
+    ctx.restore();
+
     for(const {p,x,y} of points){
-      if(p.characterId && p.bubbleText && (p.bubbleUntil||0)>=sim.time){
+      if(p.bubbleText && (p.bubbleUntil||0)>=sim.time){
         drawCharacterBubble(ctx,p.bubbleText,x,y,w,h);
       }
+    }
+    if(sim.crew.bubbleText && (sim.crew.bubbleUntil||0)>=sim.time){
+      drawCharacterBubble(ctx,sim.crew.bubbleText,crewVisual.x,crewVisual.y,w,h);
     }
 
     for(const members of activeFamilies.values()){
@@ -2126,6 +2608,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     if(passenger.state==="restroom") return `inside front lavatory · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="incident-pause") return `${passenger.incidentType||"incident"} delay in aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="walking-from-restroom") return `returning toward row ${passenger.row} · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="failed-lift") return `failed overhead-bin lift · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="awaiting-crew") return "blocking the aisle while waiting for cabin crew";
+    if(passenger.state==="crew-assist") return `crew lifting carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
@@ -2148,16 +2633,23 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     }
     if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
     if(passenger.eventState) character.push(row("Current event",passenger.eventState));
-  if(passenger.restroomTripStarted){
-    character.push(row("Aisle crossings",`${passenger.squeezePasses||0} passenger squeezes`));
-    character.push(row("Restroom trip",passenger.restroomTripComplete
-      ? `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed · ${(passenger.restroomExtraDelay||0).toFixed(1)}s extra`
-      : `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed`));
-  }
-  if(passenger.baselineWalkSpeed) character.push(row("Normal walking speed",`${passenger.baselineWalkSpeed.toFixed(2)} rows/sec`));
-  if(passenger.incidentStops) character.push(row("Incident stops",`${passenger.incidentStopIndex||0} of ${passenger.incidentStops.length} completed`));
-  if(passenger.disruptionDelaySeconds) character.push(row("Passenger disruption",`${passenger.disruptionDelaySeconds.toFixed(1)}s slowed by ${passenger.disruptedByCharacter||"another traveler"}`));
-  if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
+    if(passenger.restroomTripStarted){
+      character.push(row("Aisle crossings",`${passenger.squeezePasses||0} passenger squeezes`));
+      character.push(row("Restroom trip",passenger.restroomTripComplete
+        ? `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed · ${(passenger.restroomExtraDelay||0).toFixed(1)}s extra`
+        : `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed`));
+    }
+    if(passenger.baselineWalkSpeed) character.push(row("Normal walking speed",`${passenger.baselineWalkSpeed.toFixed(2)} rows/sec`));
+    if(passenger.incidentStops) character.push(row("Incident stops",`${passenger.incidentStopIndex||0} of ${passenger.incidentStops.length} completed`));
+    if(passenger.disruptionDelaySeconds) character.push(row("Passenger disruption",`${passenger.disruptionDelaySeconds.toFixed(1)}s slowed by ${passenger.disruptedByCharacter||"another traveler"}`));
+    if(passenger.crewYieldSeconds) character.push(row("Yielded to crew",`${passenger.crewYieldSeconds.toFixed(1)}s across ${passenger.crewYieldCount||1} crossing${passenger.crewYieldCount===1?"":"s"}`));
+    if(passenger.requiresCrewHelp){
+      const help=passenger.crewAssistanceComplete
+        ? `${(passenger.crewEventDelay||0).toFixed(1)}s · completed by Maya`
+        : passenger.crewRequestQueued?"requested · crew responding":"required at the overhead bin";
+      character.push(row("Crew help",help));
+    }
+    if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
     return `
       <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
       <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>
@@ -2170,7 +2662,22 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       ${character.join("")}`;
   }
 
+  function crewDetails(crew,sim){
+    const target=crew.targetPassengerId==null?null:sim.queue.find(p=>p.id===crew.targetPassengerId);
+    return `
+      <div class="sim-tooltip-title">${escapeHtml(crew.displayName)}</div>
+      <div class="sim-tooltip-subtitle">Cabin crew · front-cabin responder</div>
+      ${row("Current state",crew.status||crew.state)}
+      ${row("Current task",crew.eventState||"available")}
+      ${row("Position",crew.state==="idle"?"front door":`near row ${Math.max(1,Math.ceil(crew.pos||0))}`)}
+      ${row("Target",target?`${passengerName(target)} · row ${target.row}`:"none")}
+      ${row("Assists completed",String(crew.assistsCompleted||0))}
+      ${row("Aisle travel",`${(crew.travelDistance||0).toFixed(1)} rows`)}
+      ${row("Passenger squeezes",String(crew.squeezePasses||0))}`;
+  }
+
   function tooltipHtml(hit,sim){
+    if(hit.kind==="crew") return crewDetails(hit.crew,sim);
     if(hit.kind==="passenger") return passengerDetails(hit.passenger,sim);
     const passenger=hit.occupant||hit.assigned;
     if(!hit.isAssigned){

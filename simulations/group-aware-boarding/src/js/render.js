@@ -115,6 +115,20 @@ export function seatRect(geometry,row,col){
   return {x,y,w:geometry.seatW,h:geometry.rowH-2,cx:x+geometry.seatW/2,cy:y+(geometry.rowH-2)/2};
 }
 
+export function crewPoint(crew,geometry){
+  const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+  let x=aisleCenter;
+  let y=geometry.top+(clamp(crew.pos,0,ROWS)-.5)*geometry.rowH;
+  if(crew.state==="idle"){
+    x=aisleCenter-geometry.aisleW*.28;
+    y=geometry.top-18;
+  }else if(crew.state==="walking-to-passenger") x=aisleCenter-geometry.aisleW*.24;
+  else if(crew.state==="returning-front") x=aisleCenter+geometry.aisleW*.24;
+  else if(crew.state==="assisting") x=aisleCenter+(crew.targetPassengerId%2?1:-1)*geometry.aisleW*.2;
+  if((crew.squeezeDelayRemaining||0)>0) x+=Math.sin(crew.pos*8)*2;
+  return {crew,x,y};
+}
+
 export function passengerPoint(passenger,geometry){
   const aisleCenter=geometry.aisleX+geometry.aisleW/2;
   const baseX=aisleCenter+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08);
@@ -126,7 +140,7 @@ export function passengerPoint(passenger,geometry){
   else if(passenger.state==="restroom"){
     x=aisleCenter+geometry.aisleW*.32;
     y=geometry.top-18;
-  }else if((passenger.squeezeDelayRemaining||0)>0){
+  }else if((passenger.squeezeDelayRemaining||0)>0 || (passenger.crewYieldRemaining||0)>0){
     x=baseX+geometry.aisleW*.18;
   }else if(passenger.incidentType==="tipsy" && passenger.state==="walking"){
     x=baseX+Math.sin((passenger.pos+passenger.id)*5)*2.4;
@@ -150,6 +164,11 @@ export function hitTestSim(sim,canvas,clientX,clientY){
   const x=(clientX-rect.left)*canvas.width/rect.width;
   const y=(clientY-rect.top)*canvas.height/rect.height;
   const geometry=cabinGeometry(canvas.width,canvas.height);
+
+  const crew=crewPoint(sim.crew,geometry);
+  if(Math.hypot(x-crew.x,y-crew.y)<=12){
+    return {kind:"crew",crew:sim.crew,point:crew};
+  }
 
   const active=(sim.active||[]).map(passenger=>passengerPoint(passenger,geometry));
   for(let index=active.length-1;index>=0;index--){
@@ -198,7 +217,7 @@ export function drawSim(sim,canvas){
   }
   const activeStows=new Set(
     sim.active
-      .filter(p=>p.state==="stowing" && p.hasBag)
+      .filter(p=>(p.state==="stowing" || p.state==="crew-assist") && p.hasBag)
       .map(p=>`${p.row}${p.side}`)
   );
 
@@ -321,9 +340,9 @@ export function drawSim(sim,canvas){
     if(p.hasBag && !p.bagStowed){
       let bagX=x+(p.side==="L"?-10:4);
       let bagY=y-2;
-      if(p.state==="stowing"){
+      if(p.state==="stowing" || p.state==="crew-assist"){
         const targetX=p.side==="L"?leftBinX+binW/2:rightBinX+binW/2;
-        const duration=Math.max(.001,p.stowDuration||p.remaining||1);
+        const duration=Math.max(.001,p.state==="crew-assist"?(p.crewAssistTotal||p.remaining||1):(p.stowDuration||p.remaining||1));
         const progress=clamp(1-p.remaining/duration,0,1);
         const eased=1-Math.pow(1-progress,2);
         bagX=(x-3.5)+(targetX-x)*eased;
@@ -389,10 +408,49 @@ if(p.characterId){
     }
   }
 
+  const crewVisual=crewPoint(sim.crew,geometry);
+  const crewTarget=sim.crew.targetPassengerId==null?null:points.find(point=>point.p.id===sim.crew.targetPassengerId);
+  if(sim.crew.state==="assisting" && crewTarget){
+    ctx.save();
+    ctx.setLineDash([3,3]);
+    ctx.strokeStyle="rgba(86,224,181,.7)";
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(crewVisual.x,crewVisual.y);
+    ctx.lineTo(crewTarget.x,crewTarget.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.save();
+  const crewRadius=6.2;
+  if(sim.crew.state==="assisting"){
+    ctx.beginPath();
+    ctx.arc(crewVisual.x,crewVisual.y,crewRadius+3+Math.sin(sim.time*6)*.7,0,Math.PI*2);
+    ctx.strokeStyle="rgba(141,255,218,.88)";
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(crewVisual.x,crewVisual.y,crewRadius,0,Math.PI*2);
+  ctx.fillStyle=sim.crew.color||"#56e0b5";
+  ctx.fill();
+  ctx.strokeStyle="#eafff7";
+  ctx.lineWidth=1.2;
+  ctx.stroke();
+  ctx.fillStyle="#09261e";
+  ctx.font="900 6px system-ui";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText("FA",crewVisual.x,crewVisual.y+.2);
+  ctx.restore();
+
   for(const {p,x,y} of points){
-    if(p.characterId && p.bubbleText && (p.bubbleUntil||0)>=sim.time){
+    if(p.bubbleText && (p.bubbleUntil||0)>=sim.time){
       drawCharacterBubble(ctx,p.bubbleText,x,y,w,h);
     }
+  }
+  if(sim.crew.bubbleText && (sim.crew.bubbleUntil||0)>=sim.time){
+    drawCharacterBubble(ctx,sim.crew.bubbleText,crewVisual.x,crewVisual.y,w,h);
   }
 
   for(const members of activeFamilies.values()){

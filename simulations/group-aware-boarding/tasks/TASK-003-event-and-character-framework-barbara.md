@@ -1,6 +1,6 @@
 # TASK-003: Event and Character Framework — Barbara and Cabin Incidents
 
-**Status:** Barbara trip and configurable cabin personality implemented in candidate
+**Status:** Barbara, cabin incidents, and visible crew assistance implemented in candidate
 
 ## Implemented
 
@@ -37,14 +37,22 @@ Ambient chatter is visual only. It never changes movement or results, and each s
 - character and incident behavior can be disabled
 - no Race Moments ticker or post-race recap
 
-## Next slice — visible crew assistance
+## Visible crew assistance — implemented
 
-- add a deterministic cabin-crew actor near the front door
-- support a passenger requesting help with a bag or finding a seat
-- animate crew travel or reach rather than teleporting assistance
-- pause or yield correctly while the interaction occurs
-- expose both passenger and crew status on hover
-- reuse the same framework for Barbara's failed-lift beat
+- deterministic cabin-crew actor Maya starts near the front door
+- Barbara and the third disruptive archetype perform a failed overhead-bin lift
+- requests are served first-come without teleporting the crew actor
+- crew travel, passenger yields, assistance time, and return travel are animated
+- assisted bags visibly move into their correct overhead compartment
+- passenger and crew hover details explain the live interaction and accumulated delay
+- intrinsic crew and assistance values are shared across methods
+
+## Next slice — broader crew interactions
+
+- optional seat-finding and family-coordination requests
+- a second crew member for high-chaos scenarios
+- bounded crew-request controls separate from disruptive-passenger count
+- clearer visual signaling when multiple requests are queued
 
 ## Acceptance criteria
 

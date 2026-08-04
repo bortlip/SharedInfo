@@ -60,7 +60,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
       <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
     </div>
   </div>
-  <div class="version"><span>Model version</span><strong>v3.6.0</strong></div>
+  <div class="version"><span>Model version</span><strong>v3.7.0</strong></div>
 </header>
 <div class="layout">
   <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
@@ -70,6 +70,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <li class="toc-sub"><a href="#passenger-and-seat-hover-explanations">Passenger and seat hover explanations</a></li>
 <li class="toc-sub"><a href="#barbara-mode-and-the-character-event-foundation">Barbara Mode and the character-event foundation</a></li>
 <li class="toc-sub"><a href="#configurable-cabin-incidents-and-chatter">Configurable cabin incidents and chatter</a></li>
+<li class="toc-sub"><a href="#visible-cabin-crew-assistance">Visible cabin-crew assistance</a></li>
 <li class="toc-sub"><a href="#live-race-hud-and-race-graph">Live race HUD and race graph</a></li>
 <li class="toc-sub"><a href="#roomy-and-compact-fleet-display">Roomy and Compact Fleet display</a></li>
 <li class=""><a href="#3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</a></li>
@@ -172,7 +173,12 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </ul>
 <p>The number and timing of downstream delays can differ by method because nearby passengers and congestion differ. These travelers have distinct markers and live hover status. <code>Disruptive passengers: None</code> disables both archetypes completely.</p>
 <p>Cabin chatter is separate and presentation-only. <code>Off</code>, <code>Light</code>, and <code>Lively</code> deterministically assign zero, five, or twelve ordinary passengers one short line each. A line appears once when its passenger crosses a seeded row. Ambient bubbles do not pause movement, alter queue order, add delay, or affect benchmark results. The small fixed population and one-line limit prevent the display from becoming a continuous wall of speech.</p>
-<p>Crew assistance is not yet simulated. The incident framework can carry named roles, statuses, pauses, dialogue, and deterministic timing, but a later slice must add a visible crew member and interaction rather than teleporting help into the aisle.</p>
+<h3 id="visible-cabin-crew-assistance">Visible cabin-crew assistance</h3>
+<p>Every manifest includes one deterministic front-cabin crew definition named Maya. The crew actor is visible near the front door even when idle, but an idle crew member has no mechanical effect.</p>
+<p>Barbara and the <code>Needs help</code> disruptive archetype perform a visible failed-lift attempt when they reach the overhead bin. The passenger then remains in the aisle and submits a first-come crew request. Maya walks from her current position to the passenger rather than teleporting, performs a seeded assistance interval, visibly raises the bag into the correct overhead compartment, and then walks back toward the front before accepting the next waiting request.</p>
+<p>Crew travel uses the same one-dimensional squeeze abstraction as Barbara&#x27;s restroom trip. When Maya crosses an active passenger, both shift laterally in the renderer; Maya slows briefly and the crossed passenger yields for a deterministic interval. The passenger&#x27;s hover details retain the number and duration of crew yields. A crew hover tooltip shows Maya&#x27;s current task, position, target, completed assists, traveled aisle distance, and passenger crossings.</p>
+<p>The assisted passenger blocks the aisle during the failed lift, crew wait, and lift itself. These intervals are mechanically real and contribute to boarding time. Barbara&#x27;s and the help-needing passenger&#x27;s identity, failed-lift duration, assistance duration, and crew definition are shared across methods, while waiting time and actual crossings may differ because each method creates different congestion.</p>
+<p>The crew actor is not included in the passenger count, does not occupy a seat, and never changes an ordinary zero-disruption flight while idle.</p>
 <h3 id="live-race-hud-and-race-graph">Live race HUD and race graph</h3>
 <p>The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:</p>
 <ol>
@@ -682,7 +688,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </tr>
 </tbody></table></div></article>
 </div>
-<footer>Boarding Rush v3.6.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+<footer>Boarding Rush v3.7.0 · This guide is generated from the canonical MODEL.md specification.</footer>
 </div>
 </body>
 </html>

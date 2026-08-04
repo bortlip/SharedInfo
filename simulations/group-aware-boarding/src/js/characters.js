@@ -22,6 +22,12 @@ const TIPSY_LINES=[
   "I am walking perfectly straight.",
   "Just getting my bearings."
 ];
+const HELP_LINES=[
+  "Could I get a little help with this?",
+  "This bag is heavier than it looked.",
+  "I can't quite lift this overhead.",
+  "Excuse me—could someone help?"
+];
 
 function seedMix(seed,salt){
   let x=(seed ^ salt)>>>0;
@@ -41,6 +47,30 @@ function eligibleAdults(manifest,reserved){
   );
   if(preferred.length) return preferred;
   return manifest.passengers.filter(p=>!reserved.has(p.id) && !p.isChild && !p.isReduced && p.row>=4);
+}
+
+function assignCrew(manifest,seed){
+  const rng=mulberry32(seedMix(seed,0xC0FFEE));
+  manifest.crewDefinition={
+    id:"crew-1",
+    displayName:"Maya",
+    role:"cabin crew",
+    homePos:.12,
+    speed:1.08+rng()*.16,
+    squeezeSelfDuration:.55+rng()*.35,
+    squeezeOtherDuration:.7+rng()*.45,
+    color:"#56e0b5"
+  };
+}
+
+function applyCrewHelpProfile(passenger,rng){
+  passenger.requiresCrewHelp=true;
+  passenger.crewFailDuration=1.6+rng()*1.8;
+  passenger.crewAssistDuration=5.2+rng()*3.4;
+  passenger.crewRequestLine=HELP_LINES[Math.floor(rng()*HELP_LINES.length)];
+  passenger.crewAssistLine="I've got it—hold the handle.";
+  passenger.crewAssistanceComplete=false;
+  passenger.crewEventDelay=0;
 }
 
 function assignBarbara(manifest,seed,reserved){
@@ -76,6 +106,7 @@ function assignBarbara(manifest,seed,reserved){
   passenger.eventDelaySeconds=0;
   passenger.bubbleText=null;
   passenger.bubbleUntil=0;
+  applyCrewHelpProfile(passenger,rng);
 
   manifest.characters.push({id:"barbara",passengerId:passenger.id,seatKey:passenger.seatKey,type:"barbara"});
 }
@@ -118,6 +149,25 @@ function assignTipsy(passenger,rng,index){
   passenger.eventDelaySeconds=0;
 }
 
+function assignNeedsHelp(passenger,rng,index){
+  const baselineBagBase=passenger.bagBase;
+  passenger.displayName=`Passenger needing help ${index+1}`;
+  passenger.characterId=`help-${passenger.id}`;
+  passenger.characterLabel="H";
+  passenger.characterRole="passenger needing overhead-bin assistance";
+  passenger.characterStatus="hoping the bag cooperates";
+  passenger.eventState="waiting to board";
+  passenger.characterColor="#b79cff";
+  passenger.incidentType="needs-help";
+  passenger.baselineHasBag=passenger.hasBag;
+  passenger.baselineBagBase=baselineBagBase;
+  passenger.hasBag=true;
+  passenger.bagBase=Math.max(passenger.bagBase,13+rng()*4);
+  passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
+  passenger.eventDelaySeconds=0;
+  applyCrewHelpProfile(passenger,rng);
+}
+
 function assignDisruptions(manifest,seed,cfg,reserved){
   const count=clamp(Math.floor(Number(cfg.disruptivePassengers)||0),0,3);
   if(!count) return;
@@ -127,8 +177,9 @@ function assignDisruptions(manifest,seed,cfg,reserved){
     const passenger=takeRandom(rng,candidates);
     if(!passenger) break;
     reserved.add(passenger.id);
-    if(index%2===0) assignChatty(passenger,rng,index);
-    else assignTipsy(passenger,rng,index);
+    if(index%3===0) assignChatty(passenger,rng,index);
+    else if(index%3===1) assignTipsy(passenger,rng,index);
+    else assignNeedsHelp(passenger,rng,index);
     manifest.characters.push({id:passenger.characterId,passengerId:passenger.id,seatKey:passenger.seatKey,type:passenger.incidentType});
   }
 }
@@ -152,6 +203,7 @@ export function applyCharacterScenario(manifest,seed,cfg){
   manifest.characterScenario=cfg.characterScenario||"none";
   manifest.disruptivePassengers=clamp(Math.floor(Number(cfg.disruptivePassengers)||0),0,3);
   manifest.characters=[];
+  assignCrew(manifest,seed);
   const reserved=new Set();
   if(manifest.characterScenario==="barbara") assignBarbara(manifest,seed,reserved);
   assignDisruptions(manifest,seed,cfg,reserved);

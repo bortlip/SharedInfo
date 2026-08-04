@@ -103,7 +103,17 @@ The number and timing of downstream delays can differ by method because nearby p
 
 Cabin chatter is separate and presentation-only. `Off`, `Light`, and `Lively` deterministically assign zero, five, or twelve ordinary passengers one short line each. A line appears once when its passenger crosses a seeded row. Ambient bubbles do not pause movement, alter queue order, add delay, or affect benchmark results. The small fixed population and one-line limit prevent the display from becoming a continuous wall of speech.
 
-Crew assistance is not yet simulated. The incident framework can carry named roles, statuses, pauses, dialogue, and deterministic timing, but a later slice must add a visible crew member and interaction rather than teleporting help into the aisle.
+### Visible cabin-crew assistance
+
+Every manifest includes one deterministic front-cabin crew definition named Maya. The crew actor is visible near the front door even when idle, but an idle crew member has no mechanical effect.
+
+Barbara and the `Needs help` disruptive archetype perform a visible failed-lift attempt when they reach the overhead bin. The passenger then remains in the aisle and submits a first-come crew request. Maya walks from her current position to the passenger rather than teleporting, performs a seeded assistance interval, visibly raises the bag into the correct overhead compartment, and then walks back toward the front before accepting the next waiting request.
+
+Crew travel uses the same one-dimensional squeeze abstraction as Barbara's restroom trip. When Maya crosses an active passenger, both shift laterally in the renderer; Maya slows briefly and the crossed passenger yields for a deterministic interval. The passenger's hover details retain the number and duration of crew yields. A crew hover tooltip shows Maya's current task, position, target, completed assists, traveled aisle distance, and passenger crossings.
+
+The assisted passenger blocks the aisle during the failed lift, crew wait, and lift itself. These intervals are mechanically real and contribute to boarding time. Barbara's and the help-needing passenger's identity, failed-lift duration, assistance duration, and crew definition are shared across methods, while waiting time and actual crossings may differ because each method creates different congestion.
+
+The crew actor is not included in the passenger count, does not occupy a seat, and never changes an ordinary zero-disruption flight while idle.
 
 ### Live race HUD and race graph
 
