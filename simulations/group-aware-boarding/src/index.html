@@ -3,77 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Interactive aircraft boarding simulator comparing six boarding methods with families, party-size distributions, load factor, and sequence compliance.">
+<meta name="description" content="Boarding Rush is an interactive aircraft boarding simulator that races six boarding methods through families, carry-ons, assisted travelers, and imperfect queue compliance.">
 <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/simulator.html">
-<title>Group-Aware Aircraft Boarding Simulator v2.4</title>
+<title>Boarding Rush — Aircraft Boarding Simulator</title>
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 <div class="shell">
   <header>
     <div>
-      <h1>Group-aware boarding simulator</h1>
-      <p>Six boarding methods face the same A320 manifest: random, strict rear-first, strict front-first, airline zones, WilMA, and a group-safe Steffen variant. Families remain together, and the model includes children, companions, reduced mobility, carry-ons, aisle blocking, seat interference, partial loads, and imperfect sequence compliance.</p>
+      <h1>Boarding Rush</h1>
+      <p>Pick a flight, press run, and watch six boarding strategies race through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
-    <div class="badge">v2.4 · independent benchmarking · metric help</div>
+    <div class="badge">unreleased candidate · scenarios · shareable seeds</div>
   </header>
 
-  <section class="card controls">
-    <div class="control-grid">
-      <label>
-        <span class="range-line"><span>Load factor</span><output id="loadOut">100%</output></span>
-        <input id="loadFactor" type="range" min="50" max="100" step="5" value="100">
-      </label>
-      <label>
-        <span class="range-line"><span>Passengers in families</span><output id="familyOut">30%</output></span>
-        <input id="familyShare" type="range" min="0" max="70" step="5" value="30">
-      </label>
-      <div class="party-size-control">
-        <span class="control-label range-line"><span>Family party-size weights <small>(relative)</small></span><output id="partyWeightTotal">raw total 100</output></span>
-        <div class="weight-grid">
-          <label class="weight-field"><span>2:</span><input id="party2" type="number" min="0" step="any" value="22" title="Relative weight for two-person families; no maximum"></label>
-          <label class="weight-field"><span>3:</span><input id="party3" type="number" min="0" step="any" value="36" title="Relative weight for three-person families; no maximum"></label>
-          <label class="weight-field"><span>4:</span><input id="party4" type="number" min="0" step="any" value="28" title="Relative weight for four-person families; no maximum"></label>
-          <label class="weight-field"><span>5:</span><input id="party5" type="number" min="0" step="any" value="14" title="Relative weight for five-person families; no maximum"></label>
-        </div>
-        <p class="weight-note" id="partyWeightNormalized" aria-live="polite">Normalized at run time: 22.0% · 36.0% · 28.0% · 14.0%</p>
+  <section class="card scenario-picker" aria-labelledby="scenarioHeading">
+    <div class="section-head scenario-heading">
+      <div>
+        <h2 id="scenarioHeading">Choose your flight</h2>
+        <p>Start with a recognizable bit of airport reality. Every scenario can still be fine-tuned below.</p>
       </div>
-      <label>
-        Assisted parties
-        <input id="assistedParties" type="number" min="0" max="12" step="1" value="3">
-      </label>
-      <label>
-        Carry-on rate
-        <span class="range-line"><span></span><output id="bagOut">70%</output></span>
-        <input id="bagRate" type="range" min="0" max="100" step="5" value="70">
-      </label>
-      <label>
-        <span class="range-line"><span>Sequence compliance</span><output id="complianceOut">100%</output></span>
-        <input id="sequenceCompliance" type="range" min="0" max="100" step="5" value="100">
-      </label>
-      <label>
-        Priority policy
-        <select id="priorityPolicy">
-          <option value="assist">Assisted parties first</option>
-          <option value="allgroups">All grouped parties first</option>
-          <option value="none">No preboarding</option>
-        </select>
-      </label>
-      <label>
-        Animation speed
-        <select id="speed">
-          <option value="4">4×</option>
-          <option value="16" selected>16×</option>
-          <option value="64">64×</option>
-          <option value="256">256×</option>
-        </select>
-      </label>
-      <label>
-        Seed
-        <input id="seed" type="number" min="1" max="2147483646" step="1" value="12345">
-      </label>
     </div>
-    <div class="buttons">
+    <div class="scenario-grid" id="scenarioGrid" aria-label="Flight scenarios"></div>
+    <div class="scenario-toolbar">
+      <div class="active-scenario">
+        <span>Current flight</span>
+        <strong id="activeScenarioLabel" data-scenario-id="family-vacation">Family Vacation</strong>
+      </div>
+      <button id="copyScenarioBtn" type="button">🔗 Copy scenario link</button>
+      <span class="copy-toast" id="copyToast" role="status" aria-live="polite"></span>
+    </div>
+    <div class="buttons race-controls">
       <button class="primary" id="runBtn">▶ Run comparison</button>
       <button id="pauseBtn">Pause</button>
       <button id="finishBtn">Finish instantly</button>
@@ -81,6 +42,72 @@
       <span class="status" id="status">Ready.</span>
     </div>
   </section>
+
+  <details class="card controls advanced-controls">
+    <summary>
+      <span>Advanced flight settings</span>
+      <small>Load, families, luggage, compliance, speed, and seed</small>
+    </summary>
+    <div class="advanced-body">
+      <div class="control-grid">
+        <label>
+          <span class="range-line"><span>Load factor</span><output id="loadOut">100%</output></span>
+          <input id="loadFactor" type="range" min="50" max="100" step="5" value="100">
+        </label>
+        <label>
+          <span class="range-line"><span>Passengers in families</span><output id="familyOut">30%</output></span>
+          <input id="familyShare" type="range" min="0" max="70" step="5" value="30">
+        </label>
+        <div class="party-size-control">
+          <span class="control-label range-line"><span>Family party-size weights <small>(relative)</small></span><output id="partyWeightTotal">raw total 100</output></span>
+          <div class="weight-grid">
+            <label class="weight-field"><span>2:</span><input id="party2" type="number" min="0" step="any" value="22" title="Relative weight for two-person families; no maximum"></label>
+            <label class="weight-field"><span>3:</span><input id="party3" type="number" min="0" step="any" value="36" title="Relative weight for three-person families; no maximum"></label>
+            <label class="weight-field"><span>4:</span><input id="party4" type="number" min="0" step="any" value="28" title="Relative weight for four-person families; no maximum"></label>
+            <label class="weight-field"><span>5:</span><input id="party5" type="number" min="0" step="any" value="14" title="Relative weight for five-person families; no maximum"></label>
+          </div>
+          <p class="weight-note" id="partyWeightNormalized" aria-live="polite">Normalized at run time: 22.0% · 36.0% · 28.0% · 14.0%</p>
+        </div>
+        <label>
+          Assisted parties
+          <input id="assistedParties" type="number" min="0" max="12" step="1" value="3">
+        </label>
+        <label>
+          Carry-on rate
+          <span class="range-line"><span></span><output id="bagOut">70%</output></span>
+          <input id="bagRate" type="range" min="0" max="100" step="5" value="70">
+        </label>
+        <label>
+          <span class="range-line"><span>Sequence compliance</span><output id="complianceOut">100%</output></span>
+          <input id="sequenceCompliance" type="range" min="0" max="100" step="5" value="100">
+        </label>
+        <label>
+          Priority policy
+          <select id="priorityPolicy">
+            <option value="assist">Assisted parties first</option>
+            <option value="allgroups">All grouped parties first</option>
+            <option value="none">No preboarding</option>
+          </select>
+        </label>
+        <label>
+          Animation speed
+          <select id="speed">
+            <option value="4">4×</option>
+            <option value="16" selected>16×</option>
+            <option value="64">64×</option>
+            <option value="256">256×</option>
+          </select>
+        </label>
+        <div class="field-group seed-control">
+          <span class="control-label">Seed</span>
+          <div class="seed-entry">
+            <input id="seed" aria-label="Scenario seed" type="number" min="1" max="2147483646" step="1" value="12345">
+            <button id="randomizeSeedBtn" type="button" title="Generate a new random seed">🎲 Randomize</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </details>
 
   <main class="sim-grid">
     <article class="card sim-card">
@@ -174,6 +201,11 @@
         <div><h2>Monte Carlo comparison</h2><p id="benchSubtitle">Run a benchmark to average over different manifests and delays.</p></div>
       </div>
       <div class="benchmark-toolbar">
+        <div class="seed-summary" aria-label="Current scenario seed">
+          <span>Scenario seed</span>
+          <strong id="benchSeedValue">12,345</strong>
+        </div>
+        <button id="benchRandomizeSeedBtn" type="button" class="ghost">🎲 New seed</button>
         <label>
           Trials
           <input id="trials" type="number" min="5" max="200" step="5" value="40">
@@ -214,7 +246,7 @@
     </aside>
   </section>
 
-  <footer>Standalone HTML · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+  <footer>Boarding Rush candidate · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
 </div>
 
 <script type="module" src="./js/app.js"></script>
