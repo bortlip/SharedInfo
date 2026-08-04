@@ -1,9 +1,6 @@
 name: Build and validate Boarding Rush TASK-001
 
 on:
-  push:
-    branches:
-      - feature/boarding-rush-scenarios
   pull_request:
     branches:
       - main
@@ -138,13 +135,17 @@ jobs:
 
           def check_default(path):
               html = Path(path).read_text(encoding='utf-8')
-              assert '<title>Boarding Rush — Aircraft Boarding Simulator</title>' in html
-              assert html.count('class="scenario-card') == 9
-              assert html.count('class="card sim-card"') == 6
-              assert 'data-scenario-id="family-vacation"' in html
-              assert '>Family Vacation</strong>' in html
-              assert 'id="benchSeedValue">12,345</strong>' in html
-              assert 'Family Vacation · seed 12,345' in html
+              checks = {
+                  'title':'<title>Boarding Rush — Aircraft Boarding Simulator</title>' in html,
+                  'scenario_cards':html.count('class="scenario-card-heading"') == 9,
+                  'sim_cards':html.count('class="card sim-card"') == 6,
+                  'family_id':'data-scenario-id="family-vacation"' in html,
+                  'family_name':'>Family Vacation</strong>' in html,
+                  'seed':'id="benchSeedValue">12,345</strong>' in html,
+                  'status':'Family Vacation · seed 12,345' in html,
+              }
+              print(path, checks)
+              assert all(checks.values())
 
           check_default('/tmp/source-default.html')
           check_default('/tmp/dist-default.html')
