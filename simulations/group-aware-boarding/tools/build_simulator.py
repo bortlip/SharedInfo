@@ -32,6 +32,7 @@ INDEX_REPO_PATH = "simulations/group-aware-boarding/index.html"
 MODULE_ORDER = [
     "constants.js",
     "random.js",
+    "scenarios.js",
     "manifest.js",
     "methods.js",
     "simulation.js",
