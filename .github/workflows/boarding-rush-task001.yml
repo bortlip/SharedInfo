@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feature/boarding-rush-scenarios
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
