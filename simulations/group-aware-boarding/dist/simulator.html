@@ -7,7 +7,7 @@
 <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/simulator.html">
 <title>Group-Aware Aircraft Boarding Simulator v2.4</title>
 <style>
-  :root{
+:root{
     color-scheme: dark;
     --bg:#07111f;
     --panel:#0e1c2e;
@@ -452,31 +452,6 @@
     return `hsl(${hue} 82% ${lightness}%)`;
   }
 
-  const $ = id => document.getElementById(id);
-  const controls = {
-    loadFactor:$("loadFactor"),
-    familyShare:$("familyShare"),
-    party2:$("party2"),
-    party3:$("party3"),
-    party4:$("party4"),
-    party5:$("party5"),
-    assistedParties:$("assistedParties"),
-    bagRate:$("bagRate"),
-    sequenceCompliance:$("sequenceCompliance"),
-    priorityPolicy:$("priorityPolicy"),
-    speed:$("speed"),
-    seed:$("seed"),
-    trials:$("trials")
-  };
-
-  let sims = {};
-  let manifest = null;
-  let running = false;
-  let lastFrame = performance.now();
-  let accumulator = 0;
-  let benchmarking = false;
-  let benchmarkResult = null;
-
   function mulberry32(seed){
     let a = seed >>> 0;
     return function(){
@@ -495,22 +470,7 @@
     }
     return out;
   }
-  function normalizedPartyWeights(){
-    const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
-      const value=Number(el.value);
-      return Number.isFinite(value) && value>0 ? value : 0;
-    });
-    const max=Math.max(...raw);
-    if(max<=0) return {raw,normalized:[25,25,25,25],fallback:true};
-    // Divide by the largest input first so even enormous finite weights normalize safely.
-    const scaled=raw.map(value=>value/max);
-    const scaledTotal=scaled.reduce((a,b)=>a+b,0);
-    return {
-      raw,
-      normalized:scaled.map(value=>100*value/scaledTotal),
-      fallback:false
-    };
-  }
+
   function weightedSize(rng,weights){
     const total=weights.reduce((a,b)=>a+b,0);
     if(total<=0) return 2;
@@ -526,20 +486,6 @@
     const side=idx<3?"L":"R";
     const depth = idx<3 ? 2-idx : idx-3; // A/F=2, B/E=1, C/D=0
     return {key:`${row}${col}`,row,col,side,depth};
-  }
-  function config(){
-    const partyWeightConfig=normalizedPartyWeights();
-    return {
-      loadFactor:+controls.loadFactor.value/100,
-      familyShare:+controls.familyShare.value/100,
-      partyWeights:partyWeightConfig.normalized,
-      partyWeightsFallback:partyWeightConfig.fallback,
-      assistedParties:clamp(+controls.assistedParties.value||0,0,12),
-      bagRate:+controls.bagRate.value/100,
-      sequenceCompliance:+controls.sequenceCompliance.value/100,
-      priorityPolicy:controls.priorityPolicy.value,
-      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
-    };
   }
   function seedMix(seed,salt){
     let x=(seed ^ salt)>>>0;
@@ -883,26 +829,6 @@
     }
   }
 
-  function reset(){
-    const cfg=config();
-    manifest=makeManifest(cfg.seed,cfg);
-    sims={};
-    for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
-    running=false;
-    accumulator=0;
-    $("pauseBtn").textContent="Pause";
-    const familyUnits=manifest.units.filter(u=>u.groupType==="family");
-    const familyCounts=new Map();
-    for(const unit of familyUnits) familyCounts.set(unit.passengers.length,(familyCounts.get(unit.passengers.length)||0)+1);
-    const familySummary=familyUnits.length
-      ? [...familyCounts.entries()].sort((a,b)=>a[0]-b[0]).map(([size,count])=>`${count}×${size}`).join(", ")
-      : "none";
-    const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
-    const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
-    $("status").textContent=`Ready: ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
-    renderAll();
-  }
-
   function formatTime(seconds){
     if(!Number.isFinite(seconds)) return "—";
     const s=Math.round(seconds);
@@ -910,13 +836,19 @@
     return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   }
 
-  function panelElements(method){
+  function percentile(sorted,p){
+    if(!sorted.length) return NaN;
+    const pos=(sorted.length-1)*p;
+    const lo=Math.floor(pos),hi=Math.ceil(pos);
+    return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
+  }
+  function stats(values){
+    const s=values.slice().sort((a,b)=>a-b);
     return {
-      time:$(method+"Time"),
-      done:$(method+"Done"),
-      conflicts:$(method+"Conflicts"),
-      blocked:$(method+"Blocked"),
-      queue:$(method+"Queue")
+      mean:s.reduce((a,b)=>a+b,0)/s.length,
+      median:percentile(s,.5),
+      p10:percentile(s,.1),
+      p90:percentile(s,.9)
     };
   }
 
@@ -1066,6 +998,91 @@
     }
   }
 
+  const $ = id => document.getElementById(id);
+  const controls = {
+    loadFactor:$("loadFactor"),
+    familyShare:$("familyShare"),
+    party2:$("party2"),
+    party3:$("party3"),
+    party4:$("party4"),
+    party5:$("party5"),
+    assistedParties:$("assistedParties"),
+    bagRate:$("bagRate"),
+    sequenceCompliance:$("sequenceCompliance"),
+    priorityPolicy:$("priorityPolicy"),
+    speed:$("speed"),
+    seed:$("seed"),
+    trials:$("trials")
+  };
+
+  let sims = {};
+  let manifest = null;
+  let running = false;
+  let lastFrame = performance.now();
+  let accumulator = 0;
+  let benchmarking = false;
+  let benchmarkResult = null;
+
+  function normalizedPartyWeights(){
+    const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
+      const value=Number(el.value);
+      return Number.isFinite(value) && value>0 ? value : 0;
+    });
+    const max=Math.max(...raw);
+    if(max<=0) return {raw,normalized:[25,25,25,25],fallback:true};
+    // Divide by the largest input first so even enormous finite weights normalize safely.
+    const scaled=raw.map(value=>value/max);
+    const scaledTotal=scaled.reduce((a,b)=>a+b,0);
+    return {
+      raw,
+      normalized:scaled.map(value=>100*value/scaledTotal),
+      fallback:false
+    };
+  }
+  function config(){
+    const partyWeightConfig=normalizedPartyWeights();
+    return {
+      loadFactor:+controls.loadFactor.value/100,
+      familyShare:+controls.familyShare.value/100,
+      partyWeights:partyWeightConfig.normalized,
+      partyWeightsFallback:partyWeightConfig.fallback,
+      assistedParties:clamp(+controls.assistedParties.value||0,0,12),
+      bagRate:+controls.bagRate.value/100,
+      sequenceCompliance:+controls.sequenceCompliance.value/100,
+      priorityPolicy:controls.priorityPolicy.value,
+      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
+    };
+  }
+  function reset(){
+    const cfg=config();
+    manifest=makeManifest(cfg.seed,cfg);
+    sims={};
+    for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
+    running=false;
+    accumulator=0;
+    $("pauseBtn").textContent="Pause";
+    const familyUnits=manifest.units.filter(u=>u.groupType==="family");
+    const familyCounts=new Map();
+    for(const unit of familyUnits) familyCounts.set(unit.passengers.length,(familyCounts.get(unit.passengers.length)||0)+1);
+    const familySummary=familyUnits.length
+      ? [...familyCounts.entries()].sort((a,b)=>a[0]-b[0]).map(([size,count])=>`${count}×${size}`).join(", ")
+      : "none";
+    const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
+    const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
+    $("status").textContent=`Ready: ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
+    renderAll();
+  }
+
+  function panelElements(method){
+    return {
+      time:$(method+"Time"),
+      done:$(method+"Done"),
+      conflicts:$(method+"Conflicts"),
+      blocked:$(method+"Blocked"),
+      queue:$(method+"Queue")
+    };
+  }
+
   function renderAll(){
     let allDone=true;
     for(const method of METHODS){
@@ -1127,21 +1144,6 @@
     $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
   }
 
-  function percentile(sorted,p){
-    if(!sorted.length) return NaN;
-    const pos=(sorted.length-1)*p;
-    const lo=Math.floor(pos),hi=Math.ceil(pos);
-    return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
-  }
-  function stats(values){
-    const s=values.slice().sort((a,b)=>a-b);
-    return {
-      mean:s.reduce((a,b)=>a+b,0)/s.length,
-      median:percentile(s,.5),
-      p10:percentile(s,.1),
-      p90:percentile(s,.9)
-    };
-  }
   function renderBenchmark(result){
     const body=$("benchBody");
     body.innerHTML="";

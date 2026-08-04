@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive aircraft boarding simulator comparing six boarding methods with families, party-size distributions, load factor, and sequence compliance.">
+<link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/simulator.html">
+<title>Group-Aware Aircraft Boarding Simulator v2.4</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div>
+      <h1>Group-aware boarding simulator</h1>
+      <p>Six boarding methods face the same A320 manifest: random, strict rear-first, strict front-first, airline zones, WilMA, and a group-safe Steffen variant. Families remain together, and the model includes children, companions, reduced mobility, carry-ons, aisle blocking, seat interference, partial loads, and imperfect sequence compliance.</p>
+    </div>
+    <div class="badge">v2.4 · independent benchmarking · metric help</div>
+  </header>
+
+  <section class="card controls">
+    <div class="control-grid">
+      <label>
+        <span class="range-line"><span>Load factor</span><output id="loadOut">100%</output></span>
+        <input id="loadFactor" type="range" min="50" max="100" step="5" value="100">
+      </label>
+      <label>
+        <span class="range-line"><span>Passengers in families</span><output id="familyOut">30%</output></span>
+        <input id="familyShare" type="range" min="0" max="70" step="5" value="30">
+      </label>
+      <div class="party-size-control">
+        <span class="control-label range-line"><span>Family party-size weights <small>(relative)</small></span><output id="partyWeightTotal">raw total 100</output></span>
+        <div class="weight-grid">
+          <label class="weight-field"><span>2:</span><input id="party2" type="number" min="0" step="any" value="22" title="Relative weight for two-person families; no maximum"></label>
+          <label class="weight-field"><span>3:</span><input id="party3" type="number" min="0" step="any" value="36" title="Relative weight for three-person families; no maximum"></label>
+          <label class="weight-field"><span>4:</span><input id="party4" type="number" min="0" step="any" value="28" title="Relative weight for four-person families; no maximum"></label>
+          <label class="weight-field"><span>5:</span><input id="party5" type="number" min="0" step="any" value="14" title="Relative weight for five-person families; no maximum"></label>
+        </div>
+        <p class="weight-note" id="partyWeightNormalized" aria-live="polite">Normalized at run time: 22.0% · 36.0% · 28.0% · 14.0%</p>
+      </div>
+      <label>
+        Assisted parties
+        <input id="assistedParties" type="number" min="0" max="12" step="1" value="3">
+      </label>
+      <label>
+        Carry-on rate
+        <span class="range-line"><span></span><output id="bagOut">70%</output></span>
+        <input id="bagRate" type="range" min="0" max="100" step="5" value="70">
+      </label>
+      <label>
+        <span class="range-line"><span>Sequence compliance</span><output id="complianceOut">100%</output></span>
+        <input id="sequenceCompliance" type="range" min="0" max="100" step="5" value="100">
+      </label>
+      <label>
+        Priority policy
+        <select id="priorityPolicy">
+          <option value="assist">Assisted parties first</option>
+          <option value="allgroups">All grouped parties first</option>
+          <option value="none">No preboarding</option>
+        </select>
+      </label>
+      <label>
+        Animation speed
+        <select id="speed">
+          <option value="4">4×</option>
+          <option value="16" selected>16×</option>
+          <option value="64">64×</option>
+          <option value="256">256×</option>
+        </select>
+      </label>
+      <label>
+        Seed
+        <input id="seed" type="number" min="1" max="2147483646" step="1" value="12345">
+      </label>
+    </div>
+    <div class="buttons">
+      <button class="primary" id="runBtn">▶ Run comparison</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="finishBtn">Finish instantly</button>
+      <button id="resetBtn" class="ghost">Reset</button>
+      <span class="status" id="status">Ready.</span>
+    </div>
+  </section>
+
+  <main class="sim-grid">
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Random</h2><p>Boarding units shuffled; every party remains contiguous.</p></div>
+        <div class="time" id="randomTime">00:00</div>
+      </div>
+      <canvas id="randomCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="randomDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="randomConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="randomBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="randomQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Strict back to front</h2><p>Rows 31 → 1, randomized only within each row.</p></div>
+        <div class="time" id="backTime">00:00</div>
+      </div>
+      <canvas id="backCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="backDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="backConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="backBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="backQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Strict front to back</h2><p>Rows 1 → 31, randomized only within each row.</p></div>
+        <div class="time" id="frontTime">00:00</div>
+      </div>
+      <canvas id="frontCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="frontDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="frontConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="frontBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="frontQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Airline zones</h2><p>Six-row rear-first zones, shuffled within each zone.</p></div>
+        <div class="time" id="zonesTime">00:00</div>
+      </div>
+      <canvas id="zonesCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="zonesDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="zonesConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="zonesBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="zonesQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>WilMA, group-safe</h2><p>Window, then middle, then aisle; parties remain atomic.</p></div>
+        <div class="time" id="wilmaTime">00:00</div>
+      </div>
+      <canvas id="wilmaCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="wilmaDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="wilmaConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="wilmaBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="wilmaQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Steffen, group-safe</h2><p>Alternating rows and window-first, with each party atomic.</p></div>
+        <div class="time" id="steffenTime">00:00</div>
+      </div>
+      <canvas id="steffenCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="steffenDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="steffenConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="steffenBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="steffenQueue">186</strong></div>
+      </div>
+    </article>
+  </main>
+
+  <section class="lower">
+    <article class="card benchmark">
+      <div class="section-head">
+        <div><h2>Monte Carlo comparison</h2><p id="benchSubtitle">Run a benchmark to average over different manifests and delays.</p></div>
+      </div>
+      <div class="benchmark-toolbar">
+        <label>
+          Trials
+          <input id="trials" type="number" min="5" max="200" step="5" value="40">
+        </label>
+        <button id="benchBtn">Run benchmark</button>
+        <p class="bench-status" id="benchStatus" aria-live="polite">Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.</p>
+      </div>
+      <table>
+        <thead><tr><th>Method</th><th>Mean</th><th>Median</th><th>P90</th><th>Wins</th></tr></thead>
+        <tbody id="benchBody"><tr><td colspan="5" class="empty">No benchmark results yet.</td></tr></tbody>
+      </table>
+      <div class="barbox" id="barBox"></div>
+    </article>
+
+    <aside class="card notes">
+      <div class="section-head"><h2>What the model assumes</h2></div>
+      <ul>
+        <li>Families occupy adjacent seats and enter as one contiguous boarding unit. Their colors and labels distinguish one party from the next.</li>
+        <li>Party-size inputs are relative weights. They are normalized to 100% at run time, so totals above or below 100 work normally; all-zero weights use an equal split.</li>
+        <li>Load factor controls occupied seats; unassigned seats remain visibly empty.</li>
+        <li>Sequence compliance is applied to whole parties within their normal priority tier.</li>
+        <li>Children walk and sit more slowly; assisted travelers board with a companion.</li>
+        <li>Carry-ons block the aisle; occupied aisle/middle seats create seat interference.</li>
+        <li>The same manifest, traits, and compliance draws are reused for all six methods.</li>
+      </ul>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--single)"></i>individual</span>
+        <span title="Each warm color is a different family"><span class="family-dots"><i class="dot" style="background:hsl(35 82% 60%)"></i><i class="dot" style="background:hsl(22 82% 60%)"></i><i class="dot" style="background:hsl(48 82% 60%)"></i></span>families · <code>F7·4</code> means family 7, four people</span>
+        <span><i class="dot" style="background:var(--assist)"></i>assisted party</span>
+      </div>
+      <details>
+        <summary>Method and model details</summary>
+        <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
+        <p><strong>Seat conflicts:</strong> when a passenger reaches a seat, the simulator counts each already-seated passenger between the aisle and that seat on the same side of the row. Each same-party blocker adds 2.2 seconds to seating time; a blocker from another party adds 5.4 seconds. Thus a window passenger arriving after both the aisle and middle passengers adds two conflicts.</p>
+        <p><strong>Blocked aisle:</strong> cumulative simulated wall-clock time during which at least one passenger is stowing a bag or entering a seat. Multiple simultaneous blockers are counted once for that time interval, and ordinary walking queues do not add to this metric.</p>
+        <p>This is a comparative discrete-time model, not a calibrated airline forecast. The useful claim is the relative result under stated assumptions; the absolute minutes are scenario output, not revealed scripture.</p>
+      </details>
+    </aside>
+  </section>
+
+  <footer>Standalone HTML · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+</div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
