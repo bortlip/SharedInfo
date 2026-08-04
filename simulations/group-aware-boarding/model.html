@@ -60,7 +60,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
       <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
     </div>
   </div>
-  <div class="version"><span>Model version</span><strong>v3.5.0</strong></div>
+  <div class="version"><span>Model version</span><strong>v3.6.0</strong></div>
 </header>
 <div class="layout">
   <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
@@ -69,6 +69,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <li class="toc-sub"><a href="#method-visibility-and-synchronized-animation">Method visibility and synchronized animation</a></li>
 <li class="toc-sub"><a href="#passenger-and-seat-hover-explanations">Passenger and seat hover explanations</a></li>
 <li class="toc-sub"><a href="#barbara-mode-and-the-character-event-foundation">Barbara Mode and the character-event foundation</a></li>
+<li class="toc-sub"><a href="#configurable-cabin-incidents-and-chatter">Configurable cabin incidents and chatter</a></li>
 <li class="toc-sub"><a href="#live-race-hud-and-race-graph">Live race HUD and race graph</a></li>
 <li class="toc-sub"><a href="#roomy-and-compact-fleet-display">Roomy and Compact Fleet display</a></li>
 <li class=""><a href="#3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</a></li>
@@ -161,6 +162,17 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <p>The aisle remains a one-dimensional movement model rather than becoming two full lanes. When Barbara&#x27;s travel path crosses another active passenger, the simulator records one squeeze interaction for that direction. Barbara shifts to one side of the aisle, the other passenger shifts to the other side, and both receive deterministic temporary speed penalties. The crossed passenger&#x27;s hover details show the accumulated disruption time. Barbara may cross the same passenger once outbound and once on her return, but repeated time steps cannot count the same directional crossing twice.</p>
 <p>The front door stops releasing new passengers while Barbara occupies the doorway area or lavatory. Her live hover details report total trip time, estimated extra delay above the forward walk she abandoned, and the number of passenger crossings. The exact number of crossings can differ by boarding method because surrounding congestion differs, while Barbara&#x27;s intrinsic script remains identical.</p>
 <p>A pulsing marker, direction arrows, a visible front-lavatory marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.</p>
+<h3 id="configurable-cabin-incidents-and-chatter">Configurable cabin incidents and chatter</h3>
+<p>The advanced settings independently control <code>Disruptive passengers</code> and <code>Cabin chatter</code>.</p>
+<p>Disruptive-passenger count is clamped to 0 through 3. A separate seeded incident stream selects eligible adult individual travelers after the ordinary manifest is complete, so incident selection does not consume or shift the random draws used for seats, families, bags, or normal timing. The same selected travelers and intrinsic incident values are shared across all methods.</p>
+<p>The current mechanical archetypes are:</p>
+<ul>
+<li><strong>Chatty:</strong> pauses twice at seeded aisle rows to finish a story. Each pause blocks the aisle, produces a visible bubble, and adds to that passenger&#x27;s direct event delay.</li>
+<li><strong>Tipsy/slow:</strong> receives a seeded walking-speed reduction, a visible lateral sway, and one seeded aisle pause to regain their bearings.</li>
+</ul>
+<p>The number and timing of downstream delays can differ by method because nearby passengers and congestion differ. These travelers have distinct markers and live hover status. <code>Disruptive passengers: None</code> disables both archetypes completely.</p>
+<p>Cabin chatter is separate and presentation-only. <code>Off</code>, <code>Light</code>, and <code>Lively</code> deterministically assign zero, five, or twelve ordinary passengers one short line each. A line appears once when its passenger crosses a seeded row. Ambient bubbles do not pause movement, alter queue order, add delay, or affect benchmark results. The small fixed population and one-line limit prevent the display from becoming a continuous wall of speech.</p>
+<p>Crew assistance is not yet simulated. The incident framework can carry named roles, statuses, pauses, dialogue, and deterministic timing, but a later slice must add a visible crew member and interaction rather than teleporting help into the aisle.</p>
 <h3 id="live-race-hud-and-race-graph">Live race HUD and race graph</h3>
 <p>The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:</p>
 <ol>
@@ -670,7 +682,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </tr>
 </tbody></table></div></article>
 </div>
-<footer>Boarding Rush v3.5.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+<footer>Boarding Rush v3.6.0 · This guide is generated from the canonical MODEL.md specification.</footer>
 </div>
 </body>
 </html>

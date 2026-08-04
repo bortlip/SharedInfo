@@ -28,6 +28,8 @@ const controls = {
   bagRate:$("bagRate"),
   sequenceCompliance:$("sequenceCompliance"),
   priorityPolicy:$("priorityPolicy"),
+  disruptivePassengers:$("disruptivePassengers"),
+  chatter:$("chatter"),
   speed:$("speed"),
   seed:$("seed"),
   trials:$("trials")
@@ -462,6 +464,8 @@ function snapshotScenarioSettings(){
     bagRate:controls.bagRate.value,
     sequenceCompliance:controls.sequenceCompliance.value,
     priorityPolicy:controls.priorityPolicy.value,
+    disruptivePassengers:controls.disruptivePassengers.value,
+    chatter:controls.chatter.value,
     speed:controls.speed.value,
     seed:controls.seed.value,
     trials:controls.trials.value,
@@ -480,6 +484,8 @@ function writeScenarioSettings(settings){
   controls.bagRate.value=String(value.bagRate);
   controls.sequenceCompliance.value=String(value.sequenceCompliance);
   controls.priorityPolicy.value=value.priorityPolicy;
+  controls.disruptivePassengers.value=String(value.disruptivePassengers);
+  controls.chatter.value=value.chatter;
   controls.speed.value=String(value.speed);
   controls.seed.value=String(value.seed);
   controls.trials.value=String(value.trials);
@@ -499,6 +505,8 @@ function config(){
     bagRate:+controls.bagRate.value/100,
     sequenceCompliance:+controls.sequenceCompliance.value/100,
     priorityPolicy:controls.priorityPolicy.value,
+    disruptivePassengers:clamp(Math.floor(+controls.disruptivePassengers.value||0),0,3),
+    chatter:controls.chatter.value,
     seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646),
     characterScenario
   };
@@ -532,6 +540,8 @@ function scenarioPreview(settings){
     `${settings.bagRate}% bags`,
     `${settings.sequenceCompliance}% compliance`
   ];
+  if(settings.disruptivePassengers) preview.push(`${settings.disruptivePassengers} disruption${settings.disruptivePassengers===1?"":"s"}`);
+  if(settings.chatter!=="off") preview.push(`${settings.chatter} chatter`);
   if(settings.characterScenario==="barbara") preview.push("Barbara aboard");
   return preview;
 }

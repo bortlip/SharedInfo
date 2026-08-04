@@ -88,7 +88,25 @@ The front door stops releasing new passengers while Barbara occupies the doorway
 
 A pulsing marker, direction arrows, a visible front-lavatory marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.
 
+### Configurable cabin incidents and chatter
+
+The advanced settings independently control `Disruptive passengers` and `Cabin chatter`.
+
+Disruptive-passenger count is clamped to 0 through 3. A separate seeded incident stream selects eligible adult individual travelers after the ordinary manifest is complete, so incident selection does not consume or shift the random draws used for seats, families, bags, or normal timing. The same selected travelers and intrinsic incident values are shared across all methods.
+
+The current mechanical archetypes are:
+
+- **Chatty:** pauses twice at seeded aisle rows to finish a story. Each pause blocks the aisle, produces a visible bubble, and adds to that passenger's direct event delay.
+- **Tipsy/slow:** receives a seeded walking-speed reduction, a visible lateral sway, and one seeded aisle pause to regain their bearings.
+
+The number and timing of downstream delays can differ by method because nearby passengers and congestion differ. These travelers have distinct markers and live hover status. `Disruptive passengers: None` disables both archetypes completely.
+
+Cabin chatter is separate and presentation-only. `Off`, `Light`, and `Lively` deterministically assign zero, five, or twelve ordinary passengers one short line each. A line appears once when its passenger crosses a seeded row. Ambient bubbles do not pause movement, alter queue order, add delay, or affect benchmark results. The small fixed population and one-line limit prevent the display from becoming a continuous wall of speech.
+
+Crew assistance is not yet simulated. The incident framework can carry named roles, statuses, pauses, dialogue, and deterministic timing, but a later slice must add a visible crew member and interaction rather than teleporting help into the aisle.
+
 ### Live race HUD and race graph
+
 
 The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:
 

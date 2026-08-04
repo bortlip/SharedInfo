@@ -128,6 +128,8 @@ export function passengerPoint(passenger,geometry){
     y=geometry.top-18;
   }else if((passenger.squeezeDelayRemaining||0)>0){
     x=baseX+geometry.aisleW*.18;
+  }else if(passenger.incidentType==="tipsy" && passenger.state==="walking"){
+    x=baseX+Math.sin((passenger.pos+passenger.id)*5)*2.4;
   }
   if(passenger.state==="seating"){
     const target=seatRect(geometry,passenger.row,passenger.col);
@@ -383,7 +385,7 @@ if(p.characterId){
       ctx.font="900 7px system-ui";
       ctx.textAlign="center";
       ctx.textBaseline="middle";
-      ctx.fillText("B",x,y+.3);
+      ctx.fillText(p.characterLabel||"•",x,y+.3);
     }
   }
 

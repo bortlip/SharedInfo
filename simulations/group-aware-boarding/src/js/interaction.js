@@ -29,6 +29,7 @@ function stateText(passenger,sim){
   if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
   if(passenger.state==="walking-to-restroom") return `backtracking toward front lavatory · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
   if(passenger.state==="restroom") return `inside front lavatory · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+  if(passenger.state==="incident-pause") return `${passenger.incidentType||"incident"} delay in aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="walking-from-restroom") return `returning toward row ${passenger.row} · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
   if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
@@ -58,6 +59,8 @@ if(passenger.restroomTripStarted){
     ? `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed · ${(passenger.restroomExtraDelay||0).toFixed(1)}s extra`
     : `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed`));
 }
+if(passenger.baselineWalkSpeed) character.push(row("Normal walking speed",`${passenger.baselineWalkSpeed.toFixed(2)} rows/sec`));
+if(passenger.incidentStops) character.push(row("Incident stops",`${passenger.incidentStopIndex||0} of ${passenger.incidentStops.length} completed`));
 if(passenger.disruptionDelaySeconds) character.push(row("Passenger disruption",`${passenger.disruptionDelaySeconds.toFixed(1)}s slowed by ${passenger.disruptedByCharacter||"another traveler"}`));
 if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
   return `
