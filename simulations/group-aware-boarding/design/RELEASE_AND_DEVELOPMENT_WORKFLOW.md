@@ -38,6 +38,16 @@ python simulations/group-aware-boarding/tools/build_simulator.py
 
 The build must be deterministic: unchanged source must regenerate byte-identical candidate output.
 
+The same command also regenerates root `model.html` from the canonical `MODEL.md` specification.
+
+## Version and model-documentation rules
+
+- `src/js/version.js` is the single source of truth for the version shown in the simulator and model guide.
+- Every merged PR that changes user-visible simulator behavior or presentation must deliberately bump that version.
+- `MODEL.md` is the canonical description of current behavior. A PR that changes model rules, measurements, configuration semantics, or explanatory visualization must update `MODEL.md` in the same PR.
+- Root `model.html` is generated output and must never be hand-edited.
+- The visible version and formatted model guide are product information, not release-process labels shown to users.
+
 ## Required development workflow
 
 1. Start from current `main` on a topic branch.
@@ -65,7 +75,9 @@ The build must be deterministic: unchanged source must regenerate byte-identical
 - Root `index.html` is absent from the diff
 - Source modules parse successfully
 - Standalone candidate JavaScript parses successfully
-- Build output is reproducible
+- Build output is reproducible for both `dist/simulator.html` and `model.html`
+- Visible application version was deliberately reviewed and bumped when appropriate
+- `MODEL.md` and generated `model.html` match any changed behavior
 - Browser smoke test passes when behavior or UI changes
 - Determinism and representative benchmark tests pass when model behavior changes
 - PR is left open for Barry to merge

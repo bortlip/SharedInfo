@@ -5,6 +5,7 @@ This is the working, unreleased source for **Boarding Rush**, the aircraft board
 - `index.html` contains the page markup.
 - `styles.css` contains the presentation layer.
 - `js/constants.js` contains shared cabin and display constants.
+- `js/version.js` contains the single user-visible application version.
 - `js/random.js` contains deterministic random and utility functions.
 - `js/scenarios.js` defines presets, URL serialization, validation, and schema versioning.
 - `js/manifest.js` creates passengers, parties, seats, and traits.
@@ -14,6 +15,6 @@ This is the working, unreleased source for **Boarding Rush**, the aircraft board
 - `js/render.js` draws one simulation.
 - `js/app.js` owns controls, scenario selection, animation, sharing, and benchmarking.
 
-Run `python ../tools/build_simulator.py` from this folder, or run the script from any working directory, to regenerate `../dist/simulator.html` as one standalone candidate file.
+Run `python ../tools/build_simulator.py` from this folder, or run the script from any working directory, to regenerate `../dist/simulator.html` and the formatted `../model.html` guide from `../MODEL.md`.
 
 The modular source page is directly previewable through GitHub Pages after it reaches the published branch. The source preview and generated `dist/` candidate are public test surfaces, not the official released simulator. The official release remains the protected root `../simulator.html`.

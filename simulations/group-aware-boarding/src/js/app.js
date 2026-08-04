@@ -1,4 +1,5 @@
 import { TOTAL, METHODS, META, FIXED_DT } from "./constants.js";
+import { APP_VERSION } from "./version.js";
 import { clamp } from "./random.js";
 import { makeManifest } from "./manifest.js";
 import { BoardingSim } from "./simulation.js";
@@ -566,6 +567,9 @@ function handleManualControlChange(control){
 }
 
 function initialize(){
+  document.querySelectorAll("[data-app-version]").forEach(element=>{
+    element.textContent=`v${APP_VERSION}`;
+  });
   renderScenarioCards();
   renderMethodPicker();
   const fromUrl=parseScenarioSearch(location.search);

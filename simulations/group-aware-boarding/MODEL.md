@@ -50,6 +50,24 @@ base seed + t * 7919
 
 The benchmark captures a snapshot of the controls when it starts. It runs separate simulation objects and does not reset, pause, or alter the visible animation.
 
+### Scenario presets and shared links
+
+A scenario preset is a named collection of control values. Choosing one writes those values into the ordinary controls; it does not select a separate simulation engine or hidden rule set. A manual control change marks the scenario as custom.
+
+A shared scenario link records the model settings, seed, selected method panels, and Roomy or Compact Fleet display choice. Loading the link reconstructs those values before the manifest is generated. Invalid or obsolete values fall back to supported defaults.
+
+### Method visibility and synchronized animation
+
+The animated comparison creates all six method simulations from the same manifest, even when only one or two method panels are visible. All six continue advancing in lockstep while the race runs.
+
+Selecting or deselecting a method changes only which panels are rendered and which methods appear in a later benchmark. It does not pause, restart, or recreate the animated simulations. Revealing a previously hidden method therefore shows its current synchronized state.
+
+"Finish instantly" completes all six animated method simulations. The completion message ranks only the methods currently visible.
+
+### Roomy and Compact Fleet display
+
+Roomy and Compact Fleet are rendering choices. They change panel width, canvas display size, headings, and metric layout but do not change canvas coordinates, passenger behavior, time steps, or results.
+
 ## 3. Manifest size and seat assignment
 
 ### Load factor
@@ -426,6 +444,8 @@ Passengers without a carry-on do not increment bin load and receive no bin-conge
 
 This is congestion, not bin capacity. The model does not make a passenger search another row, move backward, move forward, check a bag, or fail to find space.
 
+The animation draws a suitcase beside every active passenger who has a carry-on. During stowing, the marker moves toward that passenger's row-side overhead strip. When stowing finishes, a persistent bag record is drawn inside that strip for the rest of the run. The animation is a visualization of the existing bag state; the drawn strip is not a physical capacity scale and does not add any new delay.
+
 ## 13. Seat conflicts and seating
 
 A seat conflict occurs when a passenger needs to reach a deeper seat but one or more already-seated passengers are between that seat and the aisle on the same side of the same row.
@@ -464,7 +484,9 @@ A walking passenger who is merely queued behind someone does not independently a
 
 ## 15. Completion and reported results
 
-A simulation ends when every passenger is seated. A 7,200-second safety limit prevents an accidental infinite run.
+A method simulation ends when every passenger is seated. A 7,200-second safety limit prevents an accidental infinite run.
+
+During an animated race, all six method simulations continue until all six are complete, including methods whose panels are hidden. The displayed winner is chosen from the currently visible method set.
 
 Each visible method reports:
 
@@ -474,7 +496,7 @@ Each visible method reports:
 - blocked-aisle seconds
 - passengers not yet released through the door
 
-The Monte Carlo table reports:
+The Monte Carlo benchmark runs only the methods selected when the benchmark starts. Its table reports:
 
 - mean completion time
 - median completion time
@@ -496,6 +518,7 @@ The simulator intentionally omits several real-world effects:
 - strollers, car seats, lap infants, or child-restraint installation
 - multiple carry-ons, bag sizes, personal items, or shared family bags
 - finite overhead-bin capacity, overflow, searching, or reverse movement
+- physically scaled bag dimensions or overhead-bin volume; suitcase markers are explanatory symbols
 - passengers overtaking one another
 - people leaving the aisle to let others pass
 - a separate jet-bridge or gate queue
@@ -532,3 +555,6 @@ Those omissions matter. The simulator is most trustworthy as a controlled compar
 | Animation step | 0.10 s |
 | Instant-finish step | 0.15 s |
 | Benchmark step | 0.20 s |
+| Method panel selection | Visibility and benchmark field only; all six animated methods stay synchronized |
+| Display modes | Roomy or Compact Fleet; presentation only |
+| Visible luggage | Carry-on marker travels to a persistent row-side bin marker; no physical capacity |

@@ -40,6 +40,13 @@ header p{margin:0;color:var(--muted);max-width:900px;line-height:1.55}
   font-size:.82rem;
   white-space:nowrap;
 }
+.product-badge{display:grid;gap:5px;justify-items:end;white-space:normal;text-align:right}
+.product-badge>span{white-space:nowrap}
+.version-link{display:inline-flex;align-items:center;gap:7px;color:#dff7ff;text-decoration:none;font-size:.72rem}
+.version-link strong{padding:3px 7px;border:1px solid #4e759a;border-radius:999px;background:#081625;color:#8de4ff;font-variant-numeric:tabular-nums}
+.version-link:hover{color:white}
+.model-guide-link{margin:12px 0 0;padding:10px 11px;border:1px solid #36516f;border-radius:11px;background:#081625;color:var(--muted);font-size:.8rem;line-height:1.45}
+.model-guide-link a,footer a{color:#9fdfff}
 .card{
   background:linear-gradient(180deg,rgba(19,36,58,.97),rgba(10,24,41,.97));
   border:1px solid var(--line);
@@ -332,7 +339,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 }
 @media(max-width:720px){
   .shell{padding:12px}
-  header{display:block}.badge{display:inline-block;margin-top:12px;white-space:normal}
+  header{display:block}.badge{display:inline-grid;margin-top:12px;white-space:normal}.product-badge{justify-items:start;text-align:left}.product-badge>span{white-space:normal}
   .scenario-grid{grid-template-columns:1fr}
   .scenario-card{min-height:0}
   .scenario-toolbar{align-items:flex-start}
