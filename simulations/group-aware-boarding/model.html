@@ -60,7 +60,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
       <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
     </div>
   </div>
-  <div class="version"><span>Model version</span><strong>v3.4.0</strong></div>
+  <div class="version"><span>Model version</span><strong>v3.5.0</strong></div>
 </header>
 <div class="layout">
   <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
@@ -156,8 +156,11 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <h3 id="barbara-mode-and-the-character-event-foundation">Barbara Mode and the character-event foundation</h3>
 <p>Barbara Mode activates one deterministic named-passenger script. A character-specific pseudorandom stream selects an eligible adult individual after the ordinary manifest has been generated, so enabling or disabling Barbara does not disturb the ordinary seat, family, speed, or timing draws. Her seat and intrinsic character values are shared by all six methods.</p>
 <p>Each method first constructs its normal queue. Barbara is then removed exactly once and reinserted at the same seed-derived late-arrival fraction of that queue. Her hover tooltip shows both the resulting boarding position and the position she would have occupied under that method before arriving late. Queue construction tests require every passenger ID to remain present exactly once.</p>
-<p>Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay. While walking, she also makes one bounded restroom-realization pause at a seeded row before her destination. The pause blocks the aisle like another visible stationary passenger, adds its elapsed time to direct character-event delay, and then returns her to ordinary forward walking. She does not reverse direction or visit a restroom in this phase.</p>
-<p>A pulsing marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.</p>
+<p>Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay.</p>
+<p>Before reaching her seat, Barbara turns around at a seeded row and walks to the front lavatory. After a seeded lavatory duration she walks back to her assigned row and resumes the ordinary stow-and-seat sequence. Her turn row, travel speed, lavatory duration, and squeeze durations are intrinsic seeded values shared by every method.</p>
+<p>The aisle remains a one-dimensional movement model rather than becoming two full lanes. When Barbara&#x27;s travel path crosses another active passenger, the simulator records one squeeze interaction for that direction. Barbara shifts to one side of the aisle, the other passenger shifts to the other side, and both receive deterministic temporary speed penalties. The crossed passenger&#x27;s hover details show the accumulated disruption time. Barbara may cross the same passenger once outbound and once on her return, but repeated time steps cannot count the same directional crossing twice.</p>
+<p>The front door stops releasing new passengers while Barbara occupies the doorway area or lavatory. Her live hover details report total trip time, estimated extra delay above the forward walk she abandoned, and the number of passenger crossings. The exact number of crossings can differ by boarding method because surrounding congestion differs, while Barbara&#x27;s intrinsic script remains identical.</p>
+<p>A pulsing marker, direction arrows, a visible front-lavatory marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.</p>
 <h3 id="live-race-hud-and-race-graph">Live race HUD and race graph</h3>
 <p>The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:</p>
 <ol>
@@ -667,7 +670,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </tr>
 </tbody></table></div></article>
 </div>
-<footer>Boarding Rush v3.4.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+<footer>Boarding Rush v3.5.0 · This guide is generated from the canonical MODEL.md specification.</footer>
 </div>
 </body>
 </html>

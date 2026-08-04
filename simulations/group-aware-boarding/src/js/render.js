@@ -121,6 +121,14 @@ export function passengerPoint(passenger,geometry){
   let x=baseX;
   let y=geometry.top+(clamp(passenger.pos,0,ROWS)-.5)*geometry.rowH;
   let seatingProgress=0;
+  if(passenger.state==="walking-to-restroom") x=aisleCenter-geometry.aisleW*.22;
+  else if(passenger.state==="walking-from-restroom") x=aisleCenter+geometry.aisleW*.22;
+  else if(passenger.state==="restroom"){
+    x=aisleCenter+geometry.aisleW*.32;
+    y=geometry.top-18;
+  }else if((passenger.squeezeDelayRemaining||0)>0){
+    x=baseX+geometry.aisleW*.18;
+  }
   if(passenger.state==="seating"){
     const target=seatRect(geometry,passenger.row,passenger.col);
     const duration=Math.max(.001,passenger.seatingDuration||passenger.remaining||1);
@@ -258,6 +266,19 @@ export function drawSim(sim,canvas){
   ctx.font="10px system-ui";
   ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
 
+  const lavW=Math.min(36,Math.max(28,seatW*1.25));
+  const lavH=22;
+  const lavX=Math.min(w-lavW-4,rightX+3*seatW+2*gap-lavW);
+  const lavY=top-29;
+  roundedRect(ctx,lavX,lavY,lavW,lavH,5);
+  ctx.fillStyle="#10283c";
+  ctx.fill();
+  ctx.strokeStyle="#4c7898";
+  ctx.stroke();
+  ctx.fillStyle="#b8c9df";
+  ctx.font="800 8px system-ui";
+  ctx.fillText("LAV",lavX+lavW/2,lavY+lavH/2+.5);
+
   const points=sim.active.map(passenger=>passengerPoint(passenger,geometry));
   const activeFamilies=new Map();
   for(const point of points){
@@ -318,7 +339,24 @@ export function drawSim(sim,canvas){
     }
 
     const radius=p.isChild?4.3:5.6;
+    if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+      ctx.save();
+      ctx.fillStyle="rgba(255,240,168,.9)";
+      ctx.font="900 9px system-ui";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText(p.state==="walking-to-restroom"?"↑":"↓",x,y-10);
+      ctx.restore();
+    }
+    if((p.squeezeDelayRemaining||0)>0 && !p.characterId){
+      ctx.beginPath();
+      ctx.arc(x,y,radius+2.6,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,207,102,.75)";
+      ctx.lineWidth=1.2;
+      ctx.stroke();
+    }
 if(p.characterId){
+
   const pulse=3.5+Math.sin(sim.time*5)*.7;
   ctx.beginPath();
   ctx.arc(x,y,radius+pulse,0,Math.PI*2);

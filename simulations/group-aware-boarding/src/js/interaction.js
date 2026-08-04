@@ -27,7 +27,9 @@ function partyText(passenger){
 
 function stateText(passenger,sim){
   if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
-  if(passenger.state==="character-pause") return `paused in the aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+  if(passenger.state==="walking-to-restroom") return `backtracking toward front lavatory · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+  if(passenger.state==="restroom") return `inside front lavatory · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+  if(passenger.state==="walking-from-restroom") return `returning toward row ${passenger.row} · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
   if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
@@ -50,7 +52,14 @@ function passengerDetails(passenger,sim){
   }
   if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
   if(passenger.eventState) character.push(row("Current event",passenger.eventState));
-  if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
+if(passenger.restroomTripStarted){
+  character.push(row("Aisle crossings",`${passenger.squeezePasses||0} passenger squeezes`));
+  character.push(row("Restroom trip",passenger.restroomTripComplete
+    ? `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed · ${(passenger.restroomExtraDelay||0).toFixed(1)}s extra`
+    : `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed`));
+}
+if(passenger.disruptionDelaySeconds) character.push(row("Passenger disruption",`${passenger.disruptionDelaySeconds.toFixed(1)}s slowed by ${passenger.disruptedByCharacter||"another traveler"}`));
+if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
   return `
     <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
     <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>

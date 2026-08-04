@@ -78,9 +78,15 @@ Barbara Mode activates one deterministic named-passenger script. A character-spe
 
 Each method first constructs its normal queue. Barbara is then removed exactly once and reinserted at the same seed-derived late-arrival fraction of that queue. Her hover tooltip shows both the resulting boarding position and the position she would have occupied under that method before arriving late. Queue construction tests require every passenger ID to remain present exactly once.
 
-Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay. While walking, she also makes one bounded restroom-realization pause at a seeded row before her destination. The pause blocks the aisle like another visible stationary passenger, adds its elapsed time to direct character-event delay, and then returns her to ordinary forward walking. She does not reverse direction or visit a restroom in this phase.
+Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay.
 
-A pulsing marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.
+Before reaching her seat, Barbara turns around at a seeded row and walks to the front lavatory. After a seeded lavatory duration she walks back to her assigned row and resumes the ordinary stow-and-seat sequence. Her turn row, travel speed, lavatory duration, and squeeze durations are intrinsic seeded values shared by every method.
+
+The aisle remains a one-dimensional movement model rather than becoming two full lanes. When Barbara's travel path crosses another active passenger, the simulator records one squeeze interaction for that direction. Barbara shifts to one side of the aisle, the other passenger shifts to the other side, and both receive deterministic temporary speed penalties. The crossed passenger's hover details show the accumulated disruption time. Barbara may cross the same passenger once outbound and once on her return, but repeated time steps cannot count the same directional crossing twice.
+
+The front door stops releasing new passengers while Barbara occupies the doorway area or lavatory. Her live hover details report total trip time, estimated extra delay above the forward walk she abandoned, and the number of passenger crossings. The exact number of crossings can differ by boarding method because surrounding congestion differs, while Barbara's intrinsic script remains identical.
+
+A pulsing marker, direction arrows, a visible front-lavatory marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.
 
 ### Live race HUD and race graph
 

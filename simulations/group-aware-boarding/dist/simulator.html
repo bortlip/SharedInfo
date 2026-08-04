@@ -789,7 +789,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return `hsl(${hue} 82% ${lightness}%)`;
   }
 
-  const APP_VERSION = "3.4.0";
+  const APP_VERSION = "3.5.0";
 
   function mulberry32(seed){
     let a = seed >>> 0;
@@ -1038,12 +1038,19 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     passenger.bagBase=18+rng()*6;
     passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
     passenger.lateQueueFraction=.62+rng()*.18;
-    passenger.restroomPauseRow=clamp(
+    passenger.restroomTurnRow=clamp(
       Math.round(passenger.row*(.35+rng()*.24)),
-      3,
-      Math.max(3,passenger.row-2)
+      4,
+      Math.max(4,passenger.row-2)
     );
-    passenger.restroomPauseDuration=4.5+rng()*3.5;
+    passenger.restroomDuration=6+rng()*4;
+    passenger.restroomWalkSpeed=.62+rng()*.14;
+    passenger.restroomTarget=.15;
+    passenger.squeezeOtherDuration=1.45+rng()*.65;
+    passenger.squeezeSelfDuration=.75+rng()*.45;
+    passenger.restroomTripElapsed=0;
+    passenger.restroomExtraDelay=0;
+    passenger.squeezePasses=0;
     passenger.eventDelaySeconds=0;
     passenger.bubbleText=null;
     passenger.bubbleUntil=0;
@@ -1054,8 +1061,11 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       seatKey:passenger.seatKey,
       heavyBagExtra:passenger.heavyBagExtra,
       lateQueueFraction:passenger.lateQueueFraction,
-      restroomPauseRow:passenger.restroomPauseRow,
-      restroomPauseDuration:passenger.restroomPauseDuration
+      restroomTurnRow:passenger.restroomTurnRow,
+      restroomDuration:passenger.restroomDuration,
+      restroomWalkSpeed:passenger.restroomWalkSpeed,
+      squeezeOtherDuration:passenger.squeezeOtherDuration,
+      squeezeSelfDuration:passenger.squeezeSelfDuration
     });
     return manifest;
   }
@@ -1311,6 +1321,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return queue;
   }
 
+  const RESTROOM_TRAVEL_STATES=new Set(["walking-to-restroom","restroom","walking-from-restroom"]);
+
   class BoardingSim{
     constructor(manifest,method,cfg){
       this.method=method;
@@ -1411,20 +1423,101 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       this.pending++;
       this.setCharacterMoment(p,"finally aboard","heading down the aisle","Made it!",3.5);
     }
+    beginRestroomTrip(p){
+      p.state="walking-to-restroom";
+      p.restroomTripElapsed=0;
+      p.restroomBaselineRemaining=Math.max(0,(p.row-p.pos)/Math.max(.001,p.walkSpeed));
+      p.restroomPassedIds={outbound:new Set(),return:new Set()};
+      p.squeezePasses=0;
+      this.setCharacterMoment(
+        p,
+        "doubling back",
+        "walking toward the front lavatory",
+        "Nope. Restroom first.",
+        4.2
+      );
+    }
+    registerSqueeze(p,other,phase){
+      const passed=p.restroomPassedIds?.[phase];
+      if(!passed || passed.has(other.id)) return;
+      passed.add(other.id);
+      p.squeezePasses=(p.squeezePasses||0)+1;
+      p.squeezeDelayRemaining=Math.max(p.squeezeDelayRemaining||0,p.squeezeSelfDuration||.9);
+      const otherDelay=p.squeezeOtherDuration||1.8;
+      if(other.state==="walking"){
+        other.squeezeDelayRemaining=Math.max(other.squeezeDelayRemaining||0,otherDelay);
+      }else if(other.state==="stowing" || other.state==="seating"){
+        other.remaining=(other.remaining||0)+otherDelay;
+        other.disruptionDelaySeconds=(other.disruptionDelaySeconds||0)+otherDelay;
+      }
+      other.disruptedByCharacter=p.displayName||"a disruptive passenger";
+      other.disruptionCount=(other.disruptionCount||0)+1;
+      if(p.squeezePasses===1 || p.squeezePasses%4===0){
+        this.setCharacterMoment(
+          p,
+          "squeezing past passengers",
+          `${phase==="outbound"?"backtracking":"returning"} through the aisle · ${p.squeezePasses} crossings`,
+          p.squeezePasses===1?"Excuse me—sorry—coming through.":"Sorry. Again.",
+          2.8
+        );
+      }
+    }
+    stepRestroomTravel(p,dt){
+      p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
+      const outbound=p.state==="walking-to-restroom";
+      const target=outbound?(p.restroomTarget??.15):p.row;
+      const direction=outbound?-1:1;
+      const phase=outbound?"outbound":"return";
+      const slowed=(p.squeezeDelayRemaining||0)>0;
+      if(slowed) p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+      const speed=(p.restroomWalkSpeed||.68)*(slowed ? .42 : 1);
+      const oldPos=p.pos;
+      const distance=Math.abs(target-oldPos);
+      const move=Math.min(distance,speed*dt);
+      p.pos=oldPos+direction*move;
+
+      const low=Math.min(oldPos,p.pos)-.015;
+      const high=Math.max(oldPos,p.pos)+.015;
+      for(const other of this.active){
+        if(other===p || other.state==="seated" || RESTROOM_TRAVEL_STATES.has(other.state)) continue;
+        if(other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerSqueeze(p,other,phase);
+      }
+
+      if(Math.abs(p.pos-target)>.001) return;
+      p.pos=target;
+      if(outbound){
+        p.state="restroom";
+        p.remaining=p.restroomDuration;
+        this.setCharacterMoment(p,"in the lavatory","using the front lavatory","Finally.",2.4);
+        return;
+      }
+
+      p.restroomTripComplete=true;
+      p.restroomExtraDelay=Math.max(0,(p.restroomTripElapsed||0)-(p.restroomBaselineRemaining||0));
+      p.eventDelaySeconds=(p.heavyBagDelayCounted?p.heavyBagExtra||0:0)+p.restroomExtraDelay;
+      this.setCharacterMoment(
+        p,
+        "back at her row",
+        `restroom trip complete · squeezed past ${p.squeezePasses||0} passengers`,
+        "Much better.",
+        3
+      );
+      this.beginStowing(p);
+    }
     step(dt){
       if(this.done) return;
       this.time+=dt;
 
       let anyBlocking=false;
       for(const p of this.active){
-        if(p.state==="character-pause"){
+        if(p.state==="restroom"){
           anyBlocking=true;
           p.remaining-=dt;
-          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+          p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
           if(p.remaining<=0){
-            p.state="walking";
+            p.state="walking-from-restroom";
             p.remaining=0;
-            this.setCharacterMoment(p,"committed now","continuing to her seat","Too late now.",2.4);
+            this.setCharacterMoment(p,"heading back","returning from the front lavatory","Coming back through.",3.2);
           }
         }else if(p.state==="stowing"){
           anyBlocking=true;
@@ -1453,6 +1546,14 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
           }
         }
       }
+
+      for(const p of this.active){
+        if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+          anyBlocking=true;
+          this.stepRestroomTravel(p,dt);
+        }
+      }
+
       if(anyBlocking) this.blockedSeconds+=dt;
       if(this.active.some(p=>p.state==="seated")){
         this.active=this.active.filter(p=>p.state!=="seated");
@@ -1464,34 +1565,31 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
           let allowed=p.row;
           if(leadPos<Infinity) allowed=Math.min(allowed,leadPos-SPACING);
           const available=Math.max(0,allowed-p.pos);
-          const freeMove=p.walkSpeed*dt;
+          const squeezed=(p.squeezeDelayRemaining||0)>0;
+          if(squeezed){
+            p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+            p.disruptionDelaySeconds=(p.disruptionDelaySeconds||0)+dt;
+          }
+          const freeMove=p.walkSpeed*(squeezed ? .28 : 1)*dt;
           const move=Math.min(available,freeMove);
           p.pos+=move;
           if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
 
           if(
             p.characterId==="barbara"
-            && !p.restroomPauseComplete
-            && p.row>p.restroomPauseRow+.001
-            && p.pos+1e-7>=p.restroomPauseRow
+            && !p.restroomTripStarted
+            && p.row>p.restroomTurnRow+.001
+            && p.pos+1e-7>=p.restroomTurnRow
           ){
-            p.pos=p.restroomPauseRow;
-            p.state="character-pause";
-            p.remaining=p.restroomPauseDuration;
-            p.restroomPauseComplete=true;
-            this.setCharacterMoment(
-              p,
-              "regretting several decisions",
-              "paused in the aisle thinking about the restroom",
-              "I should have used the restroom.",
-              p.restroomPauseDuration
-            );
+            p.pos=p.restroomTurnRow;
+            p.restroomTripStarted=true;
+            this.beginRestroomTrip(p);
           }else if(p.row-p.pos<=.001){
             p.pos=p.row;
             this.beginStowing(p);
           }
         }
-        leadPos=p.pos;
+        if(!RESTROOM_TRAVEL_STATES.has(p.state)) leadPos=p.pos;
       }
 
       this.release(dt);
@@ -1721,6 +1819,14 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     let x=baseX;
     let y=geometry.top+(clamp(passenger.pos,0,ROWS)-.5)*geometry.rowH;
     let seatingProgress=0;
+    if(passenger.state==="walking-to-restroom") x=aisleCenter-geometry.aisleW*.22;
+    else if(passenger.state==="walking-from-restroom") x=aisleCenter+geometry.aisleW*.22;
+    else if(passenger.state==="restroom"){
+      x=aisleCenter+geometry.aisleW*.32;
+      y=geometry.top-18;
+    }else if((passenger.squeezeDelayRemaining||0)>0){
+      x=baseX+geometry.aisleW*.18;
+    }
     if(passenger.state==="seating"){
       const target=seatRect(geometry,passenger.row,passenger.col);
       const duration=Math.max(.001,passenger.seatingDuration||passenger.remaining||1);
@@ -1858,6 +1964,19 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     ctx.font="10px system-ui";
     ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
 
+    const lavW=Math.min(36,Math.max(28,seatW*1.25));
+    const lavH=22;
+    const lavX=Math.min(w-lavW-4,rightX+3*seatW+2*gap-lavW);
+    const lavY=top-29;
+    roundedRect(ctx,lavX,lavY,lavW,lavH,5);
+    ctx.fillStyle="#10283c";
+    ctx.fill();
+    ctx.strokeStyle="#4c7898";
+    ctx.stroke();
+    ctx.fillStyle="#b8c9df";
+    ctx.font="800 8px system-ui";
+    ctx.fillText("LAV",lavX+lavW/2,lavY+lavH/2+.5);
+
     const points=sim.active.map(passenger=>passengerPoint(passenger,geometry));
     const activeFamilies=new Map();
     for(const point of points){
@@ -1918,7 +2037,24 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       }
 
       const radius=p.isChild?4.3:5.6;
+      if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+        ctx.save();
+        ctx.fillStyle="rgba(255,240,168,.9)";
+        ctx.font="900 9px system-ui";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText(p.state==="walking-to-restroom"?"↑":"↓",x,y-10);
+        ctx.restore();
+      }
+      if((p.squeezeDelayRemaining||0)>0 && !p.characterId){
+        ctx.beginPath();
+        ctx.arc(x,y,radius+2.6,0,Math.PI*2);
+        ctx.strokeStyle="rgba(255,207,102,.75)";
+        ctx.lineWidth=1.2;
+        ctx.stroke();
+      }
   if(p.characterId){
+
     const pulse=3.5+Math.sin(sim.time*5)*.7;
     ctx.beginPath();
     ctx.arc(x,y,radius+pulse,0,Math.PI*2);
@@ -2028,7 +2164,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
   function stateText(passenger,sim){
     if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
-    if(passenger.state==="character-pause") return `paused in the aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="walking-to-restroom") return `backtracking toward front lavatory · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="restroom") return `inside front lavatory · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="walking-from-restroom") return `returning toward row ${passenger.row} · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
     if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
@@ -2051,7 +2189,14 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     }
     if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
     if(passenger.eventState) character.push(row("Current event",passenger.eventState));
-    if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
+  if(passenger.restroomTripStarted){
+    character.push(row("Aisle crossings",`${passenger.squeezePasses||0} passenger squeezes`));
+    character.push(row("Restroom trip",passenger.restroomTripComplete
+      ? `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed · ${(passenger.restroomExtraDelay||0).toFixed(1)}s extra`
+      : `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed`));
+  }
+  if(passenger.disruptionDelaySeconds) character.push(row("Passenger disruption",`${passenger.disruptionDelaySeconds.toFixed(1)}s slowed by ${passenger.disruptedByCharacter||"another traveler"}`));
+  if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
     return `
       <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
       <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>

@@ -1,6 +1,8 @@
 import { SPACING } from "./constants.js";
 import { makeQueue } from "./methods.js";
 
+const RESTROOM_TRAVEL_STATES=new Set(["walking-to-restroom","restroom","walking-from-restroom"]);
+
 export class BoardingSim{
   constructor(manifest,method,cfg){
     this.method=method;
@@ -101,20 +103,101 @@ export class BoardingSim{
     this.pending++;
     this.setCharacterMoment(p,"finally aboard","heading down the aisle","Made it!",3.5);
   }
+  beginRestroomTrip(p){
+    p.state="walking-to-restroom";
+    p.restroomTripElapsed=0;
+    p.restroomBaselineRemaining=Math.max(0,(p.row-p.pos)/Math.max(.001,p.walkSpeed));
+    p.restroomPassedIds={outbound:new Set(),return:new Set()};
+    p.squeezePasses=0;
+    this.setCharacterMoment(
+      p,
+      "doubling back",
+      "walking toward the front lavatory",
+      "Nope. Restroom first.",
+      4.2
+    );
+  }
+  registerSqueeze(p,other,phase){
+    const passed=p.restroomPassedIds?.[phase];
+    if(!passed || passed.has(other.id)) return;
+    passed.add(other.id);
+    p.squeezePasses=(p.squeezePasses||0)+1;
+    p.squeezeDelayRemaining=Math.max(p.squeezeDelayRemaining||0,p.squeezeSelfDuration||.9);
+    const otherDelay=p.squeezeOtherDuration||1.8;
+    if(other.state==="walking"){
+      other.squeezeDelayRemaining=Math.max(other.squeezeDelayRemaining||0,otherDelay);
+    }else if(other.state==="stowing" || other.state==="seating"){
+      other.remaining=(other.remaining||0)+otherDelay;
+      other.disruptionDelaySeconds=(other.disruptionDelaySeconds||0)+otherDelay;
+    }
+    other.disruptedByCharacter=p.displayName||"a disruptive passenger";
+    other.disruptionCount=(other.disruptionCount||0)+1;
+    if(p.squeezePasses===1 || p.squeezePasses%4===0){
+      this.setCharacterMoment(
+        p,
+        "squeezing past passengers",
+        `${phase==="outbound"?"backtracking":"returning"} through the aisle · ${p.squeezePasses} crossings`,
+        p.squeezePasses===1?"Excuse me—sorry—coming through.":"Sorry. Again.",
+        2.8
+      );
+    }
+  }
+  stepRestroomTravel(p,dt){
+    p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
+    const outbound=p.state==="walking-to-restroom";
+    const target=outbound?(p.restroomTarget??.15):p.row;
+    const direction=outbound?-1:1;
+    const phase=outbound?"outbound":"return";
+    const slowed=(p.squeezeDelayRemaining||0)>0;
+    if(slowed) p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+    const speed=(p.restroomWalkSpeed||.68)*(slowed ? .42 : 1);
+    const oldPos=p.pos;
+    const distance=Math.abs(target-oldPos);
+    const move=Math.min(distance,speed*dt);
+    p.pos=oldPos+direction*move;
+
+    const low=Math.min(oldPos,p.pos)-.015;
+    const high=Math.max(oldPos,p.pos)+.015;
+    for(const other of this.active){
+      if(other===p || other.state==="seated" || RESTROOM_TRAVEL_STATES.has(other.state)) continue;
+      if(other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerSqueeze(p,other,phase);
+    }
+
+    if(Math.abs(p.pos-target)>.001) return;
+    p.pos=target;
+    if(outbound){
+      p.state="restroom";
+      p.remaining=p.restroomDuration;
+      this.setCharacterMoment(p,"in the lavatory","using the front lavatory","Finally.",2.4);
+      return;
+    }
+
+    p.restroomTripComplete=true;
+    p.restroomExtraDelay=Math.max(0,(p.restroomTripElapsed||0)-(p.restroomBaselineRemaining||0));
+    p.eventDelaySeconds=(p.heavyBagDelayCounted?p.heavyBagExtra||0:0)+p.restroomExtraDelay;
+    this.setCharacterMoment(
+      p,
+      "back at her row",
+      `restroom trip complete · squeezed past ${p.squeezePasses||0} passengers`,
+      "Much better.",
+      3
+    );
+    this.beginStowing(p);
+  }
   step(dt){
     if(this.done) return;
     this.time+=dt;
 
     let anyBlocking=false;
     for(const p of this.active){
-      if(p.state==="character-pause"){
+      if(p.state==="restroom"){
         anyBlocking=true;
         p.remaining-=dt;
-        p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+        p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
         if(p.remaining<=0){
-          p.state="walking";
+          p.state="walking-from-restroom";
           p.remaining=0;
-          this.setCharacterMoment(p,"committed now","continuing to her seat","Too late now.",2.4);
+          this.setCharacterMoment(p,"heading back","returning from the front lavatory","Coming back through.",3.2);
         }
       }else if(p.state==="stowing"){
         anyBlocking=true;
@@ -143,6 +226,14 @@ export class BoardingSim{
         }
       }
     }
+
+    for(const p of this.active){
+      if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+        anyBlocking=true;
+        this.stepRestroomTravel(p,dt);
+      }
+    }
+
     if(anyBlocking) this.blockedSeconds+=dt;
     if(this.active.some(p=>p.state==="seated")){
       this.active=this.active.filter(p=>p.state!=="seated");
@@ -154,34 +245,31 @@ export class BoardingSim{
         let allowed=p.row;
         if(leadPos<Infinity) allowed=Math.min(allowed,leadPos-SPACING);
         const available=Math.max(0,allowed-p.pos);
-        const freeMove=p.walkSpeed*dt;
+        const squeezed=(p.squeezeDelayRemaining||0)>0;
+        if(squeezed){
+          p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+          p.disruptionDelaySeconds=(p.disruptionDelaySeconds||0)+dt;
+        }
+        const freeMove=p.walkSpeed*(squeezed ? .28 : 1)*dt;
         const move=Math.min(available,freeMove);
         p.pos+=move;
         if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
 
         if(
           p.characterId==="barbara"
-          && !p.restroomPauseComplete
-          && p.row>p.restroomPauseRow+.001
-          && p.pos+1e-7>=p.restroomPauseRow
+          && !p.restroomTripStarted
+          && p.row>p.restroomTurnRow+.001
+          && p.pos+1e-7>=p.restroomTurnRow
         ){
-          p.pos=p.restroomPauseRow;
-          p.state="character-pause";
-          p.remaining=p.restroomPauseDuration;
-          p.restroomPauseComplete=true;
-          this.setCharacterMoment(
-            p,
-            "regretting several decisions",
-            "paused in the aisle thinking about the restroom",
-            "I should have used the restroom.",
-            p.restroomPauseDuration
-          );
+          p.pos=p.restroomTurnRow;
+          p.restroomTripStarted=true;
+          this.beginRestroomTrip(p);
         }else if(p.row-p.pos<=.001){
           p.pos=p.row;
           this.beginStowing(p);
         }
       }
-      leadPos=p.pos;
+      if(!RESTROOM_TRAVEL_STATES.has(p.state)) leadPos=p.pos;
     }
 
     this.release(dt);

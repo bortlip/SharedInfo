@@ -34,12 +34,19 @@ export function applyCharacterScenario(manifest,seed,cfg){
   passenger.bagBase=18+rng()*6;
   passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
   passenger.lateQueueFraction=.62+rng()*.18;
-  passenger.restroomPauseRow=clamp(
+  passenger.restroomTurnRow=clamp(
     Math.round(passenger.row*(.35+rng()*.24)),
-    3,
-    Math.max(3,passenger.row-2)
+    4,
+    Math.max(4,passenger.row-2)
   );
-  passenger.restroomPauseDuration=4.5+rng()*3.5;
+  passenger.restroomDuration=6+rng()*4;
+  passenger.restroomWalkSpeed=.62+rng()*.14;
+  passenger.restroomTarget=.15;
+  passenger.squeezeOtherDuration=1.45+rng()*.65;
+  passenger.squeezeSelfDuration=.75+rng()*.45;
+  passenger.restroomTripElapsed=0;
+  passenger.restroomExtraDelay=0;
+  passenger.squeezePasses=0;
   passenger.eventDelaySeconds=0;
   passenger.bubbleText=null;
   passenger.bubbleUntil=0;
@@ -50,8 +57,11 @@ export function applyCharacterScenario(manifest,seed,cfg){
     seatKey:passenger.seatKey,
     heavyBagExtra:passenger.heavyBagExtra,
     lateQueueFraction:passenger.lateQueueFraction,
-    restroomPauseRow:passenger.restroomPauseRow,
-    restroomPauseDuration:passenger.restroomPauseDuration
+    restroomTurnRow:passenger.restroomTurnRow,
+    restroomDuration:passenger.restroomDuration,
+    restroomWalkSpeed:passenger.restroomWalkSpeed,
+    squeezeOtherDuration:passenger.squeezeOtherDuration,
+    squeezeSelfDuration:passenger.squeezeSelfDuration
   });
   return manifest;
 }
