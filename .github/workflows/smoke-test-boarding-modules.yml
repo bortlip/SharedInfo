@@ -53,7 +53,7 @@ jobs:
 
           for dom in /tmp/source-dom.html /tmp/candidate-dom.html; do
             grep -q 'Ready: 186/186 seats occupied' "$dom"
-            test "$(grep -o 'class="sim-card"' "$dom" | wc -l)" -eq 6
+            test "$(grep -o '<article class="card sim-card">' "$dom" | wc -l)" -eq 6
             grep -q 'id="benchBtn"' "$dom"
           done
 
