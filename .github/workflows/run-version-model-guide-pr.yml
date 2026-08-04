@@ -1,0 +1,131 @@
+name: Build visible version and model guide
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/scripts/apply_version_model_guide.py
+      - .github/workflows/run-version-model-guide-pr.yml
+      - simulations/group-aware-boarding/src/js/version.js
+      - simulations/group-aware-boarding/tools/build_model_page.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply source and documentation changes
+        run: python .github/scripts/apply_version_model_guide.py
+
+      - name: Validate source syntax
+        shell: bash
+        run: |
+          python -m py_compile \
+            simulations/group-aware-boarding/tools/build_simulator.py \
+            simulations/group-aware-boarding/tools/build_model_page.py
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+      - name: Build both public artifacts reproducibly
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum \
+            simulations/group-aware-boarding/dist/simulator.html \
+            simulations/group-aware-boarding/model.html > /tmp/first-build.sha
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum \
+            simulations/group-aware-boarding/dist/simulator.html \
+            simulations/group-aware-boarding/model.html > /tmp/second-build.sha
+          diff -u /tmp/first-build.sha /tmp/second-build.sha
+
+      - name: Validate version and generated model coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          root=Path('simulations/group-aware-boarding')
+          version_source=(root/'src/js/version.js').read_text(encoding='utf-8')
+          version=re.search(r'APP_VERSION\s*=\s*"([^"]+)"',version_source).group(1)
+          simulator=(root/'dist/simulator.html').read_text(encoding='utf-8')
+          model_md=(root/'MODEL.md').read_text(encoding='utf-8')
+          model_html=(root/'model.html').read_text(encoding='utf-8')
+
+          assert f'v{version}' in model_html
+          assert 'data-app-version' in simulator
+          assert 'How it works' in simulator
+          assert 'Read the complete model guide' in simulator
+          assert 'Scenario presets and shared links' in model_html
+          assert 'Method visibility and synchronized animation' in model_html
+          assert 'Visible luggage' in model_html
+          assert model_html.count('<h2 id=') == len(re.findall(r'^## ',model_md,re.M))
+          assert model_html.count('<table>') == len(re.findall(r'^\|.*\|\n\|[-: |]+\|',model_md,re.M))
+          PY
+
+      - name: Verify protected release files remain unchanged
+        shell: bash
+        run: |
+          git fetch origin main
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke tests
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom \
+            'http://127.0.0.1:8765/dist/simulator.html?static=1' > /tmp/simulator-dom.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=1500 --dump-dom \
+            'http://127.0.0.1:8765/model.html' > /tmp/model-dom.html
+
+          python - <<'PY'
+          from pathlib import Path
+          simulator=Path('/tmp/simulator-dom.html').read_text(encoding='utf-8')
+          model=Path('/tmp/model-dom.html').read_text(encoding='utf-8')
+          assert simulator.count('v3.0.0') >= 2
+          assert 'How it works' in simulator
+          assert 'Read the complete model guide' in simulator
+          assert 'Boarding Rush model guide' in model
+          assert 'On this page' in model
+          assert '<table>' in model
+          assert 'v3.0.0' in model
+          PY
+
+      - name: Commit validated changes and remove temporary tooling
+        shell: bash
+        run: |
+          rm .github/scripts/apply_version_model_guide.py
+          rm .github/workflows/run-version-model-guide-pr.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            simulations/group-aware-boarding/src \
+            simulations/group-aware-boarding/tools/build_simulator.py \
+            simulations/group-aware-boarding/tools/build_model_page.py \
+            simulations/group-aware-boarding/dist/simulator.html \
+            simulations/group-aware-boarding/model.html \
+            simulations/group-aware-boarding/MODEL.md \
+            simulations/group-aware-boarding/README.md \
+            simulations/group-aware-boarding/design/RELEASE_AND_DEVELOPMENT_WORKFLOW.md \
+            simulations/group-aware-boarding/tasks \
+            .github/scripts/apply_version_model_guide.py \
+            .github/workflows/run-version-model-guide-pr.yml
+          git commit -m 'Show version and generate model guide'
+          git push origin HEAD:${{ github.head_ref }}
