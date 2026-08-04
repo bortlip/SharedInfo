@@ -209,7 +209,7 @@ jobs:
               html=Path(path).read_text(encoding='utf-8')
               assert 'v3.4.0' in html
               assert '>Barbara Mode<' in html
-              assert 'Barbara is aboard.' in html
+              assert 'Shared barbara mode loaded from the URL' in html
               button=re.search(r'<button[^>]+data-scenario-id="barbara"[^>]*>',html)
               assert button and 'disabled' not in button.group(0)
               assert 'data-scenario-id="barbara"' in html
