@@ -5,7 +5,7 @@ path=Path('.github/scripts/apply_visible_crew_assistance.py')
 text=path.read_text(encoding='utf-8')
 start=text.index("interaction=JS/'interaction.js'")
 end=text.index("render=JS/'render.js'",start)
-replacement=r'''interaction=JS/'interaction.js'
+replacement=r"""interaction=JS/'interaction.js'
 write(interaction,textwrap.dedent('''\
 function escapeHtml(value){
   return String(value??"")
@@ -120,5 +120,5 @@ export function tooltipHtml(hit,sim){
 }
 '''))
 
-'''
+"""
 path.write_text(text[:start]+replacement+text[end:],encoding='utf-8')
