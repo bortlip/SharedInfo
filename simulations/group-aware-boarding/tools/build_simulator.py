@@ -126,7 +126,7 @@ def migrate() -> None:
 
     manifest_module = (
         'import { ROWS, COLS, TOTAL, familyColor } from "./constants.js";\n'
-        'import { mulberry32, shuffle, seedMix } from "./random.js";\n\n'
+        'import { mulberry32, shuffle } from "./random.js";\n\n'
         + dedent(weighted_size + seat_info + seed_mix + manifest).replace(
             "function makeManifest", "export function makeManifest"
         )
