@@ -140,19 +140,20 @@ export function parseScenarioSearch(search){
   if(Number(params.get("v"))!==SCENARIO_SCHEMA_VERSION) return null;
 
   const defaults=DEFAULT_SCENARIO_SETTINGS;
-  const weights=(params.get("pw")||"").split(",");
+  const get=(key,fallback)=>params.has(key)?params.get(key):fallback;
+  const weights=params.has("pw")?params.get("pw").split(","):defaults.partyWeights;
   const partyWeights=weights.length===4?weights:defaults.partyWeights;
   return normalizeScenarioSettings({
-    loadFactor:params.get("lf"),
-    familyShare:params.get("fs"),
+    loadFactor:get("lf",defaults.loadFactor),
+    familyShare:get("fs",defaults.familyShare),
     partyWeights,
-    assistedParties:params.get("ap"),
-    bagRate:params.get("br"),
-    sequenceCompliance:params.get("sc"),
-    priorityPolicy:params.get("pp"),
-    speed:params.get("sp"),
-    seed:params.get("sd"),
-    trials:params.get("tr")
+    assistedParties:get("ap",defaults.assistedParties),
+    bagRate:get("br",defaults.bagRate),
+    sequenceCompliance:get("sc",defaults.sequenceCompliance),
+    priorityPolicy:get("pp",defaults.priorityPolicy),
+    speed:get("sp",defaults.speed),
+    seed:get("sd",defaults.seed),
+    trials:get("tr",defaults.trials)
   });
 }
 
