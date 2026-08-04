@@ -173,7 +173,9 @@ input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visi
 input[type="range"]{width:100%;accent-color:var(--accent)}
 .range-line{display:flex;justify-content:space-between;gap:10px}
 .range-line output{color:var(--ink);font-variant-numeric:tabular-nums}
-.seed-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.seed-control{grid-column:span 2;min-width:300px}
+.seed-entry{display:grid;grid-template-columns:minmax(14ch,1fr) auto;gap:7px}
+.seed-entry input{min-width:14ch;font-variant-numeric:tabular-nums}
 .seed-entry button{padding-inline:10px;white-space:nowrap}
 .buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
 button{

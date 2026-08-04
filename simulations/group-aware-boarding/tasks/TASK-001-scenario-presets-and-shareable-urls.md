@@ -76,3 +76,10 @@ The preset hint is descriptive only. The UI determines whether a scenario truly 
 - The candidate is branded Boarding Rush without renaming the existing folder or changing protected released files
 - Source and standalone candidate pass browser smoke tests
 - Presets remain separate from released artifacts until an approved release
+
+## Follow-up polish
+
+- Page-facing text is written as product copy and never exposes candidate/release-process terminology.
+- Each scenario definition has an `included` flag; set it to `false` to hide that scenario without deleting its settings or implementation.
+- The editable seed field spans two control columns so its full value remains visible beside the randomize button.
+- Repeating an identical benchmark shows that its deterministic results are unchanged; the comparison requires the same seed, settings, and trial count, not merely the same seed alone.

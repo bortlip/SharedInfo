@@ -20,3 +20,31 @@ export function stats(values){
     p90:percentile(s,.9)
   };
 }
+
+export function benchmarkSignature(cfg,trials){
+  return JSON.stringify({
+    loadFactor:cfg.loadFactor,
+    familyShare:cfg.familyShare,
+    partyWeights:cfg.partyWeights,
+    assistedParties:cfg.assistedParties,
+    bagRate:cfg.bagRate,
+    sequenceCompliance:cfg.sequenceCompliance,
+    priorityPolicy:cfg.priorityPolicy,
+    seed:cfg.seed,
+    trials
+  });
+}
+
+export function sameBenchmarkResults(left,right,methods){
+  if(!left || !right) return false;
+  return methods.every(method=>{
+    const a=left[method];
+    const b=right[method];
+    return !!a && !!b
+      && a.wins===b.wins
+      && a.stats.mean===b.stats.mean
+      && a.stats.median===b.stats.median
+      && a.stats.p10===b.stats.p10
+      && a.stats.p90===b.stats.p90;
+  });
+}

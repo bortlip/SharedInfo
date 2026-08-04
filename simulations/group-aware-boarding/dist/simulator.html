@@ -182,7 +182,9 @@ input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visi
 input[type="range"]{width:100%;accent-color:var(--accent)}
 .range-line{display:flex;justify-content:space-between;gap:10px}
 .range-line output{color:var(--ink);font-variant-numeric:tabular-nums}
-.seed-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.seed-control{grid-column:span 2;min-width:300px}
+.seed-entry{display:grid;grid-template-columns:minmax(14ch,1fr) auto;gap:7px}
+.seed-entry input{min-width:14ch;font-variant-numeric:tabular-nums}
 .seed-entry button{padding-inline:10px;white-space:nowrap}
 .buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
 button{
@@ -332,7 +334,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       <h1>Boarding Rush</h1>
       <p>Pick a flight, press run, and watch six boarding strategies race through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
-    <div class="badge">unreleased candidate · scenarios · shareable seeds</div>
+    <div class="badge">scenarios · shareable seeds · deterministic races</div>
   </header>
 
   <section class="card scenario-picker" aria-labelledby="scenarioHeading">
@@ -563,7 +565,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     </aside>
   </section>
 
-  <footer>Boarding Rush candidate · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+  <footer>Boarding Rush · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
 </div>
 
 <script>
@@ -639,9 +641,11 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     trials:40
   };
 
+  // Set `included` to false to remove a scenario from the selector without deleting its definition.
   const SCENARIO_PRESETS = [
     {
       id:"smooth-business",
+      included:true,
       name:"Smooth Business Route",
       emoji:"💼",
       description:"Experienced travelers, lots of carry-ons, and almost everyone follows the plan.",
@@ -649,6 +653,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"family-vacation",
+      included:true,
       name:"Family Vacation",
       emoji:"🏖️",
       description:"A full flight with plenty of families, children, bags, and respectable queue manners.",
@@ -656,6 +661,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"holiday-crush",
+      included:true,
       name:"Holiday Crush",
       emoji:"🎄",
       description:"The cabin is full, the bags are plentiful, and every third person appears to know someone ahead of them.",
@@ -663,6 +669,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"light-hop",
+      included:true,
       name:"Lightly Loaded Hop",
       emoji:"🪽",
       description:"Half the seats are empty, the aisle can breathe, and nobody needs to make this complicated.",
@@ -670,6 +677,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"perfect-lab",
+      included:true,
       name:"Perfect Laboratory Conditions",
       emoji:"🧪",
       description:"A controlled baseline: perfect compliance and no dramatic improvisation from the passengers.",
@@ -677,6 +685,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"assisted-heavy",
+      included:true,
       name:"Assisted-Heavy Flight",
       emoji:"🫶",
       description:"More travelers need extra time and companions, so priority policy matters much more.",
@@ -684,6 +693,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"maximum-carryons",
+      included:true,
       name:"Maximum Carry-ons",
       emoji:"🧳",
       description:"Everyone brought a bag. The overhead bins have entered the chat.",
@@ -691,6 +701,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"low-compliance-chaos",
+      included:true,
       name:"Low-Compliance Chaos",
       emoji:"🌪️",
       description:"The boarding order is more of a gentle suggestion than an enforceable policy.",
@@ -698,6 +709,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     },
     {
       id:"barbara",
+      included:true,
       name:"Barbara Mode",
       emoji:"🍷",
       description:"She is late. Her bag is heavy. She has made several decisions.",
@@ -757,7 +769,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   }
 
   function matchingPreset(settings){
-    return SCENARIO_PRESETS.find(preset=>!preset.disabled && settingsEqual(settings,preset.settings))||null;
+    return SCENARIO_PRESETS.find(preset=>preset.included!==false && !preset.disabled && settingsEqual(settings,preset.settings))||null;
   }
 
   function parseScenarioSearch(search){
@@ -1182,6 +1194,34 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     };
   }
 
+  function benchmarkSignature(cfg,trials){
+    return JSON.stringify({
+      loadFactor:cfg.loadFactor,
+      familyShare:cfg.familyShare,
+      partyWeights:cfg.partyWeights,
+      assistedParties:cfg.assistedParties,
+      bagRate:cfg.bagRate,
+      sequenceCompliance:cfg.sequenceCompliance,
+      priorityPolicy:cfg.priorityPolicy,
+      seed:cfg.seed,
+      trials
+    });
+  }
+
+  function sameBenchmarkResults(left,right,methods){
+    if(!left || !right) return false;
+    return methods.every(method=>{
+      const a=left[method];
+      const b=right[method];
+      return !!a && !!b
+        && a.wins===b.wins
+        && a.stats.mean===b.stats.mean
+        && a.stats.median===b.stats.median
+        && a.stats.p10===b.stats.p10
+        && a.stats.p90===b.stats.p90;
+    });
+  }
+
   function drawSim(sim,canvas){
     const ctx=canvas.getContext("2d");
     const w=canvas.width,h=canvas.height;
@@ -1427,7 +1467,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
   function setActivePreset(presetId){
     activePresetId=presetId||"custom";
-    const selected=SCENARIO_PRESETS.find(preset=>preset.id===activePresetId && !preset.disabled);
+    const selected=SCENARIO_PRESETS.find(preset=>preset.id===activePresetId && preset.included!==false && !preset.disabled);
     $("activeScenarioLabel").textContent=selected?.name||"Custom scenario";
     $("activeScenarioLabel").dataset.scenarioId=selected?.id||"custom";
     document.querySelectorAll(".scenario-card").forEach(card=>{
@@ -1453,7 +1493,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   function renderScenarioCards(){
     const grid=$("scenarioGrid");
     grid.innerHTML="";
-    for(const preset of SCENARIO_PRESETS){
+    for(const preset of SCENARIO_PRESETS.filter(preset=>preset.included!==false)){
       const button=document.createElement("button");
       button.type="button";
       button.className="scenario-card";
@@ -1608,7 +1648,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
         <td>${result[m].wins}</td>`;
       body.appendChild(row);
     }
-    $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better`;
+    const repeatNote=result.repeated?" · exact rerun; deterministic results unchanged":"";
+    $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better${repeatNote}`;
     const box=$("barBox");
     box.innerHTML="";
     for(const m of METHODS){
@@ -1633,6 +1674,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     // current state and continue animating while these fresh trial instances run.
     const cfg=config();
     const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
+    const signature=benchmarkSignature(cfg,trials);
+    const previousResult=benchmarkResult;
     const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
     const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
 
@@ -1653,10 +1696,19 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
         // Yield after each trial so the browser can paint and advance a running sim.
         await new Promise(resolve=>setTimeout(resolve,0));
       }
-      benchmarkResult={trials,seed:cfg.seed};
-      for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
+      const nextResult={trials,seed:cfg.seed,signature};
+      for(const method of METHODS) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
+      const exactRepeat=previousResult?.signature===signature;
+      nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,METHODS);
+      benchmarkResult=nextResult;
       renderBenchmark(benchmarkResult);
-      benchStatus.textContent=`Benchmark complete: ${trials} trials from base seed ${cfg.seed.toLocaleString()}.`;
+      if(nextResult.repeated){
+        benchStatus.textContent=`Exact benchmark rerun: the settings, ${trials} trials, and base seed ${cfg.seed.toLocaleString()} are unchanged, so the deterministic results are unchanged.`;
+      }else if(exactRepeat){
+        benchStatus.textContent=`This exact benchmark unexpectedly changed. The deterministic model should be investigated.`;
+      }else{
+        benchStatus.textContent=`Benchmark complete: ${trials} trials from base seed ${cfg.seed.toLocaleString()}.`;
+      }
     }finally{
       benchmarking=false;
       button.disabled=false;
