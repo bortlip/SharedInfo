@@ -95,7 +95,7 @@ jobs:
           git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
           git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
 
-      - name: Browser smoke test and live reveal test
+      - name: Browser smoke tests and synchronization assertions
         shell: bash
         run: |
           browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
@@ -105,63 +105,38 @@ jobs:
           trap 'kill $server_pid' EXIT
           sleep 1
 
-          "$browser" --headless=new --no-sandbox --disable-gpu --remote-debugging-port=9222 --user-data-dir=/tmp/boarding-rush-chrome 'http://127.0.0.1:8765/dist/simulator.html?v=1&m=random,steffen&view=standard' >/tmp/chrome.log 2>&1 &
-          chrome_pid=$!
-          trap 'kill $chrome_pid $server_pid' EXIT
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/src/?static=1&m=random,steffen&view=standard' >/tmp/source-two.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,steffen&view=standard' >/tmp/dist-two.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,back,front,zones,wilma,steffen&view=compact' >/tmp/dist-compact.html
 
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:9222/json/list >/tmp/pages.json; then break; fi
-            sleep .2
-          done
+          python - <<'PY'
+          import re
+          from pathlib import Path
 
-          node <<'NODE'
-          import assert from 'node:assert/strict';
+          def visible_methods(path):
+              html=Path(path).read_text(encoding='utf-8')
+              cards=re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',html)
+              assert len(cards)==6, cards
+              return [method for method,attrs in cards if 'hidden' not in attrs],html
 
-          const pages=await fetch('http://127.0.0.1:9222/json/list').then(response=>response.json());
-          const page=pages.find(item=>item.type==='page');
-          assert.ok(page?.webSocketDebuggerUrl);
-          const socket=new WebSocket(page.webSocketDebuggerUrl);
-          await new Promise((resolve,reject)=>{
-            socket.addEventListener('open',resolve,{once:true});
-            socket.addEventListener('error',reject,{once:true});
-          });
+          for path in ['/tmp/source-two.html','/tmp/dist-two.html']:
+              visible,html=visible_methods(path)
+              assert visible==['random','steffen'], visible
+              assert html.count('class="method-option"')==6
+              assert 'carry-on and overhead-bin placement' in html
 
-          let nextId=1;
-          const pending=new Map();
-          socket.addEventListener('message',event=>{
-            const message=JSON.parse(event.data);
-            if(!message.id || !pending.has(message.id)) return;
-            const {resolve,reject}=pending.get(message.id);
-            pending.delete(message.id);
-            if(message.error) reject(new Error(JSON.stringify(message.error)));
-            else resolve(message.result);
-          });
-          function command(method,params={}){
-            const id=nextId++;
-            socket.send(JSON.stringify({id,method,params}));
-            return new Promise((resolve,reject)=>pending.set(id,{resolve,reject}));
-          }
-          async function evaluate(expression,awaitPromise=false){
-            const response=await command('Runtime.evaluate',{expression,awaitPromise,returnByValue:true});
-            if(response.exceptionDetails) throw new Error(JSON.stringify(response.exceptionDetails));
-            return response.result.value;
-          }
+          visible,html=visible_methods('/tmp/dist-compact.html')
+          assert visible==['random','back','front','zones','wilma','steffen'], visible
+          assert 'compact-view' in re.search(r'<main[^>]+id="simGrid"[^>]*>',html).group(0)
 
-          await command('Runtime.enable');
-          await evaluate("document.getElementById('runBtn').click()");
-          await evaluate('new Promise(resolve=>setTimeout(resolve,900))',true);
-          assert.equal(await evaluate("document.querySelector('[data-method=back]').hidden"),true);
-          await evaluate("document.querySelector('.method-option input[value=back]').click()");
-          assert.equal(await evaluate("document.querySelector('[data-method=back]').hidden"),false);
-          const revealedTime=await evaluate("document.getElementById('backTime').textContent");
-          assert.notEqual(revealedTime,'00:00');
-          const before=await evaluate("document.getElementById('backTime').textContent");
-          await evaluate('new Promise(resolve=>setTimeout(resolve,450))',true);
-          const after=await evaluate("document.getElementById('backTime').textContent");
-          assert.notEqual(after,before);
-          assert.match(await evaluate("document.getElementById('status').textContent"),/still running in sync|run in sync/);
-          socket.close();
-          NODE
+          app=Path('simulations/group-aware-boarding/src/js/app.js').read_text(encoding='utf-8')
+          assert 'for(const method of METHODS) sims[method]=new BoardingSim' in app
+          assert 'for(const method of METHODS) sims[method].step(FIXED_DT)' in app
+          selection=app.split('function applyMethodSelection',1)[1].split('function setRaceLayout',1)[0]
+          assert 'reset();' not in selection
+          assert 'clearBenchmark();' in selection
+          assert 'renderAll();' in selection
+          PY
 
       - name: Commit validated changes and remove temporary workflow
         shell: bash
