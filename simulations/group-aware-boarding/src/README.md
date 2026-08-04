@@ -15,4 +15,4 @@ This is the working, unreleased source for the boarding simulator.
 
 Run `python ../tools/build_simulator.py` from this folder, or run the script from any working directory, to regenerate `../dist/simulator.html` as one standalone candidate file.
 
-The source preview is public on GitHub Pages after merge, but it is not the released simulator.
+The modular source page is directly previewable through GitHub Pages after it reaches the published branch. The source preview and generated `dist/` candidate are public test surfaces, not the official released simulator. The official release remains the protected root `../simulator.html`.
