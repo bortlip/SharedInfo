@@ -64,7 +64,7 @@ Selecting or deselecting a method changes only which panels are rendered and whi
 
 "Finish instantly" completes all six animated method simulations. The completion message ranks only the methods currently visible.
 
-### Live race HUD and visual event callouts
+### Live race HUD and race graph
 
 The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:
 
@@ -75,15 +75,11 @@ The live race HUD ranks only the currently visible methods. Before every visible
 
 After methods finish, completed methods rank by their final completion time. The displayed progress percentage is simply seated passengers divided by total passengers. A gap such as "3 passengers back" is a difference in seated counts, not a prediction of how many seconds remain.
 
-The HUD also derives visual-only race moments from existing state:
+The compact leaderboard names are presentation aliases only: Random, Back → Front, Front → Back, Zones, WilMA, and Steffen. The full method names and algorithms are unchanged.
 
-- a lead change among the visible methods
-- a carry-on stow lasting at least 11.5 seconds
-- a seating event with two or more already-seated blockers
-- an episode with at least three simultaneous stowing or seating passengers
-- each method's finish position and time
+The live graph places simulated time on the horizontal axis and cumulative seated passengers on the vertical axis. It records display samples for all six synchronized simulations, including methods whose aircraft panels are currently hidden. Revealing a method later therefore reveals its earlier graph trajectory as well as its current aircraft state. The graph draws only the currently selected methods.
 
-These rankings, pulses, ribbons, and callouts do not alter queue order, timing, random draws, simulation steps, or results. Clicking a HUD row or event only emphasizes and scrolls to the corresponding aircraft panel.
+Small, Medium, and Large change only the graph's rendered height. Graph sampling happens during UI paints, so points may be farther apart at very high animation speeds; the line is a visual history of existing state rather than a new simulation measurement. The leaderboard, graph, lead animation, finish ribbons, and click-to-emphasize behavior do not alter queue order, timing, random draws, simulation steps, or results.
 
 ### Roomy and Compact Fleet display
 

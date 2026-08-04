@@ -3,12 +3,12 @@ export const COLS = ["A","B","C","D","E","F"];
 export const TOTAL = ROWS * COLS.length;
 export const METHODS = ["random","back","front","zones","wilma","steffen"];
 export const META = {
-  random:{label:"Random", canvas:"randomCanvas"},
-  back:{label:"Strict back to front", canvas:"backCanvas"},
-  front:{label:"Strict front to back", canvas:"frontCanvas"},
-  zones:{label:"Airline zones", canvas:"zonesCanvas"},
-  wilma:{label:"WilMA, group-safe", canvas:"wilmaCanvas"},
-  steffen:{label:"Steffen, group-safe", canvas:"steffenCanvas"}
+  random:{label:"Random", shortLabel:"Random", chartColor:"#63d7ff", canvas:"randomCanvas"},
+  back:{label:"Strict back to front", shortLabel:"Back → Front", chartColor:"#70e1a1", canvas:"backCanvas"},
+  front:{label:"Strict front to back", shortLabel:"Front → Back", chartColor:"#ff9aaa", canvas:"frontCanvas"},
+  zones:{label:"Airline zones", shortLabel:"Zones", chartColor:"#ffc96b", canvas:"zonesCanvas"},
+  wilma:{label:"WilMA, group-safe", shortLabel:"WilMA", chartColor:"#d994ff", canvas:"wilmaCanvas"},
+  steffen:{label:"Steffen, group-safe", shortLabel:"Steffen", chartColor:"#9fa8ff", canvas:"steffenCanvas"}
 };
 export const SPACING = 0.72;
 export const FIXED_DT = 0.10;

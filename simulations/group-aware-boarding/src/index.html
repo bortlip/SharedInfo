@@ -136,27 +136,36 @@
     </div>
   </section>
 
-  <section class="card race-hud" aria-labelledby="raceHudHeading">
+  <section class="card race-hud" id="raceHud" data-chart-size="small" aria-labelledby="raceHudHeading">
     <div class="race-hud-head">
       <div>
         <div class="race-title-line">
           <h2 id="raceHudHeading">Live race</h2>
           <span class="provisional-badge">provisional ranking</span>
         </div>
-        <p>Ranked by seated passengers; ties use passengers entered and aisle progress. The HUD never changes the simulation.</p>
+        <p>Short names keep the standings readable. The graph shows simulated time against passengers seated and never changes the race.</p>
       </div>
-      <div class="race-clock" aria-label="Current simulated race time">
-        <span>Race clock</span>
-        <strong id="raceClock">00:00</strong>
+      <div class="race-hud-tools">
+        <div class="graph-size-control">
+          <span>Graph size</span>
+          <div class="segmented-control" role="group" aria-label="Live graph size">
+            <button type="button" data-chart-size="small" aria-pressed="true">Small</button>
+            <button type="button" data-chart-size="medium" aria-pressed="false">Medium</button>
+            <button type="button" data-chart-size="large" aria-pressed="false">Large</button>
+          </div>
+        </div>
+        <div class="race-clock" aria-label="Current simulated race time">
+          <span>Race clock</span>
+          <strong id="raceClock">00:00</strong>
+        </div>
       </div>
     </div>
     <div class="race-leaderboard" id="raceLeaderboard" aria-label="Live boarding method leaderboard"></div>
-    <div class="race-events-wrap">
-      <span class="race-events-label">Race moments</span>
-      <div class="race-events" id="raceEvents" aria-live="polite">
-        <span class="race-events-empty">Lead changes, long bag stows, conflict clusters, and finish moments will appear here.</span>
-      </div>
+    <div class="race-chart-heading">
+      <strong>Passengers seated over time</strong>
+      <div class="race-chart-legend" id="raceChartLegend" aria-label="Graph series"></div>
     </div>
+    <canvas class="race-chart" id="raceChart" width="1200" height="220" role="img" aria-label="Live step graph with simulated time on the horizontal axis and passengers seated on the vertical axis"></canvas>
   </section>
 
   <main class="sim-grid" id="simGrid">

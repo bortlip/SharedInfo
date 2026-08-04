@@ -225,6 +225,10 @@ button:disabled{cursor:wait;transform:none}
 .race-title-line h2{margin:0;font-size:1.12rem}
 .race-hud-head p{margin:4px 0 0;color:var(--muted);font-size:.77rem;line-height:1.4}
 .provisional-badge{padding:3px 7px;border:1px solid #5c6f3a;border-radius:999px;background:#192416;color:#d5eca0;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.race-hud-tools{display:flex;align-items:flex-end;gap:9px;flex:0 0 auto}
+.graph-size-control{display:grid;gap:4px;justify-items:end}
+.graph-size-control>span{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
+.graph-size-control .segmented-control button{padding:6px 8px;font-size:.68rem}
 .race-clock{display:grid;justify-items:end;gap:2px;min-width:90px;padding:8px 10px;border:1px solid #36516f;border-radius:11px;background:#081625}
 .race-clock span{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
 .race-clock strong{font-size:1rem;color:#dff7ff;font-variant-numeric:tabular-nums}
@@ -241,23 +245,26 @@ button:disabled{cursor:wait;transform:none}
 .race-progress{grid-area:progress;height:8px;border-radius:999px;background:#061321;overflow:hidden}
 .race-progress>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b91ff,#70e1a1);transition:width .18s linear}
 .race-gap{grid-area:gap;color:var(--muted);font-size:.65rem;white-space:nowrap}
-.race-events-wrap{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:9px;margin-top:11px;padding-top:10px;border-top:1px solid #29405f}
-.race-events-label{padding-top:5px;color:var(--muted);font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-.race-events{display:flex;flex-wrap:wrap;gap:6px;min-height:28px}
-.race-event{padding:5px 8px;border:1px solid #36516f;border-radius:999px;background:#081625;color:#cfe6f7;font-size:.68rem;line-height:1.25;transform:none}
-.race-event:hover{transform:none;border-color:#67aac5;background:#10253d}
-.race-event time{color:#7fa0bb;font-variant-numeric:tabular-nums}
-.race-events-empty{padding:5px 0;color:#7890a8;font-size:.7rem}
+.race-chart-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:11px;border-top:1px solid #29405f}
+.race-chart-heading>strong{font-size:.72rem;color:#cfe9fa;text-transform:uppercase;letter-spacing:.06em}
+.race-chart-legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px 11px}
+.race-chart-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:.68rem}
+.race-chart-legend i{width:14px;height:3px;border-radius:999px;background:var(--series-color)}
+.race-hud canvas.race-chart{width:100%;display:block;margin-top:8px;border:1px solid #29405f;border-radius:12px;background:linear-gradient(180deg,#07131f,#091a2b);transition:height .18s ease}
+.race-hud[data-chart-size="small"] canvas.race-chart{height:170px}
+.race-hud[data-chart-size="medium"] canvas.race-chart{height:270px}
+.race-hud[data-chart-size="large"] canvas.race-chart{height:410px}
 .sim-card{position:relative;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
 .sim-card.spotlight{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,215,255,.22),0 16px 50px rgba(0,0,0,.28);transform:translateY(-2px)}
-.sim-card.event-pulse{animation:card-event-pulse .95s ease}
 .sim-card.finished-card::before{content:attr(data-finish-place) " finish";position:absolute;z-index:3;top:-9px;right:13px;padding:4px 8px;border:1px solid #7385a1;border-radius:999px;background:#101d2e;color:#e8f4ff;font-size:.62rem;font-weight:850;text-transform:uppercase;letter-spacing:.05em;box-shadow:0 5px 15px rgba(0,0,0,.3)}
 @keyframes leader-pop{0%{box-shadow:0 0 0 0 rgba(112,225,161,.55)}45%{box-shadow:0 0 0 5px rgba(112,225,161,.14)}100%{box-shadow:inset 0 0 0 1px rgba(112,225,161,.18)}}
-@keyframes card-event-pulse{0%,100%{border-color:var(--line)}45%{border-color:var(--warn);box-shadow:0 0 0 4px rgba(255,201,107,.13),0 16px 50px rgba(0,0,0,.25)}}
 @media(max-width:760px){
   .race-hud-head{flex-direction:column}
+  .race-hud-tools{width:100%;justify-content:space-between}
+  .graph-size-control{justify-items:start}
   .race-clock{justify-items:start}
-  .race-events-wrap{grid-template-columns:1fr}
+  .race-chart-heading{align-items:flex-start}
+  .race-chart-legend{justify-content:flex-start}
 }
 
 .sim-grid{
