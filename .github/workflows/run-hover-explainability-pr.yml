@@ -1,0 +1,220 @@
+name: Build hover explainability
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/scripts/apply_hover_explainability.py
+      - .github/workflows/run-hover-explainability-pr.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply hover and row-entry changes
+        run: python .github/scripts/apply_hover_explainability.py
+
+      - name: Validate JavaScript and interaction helpers
+        shell: bash
+        run: |
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+          node --experimental-default-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { cabinGeometry, seatRect, passengerPoint, hitTestSim } from './simulations/group-aware-boarding/src/js/render.js';
+          import { tooltipHtml } from './simulations/group-aware-boarding/src/js/interaction.js';
+
+          const geometry=cabinGeometry(430,650);
+          const passenger={
+            id:7,row:12,col:'A',seatKey:'12A',side:'L',state:'seating',pos:12,
+            remaining:10,seatingDuration:10,isChild:false,isReduced:false,groupType:'single',
+            unitId:'S7',partyLabel:'S7',partySize:1,queueIndex:4,walkSpeed:1.25,
+            hasBag:true,bagStowed:true,bagBase:7.2,seatBase:3.1,
+            displayName:'Barbara',characterRole:'named passenger',characterStatus:'late',eventState:'heading to seat'
+          };
+          const start=passengerPoint(passenger,geometry);
+          passenger.remaining=5;
+          const middle=passengerPoint(passenger,geometry);
+          passenger.remaining=0;
+          const end=passengerPoint(passenger,geometry);
+          const target=seatRect(geometry,12,'A');
+          assert.ok(Math.abs(start.x-(geometry.aisleX+geometry.aisleW/2+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08)))<.01);
+          assert.ok(middle.x<start.x && middle.x>end.x);
+          assert.ok(Math.abs(end.x-target.cx)<.01);
+
+          passenger.remaining=5;
+          const point=passengerPoint(passenger,geometry);
+          const canvas={width:430,height:650,getBoundingClientRect:()=>({left:0,top:0,width:430,height:650})};
+          const sim={
+            active:[passenger],queue:[passenger],pending:1,occupancy:new Map(),
+            assignedSeats:new Set(['12A'])
+          };
+          const personHit=hitTestSim(sim,canvas,point.x,point.y);
+          assert.equal(personHit.kind,'passenger');
+          assert.equal(personHit.passenger.id,7);
+          assert.match(tooltipHtml(personHit,sim),/Barbara/);
+          assert.match(tooltipHtml(personHit,sim),/heading to seat/);
+
+          sim.active=[];
+          const seatHit=hitTestSim(sim,canvas,target.cx,target.cy);
+          assert.equal(seatHit.kind,'seat');
+          assert.equal(seatHit.seatKey,'12A');
+          assert.match(tooltipHtml(seatHit,sim),/assigned/);
+
+          const emptyTarget=seatRect(geometry,12,'B');
+          const emptyHit=hitTestSim(sim,canvas,emptyTarget.cx,emptyTarget.cy);
+          assert.equal(emptyHit.kind,'seat');
+          assert.match(tooltipHtml(emptyHit,sim),/Unassigned/);
+          NODE
+
+      - name: Verify visual changes preserve model results
+        shell: bash
+        run: |
+          git fetch origin main
+          rm -rf /tmp/basejs
+          mkdir -p /tmp/basejs
+          for file in constants.js random.js manifest.js methods.js simulation.js; do
+            git show "origin/main:simulations/group-aware-boarding/src/js/$file" > "/tmp/basejs/$file"
+          done
+
+          node --experimental-default-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { METHODS } from './simulations/group-aware-boarding/src/js/constants.js';
+          import { makeManifest as candidateManifest } from './simulations/group-aware-boarding/src/js/manifest.js';
+          import { BoardingSim as CandidateSim } from './simulations/group-aware-boarding/src/js/simulation.js';
+          import { makeManifest as MainManifest } from 'file:///tmp/basejs/manifest.js';
+          import { BoardingSim as MainSim } from 'file:///tmp/basejs/simulation.js';
+
+          for(const seed of [12345,246813579,987654321]){
+            const cfg={loadFactor:.95,familyShare:.35,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.75,sequenceCompliance:.85,priorityPolicy:'assist',seed};
+            const beforeManifest=MainManifest(seed,cfg);
+            const afterManifest=candidateManifest(seed,cfg);
+            assert.deepEqual(
+              afterManifest.passengers.map(p=>[p.id,p.seatKey,p.walkSpeed,p.hasBag,p.bagBase,p.seatBase]),
+              beforeManifest.passengers.map(p=>[p.id,p.seatKey,p.walkSpeed,p.hasBag,p.bagBase,p.seatBase])
+            );
+            for(const method of METHODS){
+              const before=new MainSim(beforeManifest,method,cfg);
+              const after=new CandidateSim(afterManifest,method,cfg);
+              before.runToEnd(.1);
+              after.runToEnd(.1);
+              assert.equal(after.time,before.time,`${method} time changed for seed ${seed}`);
+              assert.equal(after.seatConflicts,before.seatConflicts,`${method} conflicts changed for seed ${seed}`);
+              assert.equal(after.blockedSeconds,before.blockedSeconds,`${method} blocked time changed for seed ${seed}`);
+              assert.equal(after.completed,before.completed,`${method} completion changed for seed ${seed}`);
+            }
+          }
+          NODE
+
+      - name: Build simulator and model guide reproducibly
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-one.sha
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-two.sha
+          diff -u /tmp/build-one.sha /tmp/build-two.sha
+
+      - name: Validate generated content
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          root=Path('simulations/group-aware-boarding')
+          source=(root/'src/index.html').read_text(encoding='utf-8')
+          dist=(root/'dist/simulator.html').read_text(encoding='utf-8')
+          model=(root/'model.html').read_text(encoding='utf-8')
+          task2=(root/'tasks/TASK-002-passenger-inspector-and-explainability.md').read_text(encoding='utf-8')
+          task3=(root/'tasks/TASK-003-event-and-character-framework-barbara.md').read_text(encoding='utf-8')
+
+          for text in (source,dist):
+              assert 'id="simTooltip"' in text
+              assert 'Passenger and seat hover explanations' not in text
+          assert 'const APP_VERSION = "3.3.0"' in dist
+          assert 'function hitTestSim' in dist
+          assert 'function tooltipHtml' in dist
+          assert 'function passengerPoint' in dist
+          assert 'seatingDuration=this.computeSeat' in dist
+          assert 'Passenger and seat hover explanations' in model
+          assert 'Hover-first slice — done in candidate' in task2
+          assert 'Foundation now available' in task3
+
+          match=re.search(r'<script>\s*(.*?)\s*</script>',dist,re.S)
+          assert match
+          Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1),encoding='utf-8')
+          PY
+          node --check /tmp/boarding-rush-bundle.js
+
+      - name: Verify protected release files remain unchanged
+        shell: bash
+        run: |
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke tests
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/source-hover-profile --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/src/?static=1&m=random,steffen&view=standard' > /tmp/source.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/dist-hover-profile --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,steffen&view=compact' > /tmp/dist.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/model-hover-profile --virtual-time-budget=1200 --dump-dom 'http://127.0.0.1:8765/model.html' > /tmp/model.html
+
+          python - <<'PY'
+          from pathlib import Path
+          for path in ['/tmp/source.html','/tmp/dist.html']:
+              html=Path(path).read_text(encoding='utf-8')
+              assert 'id="simTooltip"' in html
+              assert 'class="sim-tooltip"' in html
+              assert 'v3.3.0' in html
+              assert html.count('class="race-row')>=2
+              assert 'id="randomCanvas"' in html and 'id="steffenCanvas"' in html
+          model=Path('/tmp/model.html').read_text(encoding='utf-8')
+          assert 'Passenger and seat hover explanations' in model
+          assert 'v3.3.0' in model
+          PY
+
+      - name: Commit validated changes and remove temporary tooling
+        shell: bash
+        run: |
+          rm .github/scripts/apply_hover_explainability.py
+          rm .github/workflows/run-hover-explainability-pr.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '4189826+github-actions[bot]@users.noreply.github.com'
+          git add simulations/group-aware-boarding/MODEL.md \
+                  simulations/group-aware-boarding/model.html \
+                  simulations/group-aware-boarding/dist/simulator.html \
+                  simulations/group-aware-boarding/src/index.html \
+                  simulations/group-aware-boarding/src/styles.css \
+                  simulations/group-aware-boarding/src/README.md \
+                  simulations/group-aware-boarding/src/js/app.js \
+                  simulations/group-aware-boarding/src/js/interaction.js \
+                  simulations/group-aware-boarding/src/js/manifest.js \
+                  simulations/group-aware-boarding/src/js/render.js \
+                  simulations/group-aware-boarding/src/js/simulation.js \
+                  simulations/group-aware-boarding/src/js/version.js \
+                  simulations/group-aware-boarding/tasks/TASK-002-passenger-inspector-and-explainability.md \
+                  simulations/group-aware-boarding/tasks/TASK-003-event-and-character-framework-barbara.md \
+                  simulations/group-aware-boarding/tools/build_simulator.py \
+                  .github/scripts/apply_hover_explainability.py \
+                  .github/workflows/run-hover-explainability-pr.yml
+          git commit -m 'Add hover explainability and row-entry motion'
+          git push origin HEAD:${{ github.head_ref }}
