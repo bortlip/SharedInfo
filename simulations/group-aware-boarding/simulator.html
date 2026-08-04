@@ -3,273 +3,481 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Interactive aircraft boarding simulator comparing six boarding methods with families, party-size distributions, load factor, and sequence compliance.">
+<meta name="description" content="Boarding Rush is an interactive aircraft boarding simulator that races six boarding methods through families, carry-ons, assisted travelers, and imperfect queue compliance.">
 <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/simulator.html">
-<title>Group-Aware Aircraft Boarding Simulator v2.4</title>
+<title>Boarding Rush — Aircraft Boarding Simulator</title>
 <style>
-  :root{
-    color-scheme: dark;
-    --bg:#07111f;
-    --panel:#0e1c2e;
-    --panel2:#13243a;
-    --ink:#e8f0ff;
-    --muted:#9eb0c9;
-    --line:#29405f;
-    --accent:#63d7ff;
-    --good:#70e1a1;
-    --warn:#ffc96b;
-    --bad:#ff7d90;
-    --family:#f5b95f;
-    --assist:#d994ff;
-    --single:#68d7ff;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0;
-    min-width:320px;
-    font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    background:
-      radial-gradient(circle at 12% -10%,rgba(80,157,255,.22),transparent 32rem),
-      radial-gradient(circle at 95% 0%,rgba(112,225,161,.12),transparent 28rem),
-      var(--bg);
-    color:var(--ink);
-  }
-  button,input,select{font:inherit}
-  .shell{max-width:1500px;margin:0 auto;padding:24px}
-  header{display:flex;gap:24px;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
-  h1{font-size:clamp(1.65rem,3vw,2.75rem);line-height:1.05;margin:0 0 8px;letter-spacing:-.035em}
-  header p{margin:0;color:var(--muted);max-width:850px;line-height:1.55}
-  .badge{
-    flex:0 0 auto;
-    border:1px solid #3b587e;
-    background:rgba(19,36,58,.72);
-    color:#bfeeff;
-    border-radius:999px;
-    padding:8px 12px;
-    font-size:.82rem;
-    white-space:nowrap;
-  }
-  .card{
-    background:linear-gradient(180deg,rgba(19,36,58,.97),rgba(10,24,41,.97));
-    border:1px solid var(--line);
-    box-shadow:0 16px 50px rgba(0,0,0,.2);
-    border-radius:18px;
-  }
-  .controls{padding:16px;margin-bottom:16px}
-  .control-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
-    gap:12px;
-    align-items:end;
-  }
-  .party-size-control{grid-column:span 2}
-  .control-label{display:block;color:var(--muted);font-size:.78rem;margin-bottom:6px}
-  .weight-grid{display:grid;grid-template-columns:repeat(4,minmax(58px,1fr));gap:6px}
-  .weight-field{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px;color:var(--muted);font-size:.72rem}
-  .weight-field input{min-width:0;padding:9px 6px;text-align:center}
-  .weight-note{margin:7px 0 0;color:#86a2c2;font-size:.70rem;line-height:1.35}
-  .family-dots{display:inline-flex;align-items:center;gap:2px;margin-right:2px}
-  .family-dots .dot{margin:0}
-  label{display:grid;gap:6px;color:var(--muted);font-size:.78rem}
-  input[type="number"],select{
-    width:100%;
-    border:1px solid #36516f;
-    border-radius:10px;
-    background:#081625;
-    color:var(--ink);
-    padding:9px 10px;
-    outline:none;
-  }
-  input[type="range"]{width:100%;accent-color:var(--accent)}
-  .range-line{display:flex;justify-content:space-between;gap:10px}
-  .range-line output{color:var(--ink);font-variant-numeric:tabular-nums}
-  .buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
-  button{
-    border:1px solid #3b587e;
-    background:#142944;
-    color:var(--ink);
-    padding:9px 13px;
-    border-radius:10px;
-    cursor:pointer;
-    transition:.15s ease;
-  }
-  button:hover{transform:translateY(-1px);border-color:#5f86b6;background:#183252}
-  button.primary{background:linear-gradient(180deg,#1d8cb5,#166783);border-color:#47c7ef;font-weight:700}
-  button.ghost{background:transparent}
-  button:disabled{opacity:.5;cursor:wait;transform:none}
-  .status{margin-left:auto;align-self:center;color:var(--muted);font-size:.85rem}
-  .sim-grid{
-    display:grid;
-    grid-template-columns:repeat(3,minmax(270px,1fr));
-    gap:16px;
-  }
-  .sim-card{padding:14px;min-width:0}
-  .sim-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}
-  .sim-head h2{font-size:1.05rem;margin:0 0 3px}
-  .sim-head p{font-size:.78rem;color:var(--muted);margin:0;line-height:1.35}
-  .time{font-variant-numeric:tabular-nums;font-weight:800;color:#d8f7ff;white-space:nowrap}
-  canvas{
-    width:100%;
-    height:650px;
-    display:block;
-    border-radius:13px;
-    border:1px solid #29405f;
-    background:linear-gradient(180deg,#07131f,#0b1d30);
-  }
-  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
-  .metric{background:#081625;border:1px solid #243d5a;border-radius:10px;padding:8px;min-width:0}
-  .metric>span{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:.67rem;white-space:nowrap}
-  .metric strong{display:block;margin-top:2px;font-size:.87rem;font-variant-numeric:tabular-nums}
-  .info-tip{
-    position:relative;
-    display:inline-grid;
-    flex:0 0 14px;
-    width:14px;
-    height:14px;
-    place-items:center;
-    border:1px solid #54708f;
-    border-radius:50%;
-    color:#c6e9ff;
-    font-size:9px;
-    font-weight:800;
-    line-height:1;
-    cursor:help;
-    outline:none;
-  }
-  .info-tip::after{
-    content:attr(data-tip);
-    position:absolute;
-    z-index:20;
-    left:50%;
-    bottom:calc(100% + 8px);
-    width:230px;
-    padding:8px 9px;
-    border:1px solid #4b6788;
-    border-radius:9px;
-    background:#061321;
-    color:#e9f6ff;
-    box-shadow:0 10px 30px rgba(0,0,0,.35);
-    font-size:.72rem;
-    font-weight:500;
-    line-height:1.38;
-    white-space:normal;
-    opacity:0;
-    pointer-events:none;
-    transform:translate(-50%,4px);
-    transition:opacity .12s ease,transform .12s ease;
-  }
-  .info-tip:hover::after,.info-tip:focus::after{opacity:1;transform:translate(-50%,0)}
-  .lower{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr);gap:16px;margin-top:16px}
-  .benchmark,.notes{padding:16px}
-  .section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
-  .section-head h2{font-size:1.05rem;margin:0}
-  .section-head p{font-size:.78rem;color:var(--muted);margin:0}
-  .benchmark-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin:0 0 12px}
-  .benchmark-toolbar label{width:112px}
-  .benchmark-toolbar input{padding:8px 9px}
-  .benchmark-toolbar .bench-status{flex:1 1 220px;align-self:center;margin:0;color:var(--muted);font-size:.78rem}
-  table{width:100%;border-collapse:collapse;font-size:.85rem}
-  th,td{text-align:right;border-bottom:1px solid #243d5a;padding:9px 7px;font-variant-numeric:tabular-nums}
-  th:first-child,td:first-child{text-align:left}
-  th{color:var(--muted);font-weight:600}
-  .winner{color:var(--good);font-weight:800}
-  .empty{color:var(--muted);text-align:center!important;padding:22px}
-  .legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:10px;color:var(--muted);font-size:.75rem}
-  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-  .notes p,.notes li{color:var(--muted);line-height:1.45;font-size:.83rem}
-  .notes ul{padding-left:18px;margin:8px 0}
-  details{border-top:1px solid #29405f;margin-top:12px;padding-top:10px}
-  summary{cursor:pointer;color:#c9e7ff;font-size:.85rem}
-  code{background:#081625;padding:1px 5px;border-radius:5px;color:#bcecff}
-  .barbox{margin-top:12px;display:grid;gap:8px}
-  .barrow{display:grid;grid-template-columns:145px 1fr 70px;gap:9px;align-items:center;font-size:.78rem}
-  .track{height:8px;border-radius:999px;background:#081625;overflow:hidden}
-  .fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b91ff,#70e1a1);width:0}
-  footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
-  @media(max-width:1100px){
-    .sim-grid{grid-template-columns:repeat(2,minmax(270px,1fr))}
-    canvas{height:620px}
-    .lower{grid-template-columns:1fr}
-  }
-  @media(max-width:720px){
-    .shell{padding:12px}
-    header{display:block}.badge{display:inline-block;margin-top:12px}
-    .sim-grid{grid-template-columns:1fr}
-    .control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .party-size-control{grid-column:1 / -1}
-    .metrics{grid-template-columns:repeat(2,1fr)}
-    .status{width:100%;margin-left:0}
-    .benchmark-toolbar label{width:100px}
-    .benchmark-toolbar .bench-status{flex-basis:100%}
-  }
+:root{
+  color-scheme: dark;
+  --bg:#07111f;
+  --panel:#0e1c2e;
+  --panel2:#13243a;
+  --ink:#e8f0ff;
+  --muted:#9eb0c9;
+  --line:#29405f;
+  --accent:#63d7ff;
+  --good:#70e1a1;
+  --warn:#ffc96b;
+  --bad:#ff7d90;
+  --family:#f5b95f;
+  --assist:#d994ff;
+  --single:#68d7ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-width:320px;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(circle at 12% -10%,rgba(80,157,255,.22),transparent 32rem),
+    radial-gradient(circle at 95% 0%,rgba(112,225,161,.12),transparent 28rem),
+    var(--bg);
+  color:var(--ink);
+}
+button,input,select{font:inherit}
+.shell{max-width:1500px;margin:0 auto;padding:24px}
+header{display:flex;gap:24px;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
+h1{font-size:clamp(1.9rem,4vw,3.35rem);line-height:1.01;margin:0 0 8px;letter-spacing:-.045em}
+header p{margin:0;color:var(--muted);max-width:900px;line-height:1.55}
+.badge{
+  flex:0 0 auto;
+  border:1px solid #3b587e;
+  background:rgba(19,36,58,.72);
+  color:#bfeeff;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:.82rem;
+  white-space:nowrap;
+}
+.product-badge{display:grid;gap:5px;justify-items:end;white-space:normal;text-align:right}
+.product-badge>span{white-space:nowrap}
+.version-link{display:inline-flex;align-items:center;gap:7px;color:#dff7ff;text-decoration:none;font-size:.72rem}
+.version-link strong{padding:3px 7px;border:1px solid #4e759a;border-radius:999px;background:#081625;color:#8de4ff;font-variant-numeric:tabular-nums}
+.version-link:hover{color:white}
+.model-guide-link{margin:12px 0 0;padding:10px 11px;border:1px solid #36516f;border-radius:11px;background:#081625;color:var(--muted);font-size:.8rem;line-height:1.45}
+.model-guide-link a,footer a{color:#9fdfff}
+.card{
+  background:linear-gradient(180deg,rgba(19,36,58,.97),rgba(10,24,41,.97));
+  border:1px solid var(--line);
+  box-shadow:0 16px 50px rgba(0,0,0,.2);
+  border-radius:18px;
+}
+.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.section-head h2{font-size:1.05rem;margin:0}
+.section-head p{font-size:.78rem;color:var(--muted);margin:3px 0 0}
+
+.scenario-picker{padding:17px;margin-bottom:16px}
+.scenario-heading h2{font-size:1.15rem}
+.scenario-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.scenario-card{
+  position:relative;
+  display:flex;
+  min-height:154px;
+  flex-direction:column;
+  align-items:stretch;
+  gap:8px;
+  padding:13px;
+  text-align:left;
+  border-color:#36516f;
+  background:linear-gradient(160deg,#10243b,#0a192a);
+  overflow:hidden;
+}
+.scenario-card::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius:inherit;
+  background:radial-gradient(circle at 15% 0%,rgba(99,215,255,.12),transparent 52%);
+  pointer-events:none;
+}
+.scenario-card>*{position:relative}
+.scenario-card:hover{border-color:#72c9e8;background:linear-gradient(160deg,#15304e,#0c1e32)}
+.scenario-card.active{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(99,215,255,.16),0 10px 28px rgba(0,0,0,.24);
+  background:linear-gradient(160deg,#173552,#0d2136);
+}
+.scenario-card.active::after{
+  content:"✓";
+  position:absolute;
+  top:9px;
+  right:10px;
+  display:grid;
+  width:22px;
+  height:22px;
+  place-items:center;
+  border-radius:50%;
+  background:#1b7694;
+  color:white;
+  font-size:.75rem;
+  font-weight:900;
+}
+.scenario-card:disabled{
+  cursor:not-allowed;
+  opacity:.72;
+  border-style:dashed;
+  background:linear-gradient(160deg,#151f2d,#0b1420);
+  transform:none;
+}
+.scenario-card-heading{display:flex;align-items:center;gap:8px;padding-right:22px}
+.scenario-card-heading strong{font-size:.91rem;line-height:1.2}
+.scenario-emoji{font-size:1.3rem;line-height:1}
+.scenario-description{color:var(--muted);font-size:.75rem;line-height:1.4;flex:1}
+.scenario-chips{display:flex;flex-wrap:wrap;gap:5px}
+.scenario-chip,.scenario-coming{
+  border:1px solid #34506e;
+  border-radius:999px;
+  background:#081625;
+  color:#a9c0d9;
+  padding:3px 7px;
+  font-size:.63rem;
+  line-height:1.25;
+}
+.scenario-coming{align-self:flex-start;color:#ffd18a;border-color:#6c5633}
+.scenario-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:13px;padding-top:12px;border-top:1px solid #29405f}
+.active-scenario{display:grid;gap:1px;min-width:180px}
+.active-scenario span{color:var(--muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.08em}
+.active-scenario strong{font-size:.9rem;color:#dff7ff}
+.copy-toast{color:var(--good);font-size:.75rem;opacity:0;transform:translateY(2px);transition:.15s ease;min-height:1em}
+.copy-toast.visible{opacity:1;transform:none}
+.race-controls{border-top:0;margin-top:12px}
+
+.method-controls{padding:16px;margin-bottom:16px}
+.method-heading{align-items:center}
+.layout-control{display:grid;gap:5px;justify-items:end}
+.layout-control>span{color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em}
+.segmented-control{display:inline-flex;padding:3px;border:1px solid #36516f;border-radius:12px;background:#081625}
+.segmented-control button{border:0;border-radius:8px;background:transparent;padding:7px 10px;font-size:.75rem}
+.segmented-control button:hover{transform:none;background:#10253d}
+.segmented-control button.active{background:#1a4962;color:#e9faff;box-shadow:inset 0 0 0 1px #4d9bb9}
+.method-picker{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.method-option{position:relative;display:block;min-width:0}
+.method-option input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
+.method-option span{display:flex;min-height:48px;align-items:center;justify-content:center;padding:8px 9px;border:1px solid #36516f;border-radius:11px;background:#091827;color:#9eb0c9;text-align:center;font-size:.72rem;font-weight:650;line-height:1.25;cursor:pointer;transition:.15s ease}
+.method-option span:hover{border-color:#5f86b6;background:#10253d;color:#dbeeff}
+.method-option input:checked+span{border-color:var(--accent);background:linear-gradient(180deg,#17435c,#102d42);color:#e8f8ff;box-shadow:0 0 0 2px rgba(99,215,255,.11)}
+.method-option input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.method-option input:disabled+span{opacity:.55;cursor:wait}
+.method-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px}
+.method-toolbar span{color:var(--muted);font-size:.75rem}
+
+.controls{padding:0;margin-bottom:16px;overflow:hidden}
+.advanced-controls>summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 16px;
+  cursor:pointer;
+  color:#d8efff;
+  font-weight:750;
+  list-style-position:inside;
+}
+.advanced-controls>summary small{color:var(--muted);font-size:.72rem;font-weight:500}
+.advanced-controls[open]>summary{border-bottom:1px solid #29405f;background:rgba(8,22,37,.35)}
+.advanced-body{padding:16px}
+.control-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+  gap:12px;
+  align-items:end;
+}
+.party-size-control{grid-column:span 2}
+.control-label{display:block;color:var(--muted);font-size:.78rem;margin-bottom:6px}
+.weight-grid{display:grid;grid-template-columns:repeat(4,minmax(58px,1fr));gap:6px}
+.weight-field{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px;color:var(--muted);font-size:.72rem}
+.weight-field input{min-width:0;padding:9px 6px;text-align:center}
+.weight-note{margin:7px 0 0;color:#86a2c2;font-size:.70rem;line-height:1.35}
+.family-dots{display:inline-flex;align-items:center;gap:2px;margin-right:2px}
+.family-dots .dot{margin:0}
+label,.field-group{display:grid;gap:6px;color:var(--muted);font-size:.78rem}
+input[type="number"],select{
+  width:100%;
+  border:1px solid #36516f;
+  border-radius:10px;
+  background:#081625;
+  color:var(--ink);
+  padding:9px 10px;
+  outline:none;
+}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type="range"]{width:100%;accent-color:var(--accent)}
+.range-line{display:flex;justify-content:space-between;gap:10px}
+.range-line output{color:var(--ink);font-variant-numeric:tabular-nums}
+.seed-control{grid-column:span 2;min-width:300px}
+.seed-entry{display:grid;grid-template-columns:minmax(14ch,1fr) auto;gap:7px}
+.seed-entry input{min-width:14ch;font-variant-numeric:tabular-nums}
+.seed-entry button{padding-inline:10px;white-space:nowrap}
+.buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+button{
+  border:1px solid #3b587e;
+  background:#142944;
+  color:var(--ink);
+  padding:9px 13px;
+  border-radius:10px;
+  cursor:pointer;
+  transition:.15s ease;
+}
+button:hover{transform:translateY(-1px);border-color:#5f86b6;background:#183252}
+button.primary{background:linear-gradient(180deg,#1d8cb5,#166783);border-color:#47c7ef;font-weight:700}
+button.ghost{background:transparent}
+button:disabled{cursor:wait;transform:none}
+.status{margin-left:auto;align-self:center;color:var(--muted);font-size:.85rem}
+
+.race-hud{padding:16px;margin-bottom:16px;overflow:hidden}
+.race-hud-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.race-title-line{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.race-title-line h2{margin:0;font-size:1.12rem}
+.race-hud-head p{margin:4px 0 0;color:var(--muted);font-size:.77rem;line-height:1.4}
+.provisional-badge{padding:3px 7px;border:1px solid #5c6f3a;border-radius:999px;background:#192416;color:#d5eca0;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.race-hud-tools{display:flex;align-items:flex-end;gap:9px;flex:0 0 auto}
+.graph-size-control{display:grid;gap:4px;justify-items:end}
+.graph-size-control>span{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
+.graph-size-control .segmented-control button{padding:6px 8px;font-size:.68rem}
+.race-clock{display:grid;justify-items:end;gap:2px;min-width:90px;padding:8px 10px;border:1px solid #36516f;border-radius:11px;background:#081625}
+.race-clock span{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
+.race-clock strong{font-size:1rem;color:#dff7ff;font-variant-numeric:tabular-nums}
+.race-leaderboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:8px}
+.race-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"rank name stat" "rank progress gap";align-items:center;gap:4px 8px;min-width:0;padding:9px 10px;border-color:#36516f;background:#091827;text-align:left;transform:none}
+.race-row:hover{transform:none;background:#10253d}
+.race-row.leader{border-color:var(--good);box-shadow:inset 0 0 0 1px rgba(112,225,161,.18)}
+.race-row.finished{border-color:#6b7690;background:#111d2d}
+.race-row.lead-change{animation:leader-pop 1.15s ease}
+.race-rank{grid-area:rank;display:grid;width:29px;height:29px;place-items:center;border:1px solid #476581;border-radius:9px;background:#10243a;color:#dff7ff;font-weight:900;font-variant-numeric:tabular-nums}
+.race-row.leader .race-rank{border-color:var(--good);background:#17382c;color:#c9ffe1}
+.race-name{grid-area:name;min-width:0;color:#e8f4ff;font-size:.76rem;font-weight:760;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.race-stat{grid-area:stat;color:#dff7ff;font-size:.71rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.race-progress{grid-area:progress;height:8px;border-radius:999px;background:#061321;overflow:hidden}
+.race-progress>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b91ff,#70e1a1);transition:width .18s linear}
+.race-gap{grid-area:gap;color:var(--muted);font-size:.65rem;white-space:nowrap}
+.race-chart-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:11px;border-top:1px solid #29405f}
+.race-chart-heading>strong{font-size:.72rem;color:#cfe9fa;text-transform:uppercase;letter-spacing:.06em}
+.race-chart-legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px 11px}
+.race-chart-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:.68rem}
+.race-chart-legend i{width:14px;height:3px;border-radius:999px;background:var(--series-color)}
+.race-hud canvas.race-chart{width:100%;display:block;margin-top:8px;border:1px solid #29405f;border-radius:12px;background:linear-gradient(180deg,#07131f,#091a2b);transition:height .18s ease}
+.race-hud[data-chart-size="small"] canvas.race-chart{height:170px}
+.race-hud[data-chart-size="medium"] canvas.race-chart{height:270px}
+.race-hud[data-chart-size="large"] canvas.race-chart{height:410px}
+.sim-card{position:relative;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.sim-card.spotlight{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,215,255,.22),0 16px 50px rgba(0,0,0,.28);transform:translateY(-2px)}
+.sim-card.finished-card::before{content:attr(data-finish-place) " finish";position:absolute;z-index:3;top:-9px;right:13px;padding:4px 8px;border:1px solid #7385a1;border-radius:999px;background:#101d2e;color:#e8f4ff;font-size:.62rem;font-weight:850;text-transform:uppercase;letter-spacing:.05em;box-shadow:0 5px 15px rgba(0,0,0,.3)}
+@keyframes leader-pop{0%{box-shadow:0 0 0 0 rgba(112,225,161,.55)}45%{box-shadow:0 0 0 5px rgba(112,225,161,.14)}100%{box-shadow:inset 0 0 0 1px rgba(112,225,161,.18)}}
+@media(max-width:760px){
+  .race-hud-head{flex-direction:column}
+  .race-hud-tools{width:100%;justify-content:space-between}
+  .graph-size-control{justify-items:start}
+  .race-clock{justify-items:start}
+  .race-chart-heading{align-items:flex-start}
+  .race-chart-legend{justify-content:flex-start}
+}
+
+.sim-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));
+  gap:16px;
+}
+.sim-grid.compact-view{
+  grid-template-columns:repeat(auto-fit,minmax(185px,230px));
+  justify-content:center;
+  gap:10px;
+}
+.sim-card{padding:14px;min-width:0}
+.sim-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}
+.sim-head h2{font-size:1.05rem;margin:0 0 3px}
+.sim-head p{font-size:.78rem;color:var(--muted);margin:0;line-height:1.35}
+.time{font-variant-numeric:tabular-nums;font-weight:800;color:#d8f7ff;white-space:nowrap}
+canvas{
+  width:100%;
+  height:650px;
+  display:block;
+  border-radius:13px;
+  border:1px solid #29405f;
+  background:linear-gradient(180deg,#07131f,#0b1d30);
+}
+.sim-grid.compact-view .sim-card{padding:9px}
+.sim-grid.compact-view .sim-head{gap:7px;margin-bottom:6px}
+.sim-grid.compact-view .sim-head h2{font-size:.86rem}
+.sim-grid.compact-view .sim-head p{display:none}
+.sim-grid.compact-view .time{font-size:.78rem}
+.sim-grid.compact-view canvas{height:470px}
+.sim-grid.compact-view .metrics{grid-template-columns:repeat(2,1fr);gap:5px;margin-top:6px}
+.sim-grid.compact-view .metric{padding:6px}
+.sim-grid.compact-view .metric>span{font-size:.58rem;white-space:normal;line-height:1.2}
+.sim-grid.compact-view .metric strong{font-size:.76rem}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+.metric{background:#081625;border:1px solid #243d5a;border-radius:10px;padding:8px;min-width:0}
+.metric>span{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:.67rem;white-space:nowrap}
+.metric strong{display:block;margin-top:2px;font-size:.87rem;font-variant-numeric:tabular-nums}
+.info-tip{
+  position:relative;
+  display:inline-grid;
+  flex:0 0 14px;
+  width:14px;
+  height:14px;
+  place-items:center;
+  border:1px solid #54708f;
+  border-radius:50%;
+  color:#c6e9ff;
+  font-size:9px;
+  font-weight:800;
+  line-height:1;
+  cursor:help;
+  outline:none;
+}
+.info-tip::after{
+  content:attr(data-tip);
+  position:absolute;
+  z-index:20;
+  left:50%;
+  bottom:calc(100% + 8px);
+  width:230px;
+  padding:8px 9px;
+  border:1px solid #4b6788;
+  border-radius:9px;
+  background:#061321;
+  color:#e9f6ff;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+  font-size:.72rem;
+  font-weight:500;
+  line-height:1.38;
+  white-space:normal;
+  opacity:0;
+  pointer-events:none;
+  transform:translate(-50%,4px);
+  transition:opacity .12s ease,transform .12s ease;
+}
+.info-tip:hover::after,.info-tip:focus::after{opacity:1;transform:translate(-50%,0)}
+.lower{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr);gap:16px;margin-top:16px}
+.benchmark,.notes{padding:16px}
+.benchmark-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin:0 0 12px}
+.benchmark-toolbar label{width:112px}
+.benchmark-toolbar input{padding:8px 9px}
+.benchmark-toolbar .bench-status{flex:1 1 220px;align-self:center;margin:0;color:var(--muted);font-size:.78rem}
+.seed-summary{display:grid;gap:2px;min-width:108px;padding:7px 10px;border:1px solid #36516f;border-radius:10px;background:#081625}
+.seed-summary span{color:var(--muted);font-size:.66rem}
+.seed-summary strong{font-size:.85rem;font-variant-numeric:tabular-nums;color:#dff7ff}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{text-align:right;border-bottom:1px solid #243d5a;padding:9px 7px;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+.winner{color:var(--good);font-weight:800}
+.empty{color:var(--muted);text-align:center!important;padding:22px}
+.legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:10px;color:var(--muted);font-size:.75rem}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.notes p,.notes li{color:var(--muted);line-height:1.45;font-size:.83rem}
+.notes ul{padding-left:18px;margin:8px 0}
+details:not(.advanced-controls){border-top:1px solid #29405f;margin-top:12px;padding-top:10px}
+details:not(.advanced-controls)>summary{cursor:pointer;color:#c9e7ff;font-size:.85rem}
+code{background:#081625;padding:1px 5px;border-radius:5px;color:#bcecff}
+.barbox{margin-top:12px;display:grid;gap:8px}
+.barrow{display:grid;grid-template-columns:145px 1fr 70px;gap:9px;align-items:center;font-size:.78rem}
+.track{height:8px;border-radius:999px;background:#081625;overflow:hidden}
+.fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b91ff,#70e1a1);width:0}
+footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
+
+@media(max-width:1200px){
+  .scenario-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:1100px){
+  .method-picker{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sim-grid:not(.compact-view){grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+  .sim-grid.compact-view{grid-template-columns:repeat(auto-fit,minmax(180px,220px))}
+  canvas{height:620px}
+  .sim-grid.compact-view canvas{height:450px}
+  .lower{grid-template-columns:1fr}
+}
+@media(max-width:820px){
+  .scenario-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:720px){
+  .shell{padding:12px}
+  header{display:block}.badge{display:inline-grid;margin-top:12px;white-space:normal}.product-badge{justify-items:start;text-align:left}.product-badge>span{white-space:normal}
+  .scenario-grid{grid-template-columns:1fr}
+  .scenario-card{min-height:0}
+  .scenario-toolbar{align-items:flex-start}
+  .copy-toast{width:100%}
+  .method-heading{align-items:flex-start;flex-direction:column}
+  .layout-control{justify-items:start}
+  .method-picker{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sim-grid:not(.compact-view){grid-template-columns:1fr}
+  .sim-grid.compact-view{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .party-size-control{grid-column:1 / -1}
+  .seed-control{grid-column:1 / -1}
+  .advanced-controls>summary{align-items:flex-start;flex-direction:column}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .status{width:100%;margin-left:0}
+  .benchmark-toolbar label{width:100px}
+  .benchmark-toolbar .bench-status{flex-basis:100%}
+}
+@media(max-width:430px){
+  .control-grid{grid-template-columns:1fr}
+  .party-size-control{grid-column:auto}
+  .weight-grid{grid-template-columns:repeat(2,minmax(58px,1fr))}
+  .seed-entry{grid-template-columns:1fr}
+  .method-picker,.sim-grid.compact-view{grid-template-columns:1fr}
+}
+
+
+.sim-tooltip{
+  position:fixed;
+  z-index:1000;
+  width:min(300px,calc(100vw - 16px));
+  padding:11px 12px;
+  border:1px solid #5a7898;
+  border-radius:12px;
+  background:rgba(5,15,27,.97);
+  color:#e9f5ff;
+  box-shadow:0 16px 42px rgba(0,0,0,.48);
+  pointer-events:none;
+  backdrop-filter:blur(8px);
+}
+.sim-tooltip[hidden]{display:none}
+.sim-tooltip-title{font-size:.9rem;font-weight:850;line-height:1.2}
+.sim-tooltip-subtitle{margin:2px 0 8px;color:#9fdcf1;font-size:.72rem;line-height:1.3}
+.sim-tooltip-row{display:grid;grid-template-columns:minmax(78px,.72fr) minmax(0,1.28fr);gap:8px;padding:3px 0;border-top:1px solid rgba(66,94,122,.32);font-size:.69rem;line-height:1.3}
+.sim-tooltip-row span{color:#8ea8c1}
+.sim-tooltip-row strong{min-width:0;color:#e8f4ff;font-weight:650;text-align:right;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div class="shell">
   <header>
     <div>
-      <h1>Group-aware boarding simulator</h1>
-      <p>Six boarding methods face the same A320 manifest: random, strict rear-first, strict front-first, airline zones, WilMA, and a group-safe Steffen variant. Families remain together, and the model includes children, companions, reduced mobility, carry-ons, aisle blocking, seat interference, partial loads, and imperfect sequence compliance.</p>
+      <h1>Boarding Rush</h1>
+      <p>Pick a flight, choose the racers, and watch boarding strategies compete through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
-    <div class="badge">v2.4 · independent benchmarking · metric help</div>
+    <div class="badge product-badge">
+      <span>scenarios · shareable seeds · deterministic races</span>
+      <a class="version-link" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html" title="Read the detailed model guide">
+        <strong data-app-version>v—</strong>
+        <span>How it works</span>
+      </a>
+    </div>
   </header>
 
-  <section class="card controls">
-    <div class="control-grid">
-      <label>
-        <span class="range-line"><span>Load factor</span><output id="loadOut">100%</output></span>
-        <input id="loadFactor" type="range" min="50" max="100" step="5" value="100">
-      </label>
-      <label>
-        <span class="range-line"><span>Passengers in families</span><output id="familyOut">30%</output></span>
-        <input id="familyShare" type="range" min="0" max="70" step="5" value="30">
-      </label>
-      <div class="party-size-control">
-        <span class="control-label range-line"><span>Family party-size weights <small>(relative)</small></span><output id="partyWeightTotal">raw total 100</output></span>
-        <div class="weight-grid">
-          <label class="weight-field"><span>2:</span><input id="party2" type="number" min="0" step="any" value="22" title="Relative weight for two-person families; no maximum"></label>
-          <label class="weight-field"><span>3:</span><input id="party3" type="number" min="0" step="any" value="36" title="Relative weight for three-person families; no maximum"></label>
-          <label class="weight-field"><span>4:</span><input id="party4" type="number" min="0" step="any" value="28" title="Relative weight for four-person families; no maximum"></label>
-          <label class="weight-field"><span>5:</span><input id="party5" type="number" min="0" step="any" value="14" title="Relative weight for five-person families; no maximum"></label>
-        </div>
-        <p class="weight-note" id="partyWeightNormalized" aria-live="polite">Normalized at run time: 22.0% · 36.0% · 28.0% · 14.0%</p>
+  <section class="card scenario-picker" aria-labelledby="scenarioHeading">
+    <div class="section-head scenario-heading">
+      <div>
+        <h2 id="scenarioHeading">Choose your flight</h2>
+        <p>Start with a recognizable bit of airport reality. Every scenario can still be fine-tuned below.</p>
       </div>
-      <label>
-        Assisted parties
-        <input id="assistedParties" type="number" min="0" max="12" step="1" value="3">
-      </label>
-      <label>
-        Carry-on rate
-        <span class="range-line"><span></span><output id="bagOut">70%</output></span>
-        <input id="bagRate" type="range" min="0" max="100" step="5" value="70">
-      </label>
-      <label>
-        <span class="range-line"><span>Sequence compliance</span><output id="complianceOut">100%</output></span>
-        <input id="sequenceCompliance" type="range" min="0" max="100" step="5" value="100">
-      </label>
-      <label>
-        Priority policy
-        <select id="priorityPolicy">
-          <option value="assist">Assisted parties first</option>
-          <option value="allgroups">All grouped parties first</option>
-          <option value="none">No preboarding</option>
-        </select>
-      </label>
-      <label>
-        Animation speed
-        <select id="speed">
-          <option value="4">4×</option>
-          <option value="16" selected>16×</option>
-          <option value="64">64×</option>
-          <option value="256">256×</option>
-        </select>
-      </label>
-      <label>
-        Seed
-        <input id="seed" type="number" min="1" max="2147483646" step="1" value="12345">
-      </label>
     </div>
-    <div class="buttons">
+    <div class="scenario-grid" id="scenarioGrid" aria-label="Flight scenarios"></div>
+    <div class="scenario-toolbar">
+      <div class="active-scenario">
+        <span>Current flight</span>
+        <strong id="activeScenarioLabel" data-scenario-id="family-vacation">Family Vacation</strong>
+      </div>
+      <button id="copyScenarioBtn" type="button">🔗 Copy scenario link</button>
+      <span class="copy-toast" id="copyToast" role="status" aria-live="polite"></span>
+    </div>
+    <div class="buttons race-controls">
       <button class="primary" id="runBtn">▶ Run comparison</button>
       <button id="pauseBtn">Pause</button>
       <button id="finishBtn">Finish instantly</button>
@@ -278,8 +486,144 @@
     </div>
   </section>
 
-  <main class="sim-grid">
-    <article class="card sim-card">
+  <details class="card controls advanced-controls">
+    <summary>
+      <span>Advanced flight settings</span>
+      <small>Load, families, luggage, compliance, cabin personality, speed, and seed</small>
+    </summary>
+    <div class="advanced-body">
+      <div class="control-grid">
+        <label>
+          <span class="range-line"><span>Load factor</span><output id="loadOut">100%</output></span>
+          <input id="loadFactor" type="range" min="50" max="100" step="5" value="100">
+        </label>
+        <label>
+          <span class="range-line"><span>Passengers in families</span><output id="familyOut">30%</output></span>
+          <input id="familyShare" type="range" min="0" max="70" step="5" value="30">
+        </label>
+        <div class="party-size-control">
+          <span class="control-label range-line"><span>Family party-size weights <small>(relative)</small></span><output id="partyWeightTotal">raw total 100</output></span>
+          <div class="weight-grid">
+            <label class="weight-field"><span>2:</span><input id="party2" type="number" min="0" step="any" value="22" title="Relative weight for two-person families; no maximum"></label>
+            <label class="weight-field"><span>3:</span><input id="party3" type="number" min="0" step="any" value="36" title="Relative weight for three-person families; no maximum"></label>
+            <label class="weight-field"><span>4:</span><input id="party4" type="number" min="0" step="any" value="28" title="Relative weight for four-person families; no maximum"></label>
+            <label class="weight-field"><span>5:</span><input id="party5" type="number" min="0" step="any" value="14" title="Relative weight for five-person families; no maximum"></label>
+          </div>
+          <p class="weight-note" id="partyWeightNormalized" aria-live="polite">Normalized at run time: 22.0% · 36.0% · 28.0% · 14.0%</p>
+        </div>
+        <label>
+          Assisted parties
+          <input id="assistedParties" type="number" min="0" max="12" step="1" value="3">
+        </label>
+        <label>
+          Carry-on rate
+          <span class="range-line"><span></span><output id="bagOut">70%</output></span>
+          <input id="bagRate" type="range" min="0" max="100" step="5" value="70">
+        </label>
+        <label>
+          <span class="range-line"><span>Sequence compliance</span><output id="complianceOut">100%</output></span>
+          <input id="sequenceCompliance" type="range" min="0" max="100" step="5" value="100">
+        </label>
+        <label>
+          Priority policy
+          <select id="priorityPolicy">
+            <option value="assist">Assisted parties first</option>
+            <option value="allgroups">All grouped parties first</option>
+            <option value="none">No preboarding</option>
+          </select>
+        </label>
+        <label>
+          Disruptive passengers
+          <select id="disruptivePassengers">
+            <option value="0">None</option>
+            <option value="1">1 passenger</option>
+            <option value="2">2 passengers</option>
+            <option value="3">3 passengers</option>
+          </select>
+        </label>
+        <label>
+          Cabin chatter
+          <select id="chatter">
+            <option value="off">Off</option>
+            <option value="light" selected>Light</option>
+            <option value="lively">Lively</option>
+          </select>
+        </label>
+        <label>
+          Animation speed
+          <select id="speed">
+            <option value="4">4×</option>
+            <option value="16" selected>16×</option>
+            <option value="64">64×</option>
+            <option value="256">256×</option>
+          </select>
+        </label>
+        <div class="field-group seed-control">
+          <span class="control-label">Seed</span>
+          <div class="seed-entry">
+            <input id="seed" aria-label="Scenario seed" type="number" min="1" max="2147483646" step="1" value="12345">
+            <button id="randomizeSeedBtn" type="button" title="Generate a new random seed">🎲 Randomize</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <section class="card method-controls" aria-labelledby="methodHeading">
+    <div class="section-head method-heading">
+      <div>
+        <h2 id="methodHeading">Choose the racers</h2>
+        <p>Run one method, compare two side by side, or keep the whole field in view.</p>
+      </div>
+      <div class="layout-control">
+        <span>Plane size</span>
+        <div class="segmented-control" role="group" aria-label="Plane display size">
+          <button id="standardLayoutBtn" type="button" data-layout="standard" aria-pressed="true">Roomy</button>
+          <button id="compactLayoutBtn" type="button" data-layout="compact" aria-pressed="false">Compact fleet</button>
+        </div>
+      </div>
+    </div>
+    <div class="method-picker" id="methodPicker" aria-label="Boarding methods"></div>
+    <div class="method-toolbar">
+      <button id="selectAllMethodsBtn" type="button" class="ghost">Select all six</button>
+      <span id="methodSelectionStatus" role="status" aria-live="polite">6 methods selected · Roomy view</span>
+    </div>
+  </section>
+
+  <section class="card race-hud" id="raceHud" data-chart-size="small" aria-labelledby="raceHudHeading">
+    <div class="race-hud-head">
+      <div>
+        <div class="race-title-line">
+          <h2 id="raceHudHeading">Live race</h2>
+          <span class="provisional-badge">provisional ranking</span>
+        </div>
+        <p>Short names keep the standings readable. The graph shows simulated time against passengers seated and never changes the race.</p>
+      </div>
+      <div class="race-hud-tools">
+        <div class="graph-size-control">
+          <span>Graph size</span>
+          <div class="segmented-control" role="group" aria-label="Live graph size">
+            <button type="button" data-chart-size="small" aria-pressed="true">Small</button>
+            <button type="button" data-chart-size="medium" aria-pressed="false">Medium</button>
+            <button type="button" data-chart-size="large" aria-pressed="false">Large</button>
+          </div>
+        </div>
+        <div class="race-clock" aria-label="Current simulated race time">
+          <span>Race clock</span>
+          <strong id="raceClock">00:00</strong>
+        </div>
+      </div>
+    </div>
+    <div class="race-leaderboard" id="raceLeaderboard" aria-label="Live boarding method leaderboard"></div>
+    <div class="race-chart-heading">
+      <strong>Passengers seated over time</strong>
+      <div class="race-chart-legend" id="raceChartLegend" aria-label="Graph series"></div>
+    </div>
+    <canvas class="race-chart" id="raceChart" width="1200" height="220" role="img" aria-label="Live step graph with simulated time on the horizontal axis and passengers seated on the vertical axis"></canvas>
+  </section>
+
+  <main class="sim-grid" id="simGrid">
+    <article class="card sim-card" data-method="random">
       <div class="sim-head">
         <div><h2>Random</h2><p>Boarding units shuffled; every party remains contiguous.</p></div>
         <div class="time" id="randomTime">00:00</div>
@@ -293,7 +637,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="back">
       <div class="sim-head">
         <div><h2>Strict back to front</h2><p>Rows 31 → 1, randomized only within each row.</p></div>
         <div class="time" id="backTime">00:00</div>
@@ -307,7 +651,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="front">
       <div class="sim-head">
         <div><h2>Strict front to back</h2><p>Rows 1 → 31, randomized only within each row.</p></div>
         <div class="time" id="frontTime">00:00</div>
@@ -321,7 +665,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="zones">
       <div class="sim-head">
         <div><h2>Airline zones</h2><p>Six-row rear-first zones, shuffled within each zone.</p></div>
         <div class="time" id="zonesTime">00:00</div>
@@ -335,7 +679,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="wilma">
       <div class="sim-head">
         <div><h2>WilMA, group-safe</h2><p>Window, then middle, then aisle; parties remain atomic.</p></div>
         <div class="time" id="wilmaTime">00:00</div>
@@ -349,7 +693,7 @@
       </div>
     </article>
 
-    <article class="card sim-card">
+    <article class="card sim-card" data-method="steffen">
       <div class="sim-head">
         <div><h2>Steffen, group-safe</h2><p>Alternating rows and window-first, with each party atomic.</p></div>
         <div class="time" id="steffenTime">00:00</div>
@@ -370,6 +714,11 @@
         <div><h2>Monte Carlo comparison</h2><p id="benchSubtitle">Run a benchmark to average over different manifests and delays.</p></div>
       </div>
       <div class="benchmark-toolbar">
+        <div class="seed-summary" aria-label="Current scenario seed">
+          <span>Scenario seed</span>
+          <strong id="benchSeedValue">12,345</strong>
+        </div>
+        <button id="benchRandomizeSeedBtn" type="button" class="ghost">🎲 New seed</button>
         <label>
           Trials
           <input id="trials" type="number" min="5" max="200" step="5" value="40">
@@ -399,19 +748,24 @@
         <span><i class="dot" style="background:var(--single)"></i>individual</span>
         <span title="Each warm color is a different family"><span class="family-dots"><i class="dot" style="background:hsl(35 82% 60%)"></i><i class="dot" style="background:hsl(22 82% 60%)"></i><i class="dot" style="background:hsl(48 82% 60%)"></i></span>families · <code>F7·4</code> means family 7, four people</span>
         <span><i class="dot" style="background:var(--assist)"></i>assisted party</span>
+        <span title="Carry-ons travel with passengers, animate into their row-side overhead bin, and remain visible there.">🧳 carry-on and overhead-bin placement</span>
       </div>
+      <p class="model-guide-link"><a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">📘 Read the complete model guide</a> for every assumption, formula, boarding rule, measurement, and known omission.</p>
       <details>
         <summary>Method and model details</summary>
         <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
         <p><strong>Seat conflicts:</strong> when a passenger reaches a seat, the simulator counts each already-seated passenger between the aisle and that seat on the same side of the row. Each same-party blocker adds 2.2 seconds to seating time; a blocker from another party adds 5.4 seconds. Thus a window passenger arriving after both the aisle and middle passengers adds two conflicts.</p>
         <p><strong>Blocked aisle:</strong> cumulative simulated wall-clock time during which at least one passenger is stowing a bag or entering a seat. Multiple simultaneous blockers are counted once for that time interval, and ordinary walking queues do not add to this metric.</p>
+        <p><strong>Visible luggage:</strong> passengers with carry-ons keep a suitcase marker while walking. During stowing it moves into the overhead strip on the correct row side, then remains visible there. This visualizes the existing luggage timing model; bins still have no hard capacity or overflow search.</p>
         <p>This is a comparative discrete-time model, not a calibrated airline forecast. The useful claim is the relative result under stated assumptions; the absolute minutes are scenario output, not revealed scripture.</p>
       </details>
     </aside>
   </section>
 
-  <footer>Standalone HTML · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+  <footer>Boarding Rush <span data-app-version>v—</span> · <a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">how the model works</a> · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding">source on GitHub</a></footer>
 </div>
+
+<div id="simTooltip" class="sim-tooltip" role="tooltip" hidden></div>
 
 <script>
 (() => {
@@ -422,12 +776,12 @@
   const TOTAL = ROWS * COLS.length;
   const METHODS = ["random","back","front","zones","wilma","steffen"];
   const META = {
-    random:{label:"Random", canvas:"randomCanvas"},
-    back:{label:"Strict back to front", canvas:"backCanvas"},
-    front:{label:"Strict front to back", canvas:"frontCanvas"},
-    zones:{label:"Airline zones", canvas:"zonesCanvas"},
-    wilma:{label:"WilMA, group-safe", canvas:"wilmaCanvas"},
-    steffen:{label:"Steffen, group-safe", canvas:"steffenCanvas"}
+    random:{label:"Random", shortLabel:"Random", chartColor:"#63d7ff", canvas:"randomCanvas"},
+    back:{label:"Strict back to front", shortLabel:"Back → Front", chartColor:"#70e1a1", canvas:"backCanvas"},
+    front:{label:"Strict front to back", shortLabel:"Front → Back", chartColor:"#ff9aaa", canvas:"frontCanvas"},
+    zones:{label:"Airline zones", shortLabel:"Zones", chartColor:"#ffc96b", canvas:"zonesCanvas"},
+    wilma:{label:"WilMA, group-safe", shortLabel:"WilMA", chartColor:"#d994ff", canvas:"wilmaCanvas"},
+    steffen:{label:"Steffen, group-safe", shortLabel:"Steffen", chartColor:"#9fa8ff", canvas:"steffenCanvas"}
   };
   const SPACING = 0.72;
   const FIXED_DT = 0.10;
@@ -452,30 +806,7 @@
     return `hsl(${hue} 82% ${lightness}%)`;
   }
 
-  const $ = id => document.getElementById(id);
-  const controls = {
-    loadFactor:$("loadFactor"),
-    familyShare:$("familyShare"),
-    party2:$("party2"),
-    party3:$("party3"),
-    party4:$("party4"),
-    party5:$("party5"),
-    assistedParties:$("assistedParties"),
-    bagRate:$("bagRate"),
-    sequenceCompliance:$("sequenceCompliance"),
-    priorityPolicy:$("priorityPolicy"),
-    speed:$("speed"),
-    seed:$("seed"),
-    trials:$("trials")
-  };
-
-  let sims = {};
-  let manifest = null;
-  let running = false;
-  let lastFrame = performance.now();
-  let accumulator = 0;
-  let benchmarking = false;
-  let benchmarkResult = null;
+  const APP_VERSION = "3.7.0";
 
   function mulberry32(seed){
     let a = seed >>> 0;
@@ -495,22 +826,395 @@
     }
     return out;
   }
-  function normalizedPartyWeights(){
-    const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
-      const value=Number(el.value);
-      return Number.isFinite(value) && value>0 ? value : 0;
-    });
-    const max=Math.max(...raw);
-    if(max<=0) return {raw,normalized:[25,25,25,25],fallback:true};
-    // Divide by the largest input first so even enormous finite weights normalize safely.
-    const scaled=raw.map(value=>value/max);
-    const scaledTotal=scaled.reduce((a,b)=>a+b,0);
+
+  const SCENARIO_SCHEMA_VERSION = 1;
+
+  const DEFAULT_SCENARIO_SETTINGS = {
+    loadFactor:100,
+    familyShare:30,
+    partyWeights:[22,36,28,14],
+    assistedParties:3,
+    bagRate:70,
+    sequenceCompliance:100,
+    priorityPolicy:"assist",
+    disruptivePassengers:0,
+    chatter:"light",
+    speed:16,
+    seed:12345,
+    trials:40,
+    characterScenario:"none"
+  };
+
+  // Set `included` to false to remove a scenario from the selector without deleting its definition.
+  const SCENARIO_PRESETS = [
+    {
+      id:"smooth-business",included:true,name:"Smooth Business Route",emoji:"💼",
+      description:"Experienced travelers, lots of carry-ons, and almost everyone follows the plan.",
+      settings:{loadFactor:85,familyShare:5,partyWeights:[60,25,10,5],assistedParties:1,bagRate:80,sequenceCompliance:95,priorityPolicy:"assist",disruptivePassengers:0,chatter:"off",speed:16,seed:81317,trials:40}
+    },
+    {
+      id:"family-vacation",included:true,name:"Family Vacation",emoji:"🏖️",
+      description:"A full flight with plenty of families, children, bags, and respectable queue manners.",
+      settings:{...DEFAULT_SCENARIO_SETTINGS}
+    },
+    {
+      id:"holiday-crush",included:true,name:"Holiday Crush",emoji:"🎄",
+      description:"The cabin is full, the bags are plentiful, and every third person appears to know someone ahead of them.",
+      settings:{loadFactor:100,familyShare:45,partyWeights:[10,28,38,24],assistedParties:4,bagRate:85,sequenceCompliance:75,priorityPolicy:"allgroups",disruptivePassengers:2,chatter:"lively",speed:16,seed:122425,trials:40}
+    },
+    {
+      id:"light-hop",included:true,name:"Lightly Loaded Hop",emoji:"🪽",
+      description:"Half the seats are empty, the aisle can breathe, and nobody needs to make this complicated.",
+      settings:{loadFactor:55,familyShare:15,partyWeights:[40,35,18,7],assistedParties:1,bagRate:45,sequenceCompliance:95,priorityPolicy:"none",disruptivePassengers:0,chatter:"light",speed:16,seed:5517,trials:40}
+    },
+    {
+      id:"perfect-lab",included:true,name:"Perfect Laboratory Conditions",emoji:"🧪",
+      description:"A controlled baseline: perfect compliance and no dramatic improvisation from the passengers.",
+      settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:70,sequenceCompliance:100,priorityPolicy:"assist",disruptivePassengers:0,chatter:"off",speed:16,seed:24680,trials:40}
+    },
+    {
+      id:"assisted-heavy",included:true,name:"Assisted-Heavy Flight",emoji:"🫶",
+      description:"More travelers need extra time and companions, so priority policy matters much more.",
+      settings:{loadFactor:90,familyShare:20,partyWeights:[38,34,20,8],assistedParties:10,bagRate:60,sequenceCompliance:95,priorityPolicy:"assist",disruptivePassengers:0,chatter:"light",speed:16,seed:77001,trials:40}
+    },
+    {
+      id:"maximum-carryons",included:true,name:"Maximum Carry-ons",emoji:"🧳",
+      description:"Everyone brought a bag. The overhead bins have entered the chat.",
+      settings:{loadFactor:100,familyShare:25,partyWeights:[25,35,25,15],assistedParties:3,bagRate:100,sequenceCompliance:90,priorityPolicy:"assist",disruptivePassengers:1,chatter:"light",speed:16,seed:99991,trials:40}
+    },
+    {
+      id:"low-compliance-chaos",included:true,name:"Low-Compliance Chaos",emoji:"🌪️",
+      description:"The boarding order is more of a gentle suggestion than an enforceable policy.",
+      settings:{loadFactor:100,familyShare:35,partyWeights:[15,30,35,20],assistedParties:5,bagRate:85,sequenceCompliance:35,priorityPolicy:"none",disruptivePassengers:3,chatter:"lively",speed:16,seed:40404,trials:40}
+    },
+    {
+      id:"barbara",included:true,name:"Barbara Mode",emoji:"🍷",
+      description:"She is late. Her bag is heavy. She has made several decisions.",
+      settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:82,sequenceCompliance:88,priorityPolicy:"assist",disruptivePassengers:1,chatter:"lively",speed:16,seed:8675309,trials:40,characterScenario:"barbara"}
+    }
+  ];
+
+  const PRIORITY_POLICIES = new Set(["assist","allgroups","none"]);
+  const SPEEDS = new Set([4,16,64,256]);
+  const CHARACTER_SCENARIOS = new Set(["none","barbara"]);
+  const CHATTER_LEVELS = new Set(["off","light","lively"]);
+
+  function bounded(value,min,max,fallback,integer=false){
+    const n=Number(value);
+    if(!Number.isFinite(n)) return fallback;
+    const result=Math.min(max,Math.max(min,n));
+    return integer?Math.floor(result):result;
+  }
+
+  function nonNegativeFinite(value,fallback){
+    const n=Number(value);
+    return Number.isFinite(n) && n>=0 ? n : fallback;
+  }
+
+  function normalizeScenarioSettings(input={}){
+    const fallback=DEFAULT_SCENARIO_SETTINGS;
+    const weights=Array.isArray(input.partyWeights) && input.partyWeights.length===4
+      ? input.partyWeights.map((value,index)=>nonNegativeFinite(value,fallback.partyWeights[index]))
+      : [...fallback.partyWeights];
+    const priority=PRIORITY_POLICIES.has(input.priorityPolicy)?input.priorityPolicy:fallback.priorityPolicy;
+    const speedValue=Number(input.speed);
     return {
-      raw,
-      normalized:scaled.map(value=>100*value/scaledTotal),
-      fallback:false
+      loadFactor:bounded(input.loadFactor,50,100,fallback.loadFactor),
+      familyShare:bounded(input.familyShare,0,70,fallback.familyShare),
+      partyWeights:weights,
+      assistedParties:bounded(input.assistedParties,0,12,fallback.assistedParties,true),
+      bagRate:bounded(input.bagRate,0,100,fallback.bagRate),
+      sequenceCompliance:bounded(input.sequenceCompliance,0,100,fallback.sequenceCompliance),
+      priorityPolicy:priority,
+      disruptivePassengers:bounded(input.disruptivePassengers,0,3,fallback.disruptivePassengers,true),
+      chatter:CHATTER_LEVELS.has(input.chatter)?input.chatter:fallback.chatter,
+      speed:SPEEDS.has(speedValue)?speedValue:fallback.speed,
+      seed:bounded(input.seed,1,2147483646,fallback.seed,true),
+      trials:bounded(input.trials,5,200,fallback.trials,true),
+      characterScenario:CHARACTER_SCENARIOS.has(input.characterScenario)?input.characterScenario:fallback.characterScenario
     };
   }
+
+  function settingsEqual(left,right){
+    const a=normalizeScenarioSettings(left);
+    const b=normalizeScenarioSettings(right);
+    return a.loadFactor===b.loadFactor
+      && a.familyShare===b.familyShare
+      && a.partyWeights.every((value,index)=>value===b.partyWeights[index])
+      && a.assistedParties===b.assistedParties
+      && a.bagRate===b.bagRate
+      && a.sequenceCompliance===b.sequenceCompliance
+      && a.priorityPolicy===b.priorityPolicy
+      && a.disruptivePassengers===b.disruptivePassengers
+      && a.chatter===b.chatter
+      && a.speed===b.speed
+      && a.seed===b.seed
+      && a.trials===b.trials
+      && a.characterScenario===b.characterScenario;
+  }
+
+  function matchingPreset(settings){
+    return SCENARIO_PRESETS.find(preset=>preset.included!==false && !preset.disabled && settingsEqual(settings,preset.settings))||null;
+  }
+
+  function parseScenarioSearch(search){
+    const params=new URLSearchParams(search||"");
+    if(!params.has("v") || Number(params.get("v"))!==SCENARIO_SCHEMA_VERSION) return null;
+    const defaults=DEFAULT_SCENARIO_SETTINGS;
+    const get=(key,fallback)=>params.has(key)?params.get(key):fallback;
+    const weights=params.has("pw")?params.get("pw").split(","):defaults.partyWeights;
+    return normalizeScenarioSettings({
+      loadFactor:get("lf",defaults.loadFactor),familyShare:get("fs",defaults.familyShare),
+      partyWeights:weights.length===4?weights:defaults.partyWeights,
+      assistedParties:get("ap",defaults.assistedParties),bagRate:get("br",defaults.bagRate),
+      sequenceCompliance:get("sc",defaults.sequenceCompliance),priorityPolicy:get("pp",defaults.priorityPolicy),
+      disruptivePassengers:get("dp",defaults.disruptivePassengers),chatter:get("ct",defaults.chatter),
+      speed:get("sp",defaults.speed),seed:get("sd",defaults.seed),trials:get("tr",defaults.trials),
+      characterScenario:get("ch",defaults.characterScenario)
+    });
+  }
+
+  function serializeScenarioSettings(settings,presetId="custom"){
+    const value=normalizeScenarioSettings(settings);
+    const params=new URLSearchParams();
+    params.set("v",String(SCENARIO_SCHEMA_VERSION));
+    params.set("pr",presetId||"custom");
+    params.set("lf",String(value.loadFactor));params.set("fs",String(value.familyShare));
+    params.set("pw",value.partyWeights.join(","));params.set("ap",String(value.assistedParties));
+    params.set("br",String(value.bagRate));params.set("sc",String(value.sequenceCompliance));
+    params.set("pp",value.priorityPolicy);params.set("dp",String(value.disruptivePassengers));
+    params.set("ct",value.chatter);params.set("sp",String(value.speed));params.set("sd",String(value.seed));
+    params.set("tr",String(value.trials));params.set("ch",value.characterScenario);
+    return params.toString();
+  }
+
+  const AMBIENT_LINES=[
+    "Did you pack the charger?",
+    "I think we're in row 24.",
+    "This is definitely the right flight.",
+    "Window seat. Nice.",
+    "I should've bought water.",
+    "Almost there.",
+    "The app said boarding was delayed.",
+    "Do you smell cinnamon rolls?"
+  ];
+  const CHATTY_LINES=[
+    "So anyway, that's when the HOA called...",
+    "Have you tried that new place by the airport?",
+    "I have the funniest story about my neighbor.",
+    "Long flight, huh?"
+  ];
+  const TIPSY_LINES=[
+    "This aisle is moving.",
+    "We're moving already?",
+    "I am walking perfectly straight.",
+    "Just getting my bearings."
+  ];
+  const HELP_LINES=[
+    "Could I get a little help with this?",
+    "This bag is heavier than it looked.",
+    "I can't quite lift this overhead.",
+    "Excuse me—could someone help?"
+  ];
+
+  function seedMix(seed,salt){
+    let x=(seed ^ salt)>>>0;
+    x=Math.imul(x^(x>>>16),0x7feb352d);
+    x=Math.imul(x^(x>>>15),0x846ca68b);
+    return (x^(x>>>16))>>>0;
+  }
+
+  function takeRandom(rng,candidates){
+    if(!candidates.length) return null;
+    return candidates.splice(Math.floor(rng()*candidates.length),1)[0];
+  }
+
+  function eligibleAdults(manifest,reserved){
+    const preferred=manifest.passengers.filter(p=>
+      !reserved.has(p.id) && p.groupType==="single" && !p.isChild && !p.isReduced && p.row>=6
+    );
+    if(preferred.length) return preferred;
+    return manifest.passengers.filter(p=>!reserved.has(p.id) && !p.isChild && !p.isReduced && p.row>=4);
+  }
+
+  function assignCrew(manifest,seed){
+    const rng=mulberry32(seedMix(seed,0xC0FFEE));
+    manifest.crewDefinition={
+      id:"crew-1",
+      displayName:"Maya",
+      role:"cabin crew",
+      homePos:.12,
+      speed:1.08+rng()*.16,
+      squeezeSelfDuration:.55+rng()*.35,
+      squeezeOtherDuration:.7+rng()*.45,
+      color:"#56e0b5"
+    };
+  }
+
+  function applyCrewHelpProfile(passenger,rng){
+    passenger.requiresCrewHelp=true;
+    passenger.crewFailDuration=1.6+rng()*1.8;
+    passenger.crewAssistDuration=5.2+rng()*3.4;
+    passenger.crewRequestLine=HELP_LINES[Math.floor(rng()*HELP_LINES.length)];
+    passenger.crewAssistLine="I've got it—hold the handle.";
+    passenger.crewAssistanceComplete=false;
+    passenger.crewEventDelay=0;
+  }
+
+  function assignBarbara(manifest,seed,reserved){
+    const rng=mulberry32(seedMix(seed,0xBA4BA4A));
+    const candidates=eligibleAdults(manifest,reserved);
+    const passenger=takeRandom(rng,candidates);
+    if(!passenger) throw new Error("Barbara Mode requires an eligible adult passenger");
+    reserved.add(passenger.id);
+
+    const baselineBagBase=passenger.bagBase;
+    passenger.displayName="Barbara";
+    passenger.characterId="barbara";
+    passenger.characterLabel="B";
+    passenger.characterRole="late-arriving passenger";
+    passenger.characterStatus="running late";
+    passenger.eventState="trying to join the boarding line";
+    passenger.characterColor="#ffcf66";
+    passenger.baselineBagBase=baselineBagBase;
+    passenger.baselineHasBag=passenger.hasBag;
+    passenger.hasBag=true;
+    passenger.bagBase=18+rng()*6;
+    passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
+    passenger.lateQueueFraction=.62+rng()*.18;
+    passenger.restroomTurnRow=clamp(Math.round(passenger.row*(.35+rng()*.24)),4,Math.max(4,passenger.row-2));
+    passenger.restroomDuration=6+rng()*4;
+    passenger.restroomWalkSpeed=.62+rng()*.14;
+    passenger.restroomTarget=.15;
+    passenger.squeezeOtherDuration=1.45+rng()*.65;
+    passenger.squeezeSelfDuration=.75+rng()*.45;
+    passenger.restroomTripElapsed=0;
+    passenger.restroomExtraDelay=0;
+    passenger.squeezePasses=0;
+    passenger.eventDelaySeconds=0;
+    passenger.bubbleText=null;
+    passenger.bubbleUntil=0;
+    applyCrewHelpProfile(passenger,rng);
+
+    manifest.characters.push({id:"barbara",passengerId:passenger.id,seatKey:passenger.seatKey,type:"barbara"});
+  }
+
+  function assignChatty(passenger,rng,index){
+    passenger.displayName=`Chatty passenger ${index+1}`;
+    passenger.characterId=`chatty-${passenger.id}`;
+    passenger.characterLabel="C";
+    passenger.characterRole="very chatty passenger";
+    passenger.characterStatus="looking for someone to talk to";
+    passenger.eventState="waiting to board";
+    passenger.characterColor="#6fd8ff";
+    passenger.incidentType="chatty";
+    const first=clamp(Math.round(passenger.row*(.25+rng()*.18)),2,Math.max(2,passenger.row-3));
+    const second=clamp(Math.round(passenger.row*(.57+rng()*.18)),first+1,Math.max(first+1,passenger.row-1));
+    passenger.incidentStops=[
+      {row:first,duration:3.8+rng()*3.2,line:CHATTY_LINES[Math.floor(rng()*CHATTY_LINES.length)]},
+      {row:second,duration:3.2+rng()*3.2,line:CHATTY_LINES[Math.floor(rng()*CHATTY_LINES.length)]}
+    ];
+    passenger.eventDelaySeconds=0;
+  }
+
+  function assignTipsy(passenger,rng,index){
+    passenger.displayName=`Tipsy passenger ${index+1}`;
+    passenger.characterId=`tipsy-${passenger.id}`;
+    passenger.characterLabel="T";
+    passenger.characterRole="tipsy passenger";
+    passenger.characterStatus="moving very carefully";
+    passenger.eventState="waiting to board";
+    passenger.characterColor="#ff8fc8";
+    passenger.incidentType="tipsy";
+    passenger.baselineWalkSpeed=passenger.walkSpeed;
+    passenger.incidentWalkFactor=.55+rng()*.16;
+    passenger.walkSpeed*=passenger.incidentWalkFactor;
+    passenger.incidentStops=[{
+      row:clamp(Math.round(passenger.row*(.38+rng()*.32)),2,Math.max(2,passenger.row-1)),
+      duration:2.8+rng()*3,
+      line:TIPSY_LINES[Math.floor(rng()*TIPSY_LINES.length)]
+    }];
+    passenger.eventDelaySeconds=0;
+  }
+
+  function assignNeedsHelp(passenger,rng,index){
+    const baselineBagBase=passenger.bagBase;
+    passenger.displayName=`Passenger needing help ${index+1}`;
+    passenger.characterId=`help-${passenger.id}`;
+    passenger.characterLabel="H";
+    passenger.characterRole="passenger needing overhead-bin assistance";
+    passenger.characterStatus="hoping the bag cooperates";
+    passenger.eventState="waiting to board";
+    passenger.characterColor="#b79cff";
+    passenger.incidentType="needs-help";
+    passenger.baselineHasBag=passenger.hasBag;
+    passenger.baselineBagBase=baselineBagBase;
+    passenger.hasBag=true;
+    passenger.bagBase=Math.max(passenger.bagBase,13+rng()*4);
+    passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
+    passenger.eventDelaySeconds=0;
+    applyCrewHelpProfile(passenger,rng);
+  }
+
+  function assignDisruptions(manifest,seed,cfg,reserved){
+    const count=clamp(Math.floor(Number(cfg.disruptivePassengers)||0),0,3);
+    if(!count) return;
+    const rng=mulberry32(seedMix(seed,0xD15A7E));
+    const candidates=eligibleAdults(manifest,reserved);
+    for(let index=0;index<count;index++){
+      const passenger=takeRandom(rng,candidates);
+      if(!passenger) break;
+      reserved.add(passenger.id);
+      if(index%3===0) assignChatty(passenger,rng,index);
+      else if(index%3===1) assignTipsy(passenger,rng,index);
+      else assignNeedsHelp(passenger,rng,index);
+      manifest.characters.push({id:passenger.characterId,passengerId:passenger.id,seatKey:passenger.seatKey,type:passenger.incidentType});
+    }
+  }
+
+  function assignAmbientChatter(manifest,seed,cfg,reserved){
+    const level=["off","light","lively"].includes(cfg.chatter)?cfg.chatter:"off";
+    manifest.chatter=level;
+    const target=level==="lively"?12:level==="light"?5:0;
+    if(!target) return;
+    const rng=mulberry32(seedMix(seed,0xC4A77E));
+    const candidates=manifest.passengers.filter(p=>!reserved.has(p.id));
+    for(let index=0;index<Math.min(target,candidates.length);index++){
+      const passenger=takeRandom(rng,candidates);
+      passenger.ambientLine=AMBIENT_LINES[Math.floor(rng()*AMBIENT_LINES.length)];
+      passenger.ambientTriggerRow=clamp(Math.round(passenger.row*(.2+rng()*.62)),1,Math.max(1,passenger.row-1));
+      passenger.ambientBubbleDuration=2.2+rng()*.8;
+    }
+  }
+
+  function applyCharacterScenario(manifest,seed,cfg){
+    manifest.characterScenario=cfg.characterScenario||"none";
+    manifest.disruptivePassengers=clamp(Math.floor(Number(cfg.disruptivePassengers)||0),0,3);
+    manifest.characters=[];
+    assignCrew(manifest,seed);
+    const reserved=new Set();
+    if(manifest.characterScenario==="barbara") assignBarbara(manifest,seed,reserved);
+    assignDisruptions(manifest,seed,cfg,reserved);
+    assignAmbientChatter(manifest,seed,cfg,reserved);
+    return manifest;
+  }
+
+  function repositionCharacterPassengers(queue){
+    const lateArrivals=queue.filter(passenger=>Number.isFinite(passenger.lateQueueFraction));
+    for(const passenger of lateArrivals){
+      const originalIndex=queue.indexOf(passenger);
+      if(originalIndex<0) continue;
+      queue.splice(originalIndex,1);
+      const requested=Math.round(queue.length*clamp(passenger.lateQueueFraction,0,1));
+      const targetIndex=clamp(requested,0,queue.length);
+      passenger.originalQueueIndex=originalIndex;
+      passenger.lateQueueIndex=targetIndex;
+      passenger.queueDisplacement=targetIndex-originalIndex;
+      queue.splice(targetIndex,0,passenger);
+    }
+    return queue;
+  }
+
   function weightedSize(rng,weights){
     const total=weights.reduce((a,b)=>a+b,0);
     if(total<=0) return 2;
@@ -526,20 +1230,6 @@
     const side=idx<3?"L":"R";
     const depth = idx<3 ? 2-idx : idx-3; // A/F=2, B/E=1, C/D=0
     return {key:`${row}${col}`,row,col,side,depth};
-  }
-  function config(){
-    const partyWeightConfig=normalizedPartyWeights();
-    return {
-      loadFactor:+controls.loadFactor.value/100,
-      familyShare:+controls.familyShare.value/100,
-      partyWeights:partyWeightConfig.normalized,
-      partyWeightsFallback:partyWeightConfig.fallback,
-      assistedParties:clamp(+controls.assistedParties.value||0,0,12),
-      bagRate:+controls.bagRate.value/100,
-      sequenceCompliance:+controls.sequenceCompliance.value/100,
-      priorityPolicy:controls.priorityPolicy.value,
-      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
-    };
   }
   function seedMix(seed,salt){
     let x=(seed ^ salt)>>>0;
@@ -593,7 +1283,8 @@
       const seatBase=isReduced ? 7.5+rng()*5.5 : isChild ? 3.8+rng()*3.8 : 2.1+rng()*2.8;
       const p={
         id:pid++, seatKey:seat.key,row:seat.row,col:seat.col,side:seat.side,depth:seat.depth,
-        unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed
+        unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed,
+        displayName:null, characterId:null, characterRole:null, characterStatus:null, eventState:null
       };
       passengers.push(p);
       unit.passengers.push(p);
@@ -672,7 +1363,8 @@
       finalizeUnit(unit);
     }
 
-    return {passengers,units,targetPassengers};
+    const manifest={passengers,units,targetPassengers};
+    return applyCharacterScenario(manifest,seed,cfg);
   }
 
   function internalOrder(unit){
@@ -753,9 +1445,13 @@
         partySeatedColor:unit.partySeatedColor||null
       }));
     }
+    repositionCharacterPassengers(queue);
     queue.forEach((p,index)=>p.queueIndex=index);
     return queue;
   }
+
+  const RESTROOM_TRAVEL_STATES=new Set(["walking-to-restroom","restroom","walking-from-restroom"]);
+  const CREW_BLOCKING_STATES=new Set(["failed-lift","awaiting-crew","crew-assist"]);
 
   class BoardingSim{
     constructor(manifest,method,cfg){
@@ -769,16 +1465,59 @@
       this.completed=0;
       this.occupancy=new Map();
       this.binLoad=new Map();
+      this.stowedBags=[];
       this.seatConflicts=0;
       this.conflictSeconds=0;
       this.blockedSeconds=0;
       this.movementDelay=0;
       this.done=false;
       this.doorDelayStarted=false;
+      const definition=manifest.crewDefinition||{
+        id:"crew-1",displayName:"Maya",role:"cabin crew",homePos:.12,speed:1.15,
+        squeezeSelfDuration:.7,squeezeOtherDuration:.9,color:"#56e0b5"
+      };
+      this.crew={
+        ...definition,
+        pos:definition.homePos,
+        state:"idle",
+        status:"watching the cabin",
+        eventState:"available near the front door",
+        targetPassengerId:null,
+        remaining:0,
+        bubbleText:null,
+        bubbleUntil:0,
+        passedIds:new Set(),
+        assistsCompleted:0,
+        travelDistance:0,
+        squeezePasses:0,
+        squeezeDelayRemaining:0
+      };
+      this.crewRequests=[];
+    }
+    setCharacterMoment(p,status,eventState,bubble=null,duration=0){
+      if(!p.characterId) return;
+      p.characterStatus=status;
+      p.eventState=eventState;
+      if(bubble){
+        p.bubbleText=bubble;
+        p.bubbleUntil=this.time+duration;
+      }
+    }
+    setCrewMoment(status,eventState,bubble=null,duration=0){
+      this.crew.status=status;
+      this.crew.eventState=eventState;
+      if(bubble){
+        this.crew.bubbleText=bubble;
+        this.crew.bubbleUntil=this.time+duration;
+      }
+    }
+    passengerById(id){
+      return this.queue.find(p=>p.id===id)||null;
     }
     nearestToDoor(){
       let nearest=Infinity;
       for(const p of this.active) if(p.state!=="seated") nearest=Math.min(nearest,p.pos);
+      if(this.crew.state!=="idle") nearest=Math.min(nearest,this.crew.pos);
       return nearest;
     }
     computeStow(p){
@@ -791,7 +1530,7 @@
     computeSeat(p){
       let blockers=0;
       let penalty=0;
-      for(const [seatKey,occ] of this.occupancy){
+      for(const [,occ] of this.occupancy){
         if(occ.row===p.row && occ.side===p.side && occ.depth<p.depth){
           blockers++;
           penalty += occ.unitId===p.unitId ? 2.2 : 5.4;
@@ -802,6 +1541,49 @@
         this.conflictSeconds+=penalty;
       }
       return p.seatBase+penalty;
+    }
+    countHeavyBagDelay(p){
+      if(p.heavyBagDelayCounted) return;
+      p.eventDelaySeconds=(p.eventDelaySeconds||0)+(p.heavyBagExtra||0);
+      p.heavyBagDelayCounted=true;
+    }
+    beginStowing(p){
+      if(p.requiresCrewHelp && !p.crewAssistanceComplete){
+        this.countHeavyBagDelay(p);
+        if(!p.crewAttemptStarted){
+          p.crewAttemptStarted=true;
+          p.crewAttemptStartTime=this.time;
+          p.state="failed-lift";
+          p.remaining=p.crewFailDuration||2;
+          this.setCharacterMoment(
+            p,
+            "trying to lift the carry-on",
+            "the first overhead-bin attempt is not going well",
+            "I can get this... I think.",
+            Math.min(3,p.remaining)
+          );
+        }
+        return;
+      }
+      p.state="stowing";
+      p.stowDuration=this.computeStow(p);
+      p.remaining=p.stowDuration;
+      if(p.characterId){
+        this.countHeavyBagDelay(p);
+        this.setCharacterMoment(
+          p,
+          "wrestling with the carry-on",
+          "struggling with a very heavy bag",
+          "This bag was lighter at home.",
+          Math.min(7,p.stowDuration)
+        );
+      }
+    }
+    beginSeating(p){
+      p.state="seating";
+      p.seatingDuration=this.computeSeat(p);
+      p.remaining=p.seatingDuration;
+      this.setCharacterMoment(p,"almost there",`entering row ${p.row} toward ${p.seatKey}`);
     }
     release(dt){
       if(this.pending>=this.queue.length) return;
@@ -818,8 +1600,258 @@
       p.state="walking";
       p.pos=0;
       p.remaining=0;
+      p.eventDelaySeconds=p.eventDelaySeconds||0;
       this.active.push(p);
       this.pending++;
+      this.setCharacterMoment(p,"finally aboard","heading down the aisle",p.characterId==="barbara"?"Made it!":null,3.5);
+    }
+    beginRestroomTrip(p){
+      p.state="walking-to-restroom";
+      p.restroomTripElapsed=0;
+      p.restroomBaselineRemaining=Math.max(0,(p.row-p.pos)/Math.max(.001,p.walkSpeed));
+      p.restroomPassedIds={outbound:new Set(),return:new Set()};
+      p.squeezePasses=0;
+      this.setCharacterMoment(p,"doubling back","walking toward the front lavatory","Nope. Restroom first.",4.2);
+    }
+    registerSqueeze(p,other,phase){
+      const passed=p.restroomPassedIds?.[phase];
+      if(!passed || passed.has(other.id)) return;
+      passed.add(other.id);
+      p.squeezePasses=(p.squeezePasses||0)+1;
+      p.squeezeDelayRemaining=Math.max(p.squeezeDelayRemaining||0,p.squeezeSelfDuration||.9);
+      const otherDelay=p.squeezeOtherDuration||1.8;
+      if(other.state==="walking"){
+        other.squeezeDelayRemaining=Math.max(other.squeezeDelayRemaining||0,otherDelay);
+      }else if(other.state==="stowing" || other.state==="seating" || CREW_BLOCKING_STATES.has(other.state)){
+        other.remaining=(other.remaining||0)+otherDelay;
+        other.disruptionDelaySeconds=(other.disruptionDelaySeconds||0)+otherDelay;
+      }
+      other.disruptedByCharacter=p.displayName||"a disruptive passenger";
+      other.disruptionCount=(other.disruptionCount||0)+1;
+      if(p.squeezePasses===1 || p.squeezePasses%4===0){
+        this.setCharacterMoment(
+          p,
+          "squeezing past passengers",
+          `${phase==="outbound"?"backtracking":"returning"} through the aisle · ${p.squeezePasses} crossings`,
+          p.squeezePasses===1?"Excuse me—sorry—coming through.":"Sorry. Again.",
+          2.8
+        );
+      }
+    }
+    stepRestroomTravel(p,dt){
+      p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
+      const outbound=p.state==="walking-to-restroom";
+      const target=outbound?(p.restroomTarget??.15):p.row;
+      const direction=outbound?-1:1;
+      const phase=outbound?"outbound":"return";
+      const slowed=(p.squeezeDelayRemaining||0)>0;
+      if(slowed) p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+      const speed=(p.restroomWalkSpeed||.68)*(slowed ? .42 : 1);
+      const oldPos=p.pos;
+      const distance=Math.abs(target-oldPos);
+      const move=Math.min(distance,speed*dt);
+      p.pos=oldPos+direction*move;
+
+      const low=Math.min(oldPos,p.pos)-.015;
+      const high=Math.max(oldPos,p.pos)+.015;
+      for(const other of this.active){
+        if(other===p || other.state==="seated" || RESTROOM_TRAVEL_STATES.has(other.state)) continue;
+        if(other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerSqueeze(p,other,phase);
+      }
+
+      if(Math.abs(p.pos-target)>.001) return;
+      p.pos=target;
+      if(outbound){
+        p.state="restroom";
+        p.remaining=p.restroomDuration;
+        this.setCharacterMoment(p,"in the lavatory","using the front lavatory","Finally.",2.4);
+        return;
+      }
+
+      p.restroomTripComplete=true;
+      p.restroomExtraDelay=Math.max(0,(p.restroomTripElapsed||0)-(p.restroomBaselineRemaining||0));
+      p.eventDelaySeconds=(p.eventDelaySeconds||0)+p.restroomExtraDelay;
+      this.setCharacterMoment(
+        p,
+        "back at her row",
+        `restroom trip complete · squeezed past ${p.squeezePasses||0} passengers`,
+        "Much better.",
+        3
+      );
+      this.beginStowing(p);
+    }
+    maybeBeginIncident(p){
+      if(!p.incidentStops || p.state!=="walking") return false;
+      const index=p.incidentStopIndex||0;
+      const stop=p.incidentStops[index];
+      if(!stop || p.pos+1e-7<stop.row) return false;
+      p.pos=stop.row;
+      p.state="incident-pause";
+      p.remaining=stop.duration;
+      p.incidentStopIndex=index;
+      this.setCharacterMoment(
+        p,
+        p.incidentType==="tipsy"?"getting her bearings":"finishing a story",
+        `${p.incidentType} aisle pause ${index+1} of ${p.incidentStops.length}`,
+        stop.line,
+        stop.duration
+      );
+      return true;
+    }
+    maybeShowAmbientLine(p){
+      if(!p.ambientLine || p.ambientSpoken || p.state!=="walking") return;
+      if(p.pos+1e-7<p.ambientTriggerRow) return;
+      p.ambientSpoken=true;
+      p.bubbleText=p.ambientLine;
+      p.bubbleUntil=this.time+(p.ambientBubbleDuration||2.5);
+    }
+    queueCrewHelp(p){
+      if(p.crewRequestQueued || p.crewAssistanceComplete) return;
+      p.crewRequestQueued=true;
+      p.crewRequestTime=this.time;
+      p.state="awaiting-crew";
+      p.remaining=0;
+      this.crewRequests.push(p.id);
+      this.setCharacterMoment(
+        p,
+        "waiting for cabin crew",
+        "carry-on lift failed; help requested",
+        p.crewRequestLine||"Could I get some help with this?",
+        4.2
+      );
+    }
+    beginNextCrewRequest(){
+      while(this.crewRequests.length){
+        const passenger=this.passengerById(this.crewRequests.shift());
+        if(!passenger || passenger.crewAssistanceComplete || passenger.state!=="awaiting-crew") continue;
+        this.crew.state="walking-to-passenger";
+        this.crew.targetPassengerId=passenger.id;
+        this.crew.passedIds=new Set();
+        this.setCrewMoment("responding to a passenger",`walking to row ${passenger.row}`,"On my way.",2.4);
+        passenger.crewResponseStarted=this.time;
+        return;
+      }
+      this.crew.state="idle";
+      this.crew.targetPassengerId=null;
+      this.crew.pos=this.crew.homePos;
+      this.setCrewMoment("watching the cabin","available near the front door");
+    }
+    registerCrewSqueeze(other){
+      if(!other || other.state==="seated" || this.crew.passedIds.has(other.id)) return;
+      this.crew.passedIds.add(other.id);
+      this.crew.squeezePasses++;
+      this.crew.squeezeDelayRemaining=Math.max(this.crew.squeezeDelayRemaining||0,this.crew.squeezeSelfDuration||.7);
+      const delay=this.crew.squeezeOtherDuration||.9;
+      if(other.state==="walking"){
+        other.crewYieldRemaining=Math.max(other.crewYieldRemaining||0,delay);
+      }else if(other.state==="stowing" || other.state==="seating" || CREW_BLOCKING_STATES.has(other.state)){
+        other.remaining=(other.remaining||0)+delay;
+        other.crewYieldSeconds=(other.crewYieldSeconds||0)+delay;
+      }
+      other.crewYieldedTo=this.crew.displayName;
+      other.crewYieldCount=(other.crewYieldCount||0)+1;
+    }
+    startCrewAssistance(passenger){
+      this.crew.state="assisting";
+      this.crew.pos=passenger.row;
+      this.crew.remaining=passenger.crewAssistDuration||6;
+      passenger.state="crew-assist";
+      passenger.remaining=this.crew.remaining;
+      passenger.crewAssistTotal=this.crew.remaining;
+      passenger.crewAssistanceStarted=this.time;
+      this.setCrewMoment("helping with a carry-on",`lifting a bag at row ${passenger.row}`,"I've got it.",3);
+      this.setCharacterMoment(
+        passenger,
+        "getting cabin-crew help",
+        `${this.crew.displayName} is lifting the carry-on`,
+        passenger.crewAssistLine||"Thank you!",
+        3.2
+      );
+    }
+    finishCrewAssistance(passenger){
+      passenger.crewAssistanceComplete=true;
+      passenger.crewAssistanceFinished=this.time;
+      passenger.crewEventDelay=Math.max(0,this.time-(passenger.crewAttemptStartTime||this.time));
+      if(passenger.hasBag && !passenger.bagStowed){
+        passenger.bagStowed=true;
+        const key=`${passenger.row}${passenger.side}`;
+        const load=this.binLoad.get(key)||0;
+        this.binLoad.set(key,load+1);
+        this.stowedBags.push({
+          passengerId:passenger.id,
+          row:passenger.row,
+          side:passenger.side,
+          groupType:passenger.groupType,
+          color:passenger.partyColor||passenger.characterColor||null
+        });
+      }
+      this.crew.assistsCompleted++;
+      this.setCharacterMoment(
+        passenger,
+        "bag safely overhead",
+        `assisted by ${this.crew.displayName} after ${(passenger.crewEventDelay||0).toFixed(1)}s`,
+        "Thank you!",
+        2.8
+      );
+      this.beginSeating(passenger);
+      this.crew.state="returning-front";
+      this.crew.targetPassengerId=null;
+      this.crew.passedIds=new Set();
+      this.setCrewMoment("returning to the front","walking back toward the door","All set.",2.4);
+    }
+    stepCrewTravel(dt,target,arrive){
+      const oldPos=this.crew.pos;
+      const direction=target>=oldPos?1:-1;
+      const slowed=(this.crew.squeezeDelayRemaining||0)>0;
+      if(slowed) this.crew.squeezeDelayRemaining=Math.max(0,this.crew.squeezeDelayRemaining-dt);
+      const speed=this.crew.speed*(slowed ? .52 : 1);
+      const move=Math.min(Math.abs(target-oldPos),speed*dt);
+      this.crew.pos=oldPos+direction*move;
+      this.crew.travelDistance+=move;
+
+      const low=Math.min(oldPos,this.crew.pos)-.015;
+      const high=Math.max(oldPos,this.crew.pos)+.015;
+      for(const other of this.active){
+        if(other.id===this.crew.targetPassengerId || other.state==="seated" || RESTROOM_TRAVEL_STATES.has(other.state)) continue;
+        if(other.pos+1e-7>=low && other.pos-1e-7<=high) this.registerCrewSqueeze(other);
+      }
+      if(Math.abs(this.crew.pos-target)<=.001){
+        this.crew.pos=target;
+        arrive();
+      }
+    }
+    stepCrew(dt){
+      if(this.crew.state==="idle"){
+        if(this.crewRequests.length) this.beginNextCrewRequest();
+        return;
+      }
+      if(this.crew.state==="walking-to-passenger"){
+        const passenger=this.passengerById(this.crew.targetPassengerId);
+        if(!passenger || passenger.state!=="awaiting-crew"){
+          this.crew.state="returning-front";
+          this.crew.targetPassengerId=null;
+          this.crew.passedIds=new Set();
+          return;
+        }
+        this.stepCrewTravel(dt,passenger.row,()=>this.startCrewAssistance(passenger));
+        return;
+      }
+      if(this.crew.state==="assisting"){
+        const passenger=this.passengerById(this.crew.targetPassengerId);
+        if(!passenger){
+          this.crew.state="returning-front";
+          this.crew.targetPassengerId=null;
+          return;
+        }
+        this.crew.remaining=Math.max(0,this.crew.remaining-dt);
+        passenger.remaining=this.crew.remaining;
+        passenger.eventDelaySeconds=(passenger.eventDelaySeconds||0)+dt;
+        if(this.crew.remaining<=0) this.finishCrewAssistance(passenger);
+        return;
+      }
+      if(this.crew.state==="returning-front"){
+        this.stepCrewTravel(dt,this.crew.homePos,()=>this.beginNextCrewRequest());
+      }
     }
     step(dt){
       if(this.done) return;
@@ -827,12 +1859,47 @@
 
       let anyBlocking=false;
       for(const p of this.active){
-        if(p.state==="stowing"){
+        if(p.state==="restroom"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.restroomTripElapsed=(p.restroomTripElapsed||0)+dt;
+          if(p.remaining<=0){
+            p.state="walking-from-restroom";
+            p.remaining=0;
+            this.setCharacterMoment(p,"heading back","returning from the front lavatory","Coming back through.",3.2);
+          }
+        }else if(p.state==="incident-pause"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+          if(p.remaining<=0){
+            p.incidentStopIndex=(p.incidentStopIndex||0)+1;
+            p.state="walking";
+            p.remaining=0;
+            this.setCharacterMoment(p,"moving again",`${p.incidentType} pause complete`);
+          }
+        }else if(p.state==="failed-lift"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+          if(p.remaining<=0) this.queueCrewHelp(p);
+        }else if(p.state==="awaiting-crew"){
+          anyBlocking=true;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+        }else if(p.state==="crew-assist"){
+          anyBlocking=true;
+        }else if(p.state==="stowing"){
           anyBlocking=true;
           p.remaining-=dt;
           if(p.remaining<=0){
-            p.state="seating";
-            p.remaining=this.computeSeat(p);
+            if(p.hasBag && !p.bagStowed){
+              p.bagStowed=true;
+              this.stowedBags.push({
+                passengerId:p.id,row:p.row,side:p.side,groupType:p.groupType,
+                color:p.partyColor||p.characterColor||null
+              });
+            }
+            this.beginSeating(p);
           }
         }else if(p.state==="seating"){
           anyBlocking=true;
@@ -841,9 +1908,21 @@
             p.state="seated";
             this.occupancy.set(p.seatKey,p);
             this.completed++;
+            this.setCharacterMoment(p,"settled, for now","seated");
           }
         }
       }
+
+      for(const p of this.active){
+        if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+          anyBlocking=true;
+          this.stepRestroomTravel(p,dt);
+        }
+      }
+
+      this.stepCrew(dt);
+      if(this.crew.state==="assisting") anyBlocking=true;
+
       if(anyBlocking) this.blockedSeconds+=dt;
       if(this.active.some(p=>p.state==="seated")){
         this.active=this.active.filter(p=>p.state!=="seated");
@@ -855,17 +1934,40 @@
           let allowed=p.row;
           if(leadPos<Infinity) allowed=Math.min(allowed,leadPos-SPACING);
           const available=Math.max(0,allowed-p.pos);
-          const freeMove=p.walkSpeed*dt;
+          const squeezed=(p.squeezeDelayRemaining||0)>0;
+          const yielding=(p.crewYieldRemaining||0)>0;
+          if(squeezed){
+            p.squeezeDelayRemaining=Math.max(0,p.squeezeDelayRemaining-dt);
+            p.disruptionDelaySeconds=(p.disruptionDelaySeconds||0)+dt;
+          }
+          if(yielding){
+            p.crewYieldRemaining=Math.max(0,p.crewYieldRemaining-dt);
+            p.crewYieldSeconds=(p.crewYieldSeconds||0)+dt;
+          }
+          const factor=squeezed ? .28 : yielding ? .38 : 1;
+          const freeMove=p.walkSpeed*factor*dt;
           const move=Math.min(available,freeMove);
           p.pos+=move;
           if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
-          if(p.row-p.pos<=.001){
+          this.maybeShowAmbientLine(p);
+
+          if(
+            p.characterId==="barbara"
+            && !p.restroomTripStarted
+            && p.row>p.restroomTurnRow+.001
+            && p.pos+1e-7>=p.restroomTurnRow
+          ){
+            p.pos=p.restroomTurnRow;
+            p.restroomTripStarted=true;
+            this.beginRestroomTrip(p);
+          }else if(this.maybeBeginIncident(p)){
+            // Incident state set above.
+          }else if(p.row-p.pos<=.001){
             p.pos=p.row;
-            p.state="stowing";
-            p.remaining=this.computeStow(p);
+            this.beginStowing(p);
           }
         }
-        leadPos=p.pos;
+        if(!RESTROOM_TRAVEL_STATES.has(p.state)) leadPos=p.pos;
       }
 
       this.release(dt);
@@ -883,26 +1985,6 @@
     }
   }
 
-  function reset(){
-    const cfg=config();
-    manifest=makeManifest(cfg.seed,cfg);
-    sims={};
-    for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
-    running=false;
-    accumulator=0;
-    $("pauseBtn").textContent="Pause";
-    const familyUnits=manifest.units.filter(u=>u.groupType==="family");
-    const familyCounts=new Map();
-    for(const unit of familyUnits) familyCounts.set(unit.passengers.length,(familyCounts.get(unit.passengers.length)||0)+1);
-    const familySummary=familyUnits.length
-      ? [...familyCounts.entries()].sort((a,b)=>a[0]-b[0]).map(([size,count])=>`${count}×${size}`).join(", ")
-      : "none";
-    const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
-    const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
-    $("status").textContent=`Ready: ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
-    renderAll();
-  }
-
   function formatTime(seconds){
     if(!Number.isFinite(seconds)) return "—";
     const s=Math.round(seconds);
@@ -910,14 +1992,291 @@
     return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
   }
 
-  function panelElements(method){
+  function percentile(sorted,p){
+    if(!sorted.length) return NaN;
+    const pos=(sorted.length-1)*p;
+    const lo=Math.floor(pos),hi=Math.ceil(pos);
+    return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
+  }
+  function stats(values){
+    const s=values.slice().sort((a,b)=>a-b);
     return {
-      time:$(method+"Time"),
-      done:$(method+"Done"),
-      conflicts:$(method+"Conflicts"),
-      blocked:$(method+"Blocked"),
-      queue:$(method+"Queue")
+      mean:s.reduce((a,b)=>a+b,0)/s.length,
+      median:percentile(s,.5),
+      p10:percentile(s,.1),
+      p90:percentile(s,.9)
     };
+  }
+
+  function benchmarkSignature(cfg,trials,methods=[]){
+    return JSON.stringify({
+      loadFactor:cfg.loadFactor,
+      familyShare:cfg.familyShare,
+      partyWeights:cfg.partyWeights,
+      assistedParties:cfg.assistedParties,
+      bagRate:cfg.bagRate,
+      sequenceCompliance:cfg.sequenceCompliance,
+      priorityPolicy:cfg.priorityPolicy,
+      disruptivePassengers:cfg.disruptivePassengers||0,
+      chatter:cfg.chatter||"off",
+      characterScenario:cfg.characterScenario||"none",
+      seed:cfg.seed,
+      trials,
+      methods:[...methods]
+    });
+  }
+
+  function sameBenchmarkResults(left,right,methods){
+    if(!left || !right) return false;
+    return methods.every(method=>{
+      const a=left[method];
+      const b=right[method];
+      return !!a && !!b
+        && a.wins===b.wins
+        && a.stats.mean===b.stats.mean
+        && a.stats.median===b.stats.median
+        && a.stats.p10===b.stats.p10
+        && a.stats.p90===b.stats.p90;
+    });
+  }
+
+  function aisleProgress(sim){
+    return sim.active.reduce((sum,passenger)=>{
+      if(passenger.state==="walking"){
+        return sum+clamp(passenger.pos/Math.max(1,passenger.row),0,1);
+      }
+      if(passenger.state==="stowing") return sum+.8;
+      if(passenger.state==="seating") return sum+.92;
+      return sum;
+    },0);
+  }
+
+  function rankRace(methods,sims){
+    return methods.map(method=>{
+      const sim=sims[method];
+      const total=sim?.queue.length||0;
+      return {
+        method,
+        done:!!sim?.done,
+        time:sim?.time||0,
+        completed:sim?.completed||0,
+        entered:sim?.pending||0,
+        aisleProgress:sim?aisleProgress(sim):0,
+        total
+      };
+    }).sort((a,b)=>{
+      if(a.done!==b.done) return a.done?-1:1;
+      if(a.done && b.done){
+        return a.time-b.time || METHODS.indexOf(a.method)-METHODS.indexOf(b.method);
+      }
+      return b.completed-a.completed
+        || b.entered-a.entered
+        || b.aisleProgress-a.aisleProgress
+        || METHODS.indexOf(a.method)-METHODS.indexOf(b.method);
+    }).map((row,index)=>({
+      ...row,
+      rank:index+1,
+      percent:row.total?100*row.completed/row.total:0
+    }));
+  }
+
+  function roundedRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,w,h,r);
+    else ctx.rect(x,y,w,h);
+  }
+
+  function drawBag(ctx,x,y,w,h,color,alpha=1){
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    roundedRect(ctx,x,y,w,h,Math.min(2,w*.25,h*.25));
+    ctx.fillStyle=color;
+    ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.72)";
+    ctx.lineWidth=Math.max(.7,w*.1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+w*.34,y);
+    ctx.lineTo(x+w*.34,y-h*.18);
+    ctx.lineTo(x+w*.66,y-h*.18);
+    ctx.lineTo(x+w*.66,y);
+    ctx.strokeStyle="rgba(235,247,255,.8)";
+    ctx.lineWidth=Math.max(.6,w*.08);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function bagColor(item){
+    if(item.groupType==="family") return item.color||palette.family;
+    return item.color||palette[item.groupType]||palette.single;
+  }
+
+  function wrapBubbleText(ctx,text,maxWidth){
+    const words=String(text).split(/\s+/);
+    const lines=[];
+    let line="";
+    for(const word of words){
+      const next=line?`${line} ${word}`:word;
+      if(line && ctx.measureText(next).width>maxWidth){
+        lines.push(line);
+        line=word;
+      }else line=next;
+    }
+    if(line) lines.push(line);
+    if(lines.length>3){
+      lines.length=3;
+      lines[2]=`${lines[2].replace(/[.…]*$/u,"")}…`;
+    }
+    return lines;
+  }
+
+  function drawCharacterBubble(ctx,text,x,y,w,h){
+    ctx.save();
+    ctx.font="700 9px system-ui";
+    const lines=wrapBubbleText(ctx,text,112);
+    const bubbleW=Math.min(132,Math.max(72,...lines.map(line=>ctx.measureText(line).width+14)));
+    const bubbleH=10+lines.length*11;
+    let bubbleX=clamp(x+12,4,w-bubbleW-4);
+    let bubbleY=y-bubbleH-15;
+    let below=false;
+    if(bubbleY<4){
+      bubbleY=y+14;
+      below=true;
+    }
+    bubbleY=clamp(bubbleY,4,h-bubbleH-4);
+    roundedRect(ctx,bubbleX,bubbleY,bubbleW,bubbleH,7);
+    ctx.fillStyle="rgba(255,249,218,.96)";
+    ctx.fill();
+    ctx.strokeStyle="#d8ae45";
+    ctx.lineWidth=1.2;
+    ctx.stroke();
+    ctx.beginPath();
+    const tailY=below?bubbleY:bubbleY+bubbleH;
+    ctx.moveTo(clamp(x,bubbleX+8,bubbleX+bubbleW-8),tailY);
+    ctx.lineTo(x,below?y+7:y-7);
+    ctx.lineTo(clamp(x+8,bubbleX+8,bubbleX+bubbleW-8),tailY);
+    ctx.fillStyle="rgba(255,249,218,.96)";
+    ctx.fill();
+    ctx.strokeStyle="#d8ae45";
+    ctx.stroke();
+    ctx.fillStyle="#34270d";
+    ctx.textAlign="left";
+    ctx.textBaseline="top";
+    lines.forEach((line,index)=>ctx.fillText(line,bubbleX+7,bubbleY+6+index*11));
+    ctx.restore();
+  }
+
+  function cabinGeometry(w,h){
+    const top=34,bottom=h-18;
+    const rowH=(bottom-top)/ROWS;
+    const seatW=Math.min(38,(w-130)/6);
+    const gap=3;
+    const aisleW=Math.max(42,w*.13);
+    const binW=Math.max(9,Math.min(11,w*.026));
+    const blockW=3*seatW+2*gap;
+    const totalW=blockW*2+aisleW+binW*2;
+    const left=(w-totalW)/2;
+    const leftBinX=left+blockW;
+    const aisleX=leftBinX+binW;
+    const rightBinX=aisleX+aisleW;
+    const rightX=rightBinX+binW;
+    return {w,h,top,bottom,rowH,seatW,gap,aisleW,binW,blockW,totalW,left,leftBinX,aisleX,rightBinX,rightX};
+  }
+
+  function seatRect(geometry,row,col){
+    const ci=COLS.indexOf(col);
+    if(ci<0 || row<1 || row>ROWS) return null;
+    const x=ci<3
+      ? geometry.left+ci*(geometry.seatW+geometry.gap)
+      : geometry.rightX+(ci-3)*(geometry.seatW+geometry.gap);
+    const y=geometry.top+(row-1)*geometry.rowH+1;
+    return {x,y,w:geometry.seatW,h:geometry.rowH-2,cx:x+geometry.seatW/2,cy:y+(geometry.rowH-2)/2};
+  }
+
+  function crewPoint(crew,geometry){
+    const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+    let x=aisleCenter;
+    let y=geometry.top+(clamp(crew.pos,0,ROWS)-.5)*geometry.rowH;
+    if(crew.state==="idle"){
+      x=aisleCenter-geometry.aisleW*.28;
+      y=geometry.top-18;
+    }else if(crew.state==="walking-to-passenger") x=aisleCenter-geometry.aisleW*.24;
+    else if(crew.state==="returning-front") x=aisleCenter+geometry.aisleW*.24;
+    else if(crew.state==="assisting") x=aisleCenter+(crew.targetPassengerId%2?1:-1)*geometry.aisleW*.2;
+    if((crew.squeezeDelayRemaining||0)>0) x+=Math.sin(crew.pos*8)*2;
+    return {crew,x,y};
+  }
+
+  function passengerPoint(passenger,geometry){
+    const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+    const baseX=aisleCenter+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08);
+    let x=baseX;
+    let y=geometry.top+(clamp(passenger.pos,0,ROWS)-.5)*geometry.rowH;
+    let seatingProgress=0;
+    if(passenger.state==="walking-to-restroom") x=aisleCenter-geometry.aisleW*.22;
+    else if(passenger.state==="walking-from-restroom") x=aisleCenter+geometry.aisleW*.22;
+    else if(passenger.state==="restroom"){
+      x=aisleCenter+geometry.aisleW*.32;
+      y=geometry.top-18;
+    }else if((passenger.squeezeDelayRemaining||0)>0 || (passenger.crewYieldRemaining||0)>0){
+      x=baseX+geometry.aisleW*.18;
+    }else if(passenger.incidentType==="tipsy" && passenger.state==="walking"){
+      x=baseX+Math.sin((passenger.pos+passenger.id)*5)*2.4;
+    }
+    if(passenger.state==="seating"){
+      const target=seatRect(geometry,passenger.row,passenger.col);
+      const duration=Math.max(.001,passenger.seatingDuration||passenger.remaining||1);
+      seatingProgress=clamp(1-passenger.remaining/duration,0,1);
+      const eased=seatingProgress<.5
+        ? 2*seatingProgress*seatingProgress
+        : 1-Math.pow(-2*seatingProgress+2,2)/2;
+      x=baseX+(target.cx-baseX)*eased;
+      y=target.cy-Math.sin(seatingProgress*Math.PI)*Math.min(4,geometry.rowH*.18);
+    }
+    return {p:passenger,x,y,seatingProgress};
+  }
+
+  function hitTestSim(sim,canvas,clientX,clientY){
+    const rect=canvas.getBoundingClientRect();
+    if(!rect.width || !rect.height) return null;
+    const x=(clientX-rect.left)*canvas.width/rect.width;
+    const y=(clientY-rect.top)*canvas.height/rect.height;
+    const geometry=cabinGeometry(canvas.width,canvas.height);
+
+    const crew=crewPoint(sim.crew,geometry);
+    if(Math.hypot(x-crew.x,y-crew.y)<=12){
+      return {kind:"crew",crew:sim.crew,point:crew};
+    }
+
+    const active=(sim.active||[]).map(passenger=>passengerPoint(passenger,geometry));
+    for(let index=active.length-1;index>=0;index--){
+      const point=active[index];
+      const radius=(point.p.isChild?4.3:5.6)+5;
+      if(Math.hypot(x-point.x,y-point.y)<=radius){
+        return {kind:"passenger",passenger:point.p,point};
+      }
+    }
+
+    for(let row=1;row<=ROWS;row++){
+      for(const col of COLS){
+        const seat=seatRect(geometry,row,col);
+        if(x<seat.x || x>seat.x+seat.w || y<seat.y || y>seat.y+seat.h) continue;
+        const seatKey=`${row}${col}`;
+        const occupant=sim.occupancy.get(seatKey)||null;
+        const assigned=occupant||sim.queue.find(passenger=>passenger.seatKey===seatKey)||null;
+        return {
+          kind:"seat",
+          row,
+          col,
+          seatKey,
+          occupant,
+          assigned,
+          isAssigned:sim.assignedSeats.has(seatKey),
+          rect:seat
+        };
+      }
+    }
+    return null;
   }
 
   function drawSim(sim,canvas){
@@ -925,16 +2284,20 @@
     const w=canvas.width,h=canvas.height;
     ctx.clearRect(0,0,w,h);
 
-    const top=34,bottom=h-18;
-    const rowH=(bottom-top)/ROWS;
-    const seatW=Math.min(38,(w-110)/6);
-    const gap=3;
-    const aisleW=Math.max(42,w*.13);
-    const blockW=3*seatW+2*gap;
-    const totalW=blockW*2+aisleW;
-    const left=(w-totalW)/2;
-    const aisleX=left+blockW;
-    const rightX=aisleX+aisleW;
+    const geometry=cabinGeometry(w,h);
+    const {top,bottom,rowH,seatW,gap,aisleW,binW,left,leftBinX,aisleX,rightBinX,rightX}=geometry;
+
+    const bagsByBin=new Map();
+    for(const bag of sim.stowedBags||[]){
+      const key=`${bag.row}${bag.side}`;
+      if(!bagsByBin.has(key)) bagsByBin.set(key,[]);
+      bagsByBin.get(key).push(bag);
+    }
+    const activeStows=new Set(
+      sim.active
+        .filter(p=>(p.state==="stowing" || p.state==="crew-assist") && p.hasBag)
+        .map(p=>`${p.row}${p.side}`)
+    );
 
     ctx.fillStyle=palette.aisle;
     ctx.fillRect(aisleX-5,top-8,aisleW+10,bottom-top+16);
@@ -954,23 +2317,43 @@
         ctx.fillText(String(r),left-7,y+rowH/2);
         ctx.textAlign="center";
       }
+
+      for(const [side,bx] of [["L",leftBinX],["R",rightBinX]]){
+        const key=`${r}${side}`;
+        ctx.fillStyle=activeStows.has(key)?"#244d67":"#10283c";
+        ctx.fillRect(bx,y+1,binW,rowH-2);
+        ctx.strokeStyle=activeStows.has(key)?"#70d9ff":palette.grid;
+        ctx.strokeRect(bx+.5,y+1.5,binW-1,rowH-3);
+      }
+
       for(let ci=0;ci<6;ci++){
         const col=COLS[ci];
-        const x=ci<3 ? left+ci*(seatW+gap) : rightX+(ci-3)*(seatW+gap);
+        const seat=seatRect(geometry,r,col);
         const key=`${r}${col}`;
         const occ=sim.occupancy.get(key);
         const assigned=sim.assignedSeats.has(key);
         ctx.fillStyle=occ
           ? (occ.groupType==="family"? (occ.partySeatedColor||"#c38a38") : occ.groupType==="assisted" ? "#9a61b9" : palette.seated)
           : assigned ? palette.empty : palette.unassigned;
-        ctx.fillRect(x,y+1,seatW,rowH-2);
+        ctx.fillRect(seat.x,seat.y,seat.w,seat.h);
         ctx.strokeStyle=occ?"rgba(255,255,255,.22)":palette.grid;
-        ctx.strokeRect(x+.5,y+1.5,seatW-1,rowH-3);
+        ctx.strokeRect(seat.x+.5,seat.y+.5,seat.w-1,seat.h-1);
         if(rowH>17){
           ctx.fillStyle=occ?"rgba(255,255,255,.78)":"rgba(220,235,255,.45)";
           ctx.font="9px system-ui";
-          ctx.fillText(col,x+seatW/2,y+rowH/2);
+          ctx.fillText(col,seat.cx,seat.cy);
         }
+      }
+
+      for(const [side,bx] of [["L",leftBinX],["R",rightBinX]]){
+        const bags=bagsByBin.get(`${r}${side}`)||[];
+        if(!bags.length) continue;
+        const bagH=Math.min(4.5,(rowH-4-(bags.length-1))/bags.length);
+        const totalH=bags.length*bagH+(bags.length-1);
+        const startY=y+(rowH-totalH)/2;
+        bags.forEach((bag,index)=>{
+          drawBag(ctx,bx+2,startY+index*(bagH+1),Math.max(4,binW-4),bagH,bagColor(bag),.95);
+        });
       }
     }
 
@@ -982,12 +2365,20 @@
     ctx.font="10px system-ui";
     ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
 
-    const activePoint=p=>({
-      p,
-      y:top+(clamp(p.pos,0,ROWS)-.5)*rowH,
-      x:aisleX+aisleW/2 + ((p.id%3)-1)*Math.min(4,aisleW*.08)
-    });
-    const points=sim.active.map(activePoint);
+    const lavW=Math.min(36,Math.max(28,seatW*1.25));
+    const lavH=22;
+    const lavX=Math.min(w-lavW-4,rightX+3*seatW+2*gap-lavW);
+    const lavY=top-29;
+    roundedRect(ctx,lavX,lavY,lavW,lavH,5);
+    ctx.fillStyle="#10283c";
+    ctx.fill();
+    ctx.strokeStyle="#4c7898";
+    ctx.stroke();
+    ctx.fillStyle="#b8c9df";
+    ctx.font="800 8px system-ui";
+    ctx.fillText("LAV",lavX+lavW/2,lavY+lavH/2+.5);
+
+    const points=sim.active.map(passenger=>passengerPoint(passenger,geometry));
     const activeFamilies=new Map();
     for(const point of points){
       if(point.p.groupType!=="family") continue;
@@ -995,7 +2386,6 @@
       activeFamilies.get(point.p.unitId).push(point);
     }
 
-    // Subtle connectors make contiguous members of the same family read as one party.
     for(const members of activeFamilies.values()){
       if(members.length<2) continue;
       members.sort((a,b)=>a.p.queueIndex-b.p.queueIndex);
@@ -1010,11 +2400,73 @@
       ctx.restore();
     }
 
-    for(const {p,x,y} of points){
+    for(const {p,x,y,seatingProgress} of points){
+      const color=p.characterColor||(p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType]);
+      if(p.state==="seating"){
+        const target=seatRect(geometry,p.row,p.col);
+        ctx.save();
+        ctx.setLineDash([3,3]);
+        ctx.strokeStyle=`rgba(134,220,255,${.24+.34*(1-seatingProgress)})`;
+        ctx.lineWidth=1.2;
+        ctx.beginPath();
+        ctx.moveTo(aisleX+aisleW/2,target.cy);
+        ctx.lineTo(target.cx,target.cy);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if(p.hasBag && !p.bagStowed){
+        let bagX=x+(p.side==="L"?-10:4);
+        let bagY=y-2;
+        if(p.state==="stowing" || p.state==="crew-assist"){
+          const targetX=p.side==="L"?leftBinX+binW/2:rightBinX+binW/2;
+          const duration=Math.max(.001,p.state==="crew-assist"?(p.crewAssistTotal||p.remaining||1):(p.stowDuration||p.remaining||1));
+          const progress=clamp(1-p.remaining/duration,0,1);
+          const eased=1-Math.pow(1-progress,2);
+          bagX=(x-3.5)+(targetX-x)*eased;
+          bagY=y-4-Math.sin(progress*Math.PI)*5;
+          ctx.save();
+          ctx.setLineDash([2,3]);
+          ctx.strokeStyle="rgba(153,226,255,.42)";
+          ctx.beginPath();
+          ctx.moveTo(x,y);
+          ctx.lineTo(targetX,y);
+          ctx.stroke();
+          ctx.restore();
+        }
+        drawBag(ctx,bagX,bagY,7,8,color,.98);
+      }
+
       const radius=p.isChild?4.3:5.6;
+      if(p.state==="walking-to-restroom" || p.state==="walking-from-restroom"){
+        ctx.save();
+        ctx.fillStyle="rgba(255,240,168,.9)";
+        ctx.font="900 9px system-ui";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText(p.state==="walking-to-restroom"?"↑":"↓",x,y-10);
+        ctx.restore();
+      }
+      if((p.squeezeDelayRemaining||0)>0 && !p.characterId){
+        ctx.beginPath();
+        ctx.arc(x,y,radius+2.6,0,Math.PI*2);
+        ctx.strokeStyle="rgba(255,207,102,.75)";
+        ctx.lineWidth=1.2;
+        ctx.stroke();
+      }
+  if(p.characterId){
+
+    const pulse=3.5+Math.sin(sim.time*5)*.7;
+    ctx.beginPath();
+    ctx.arc(x,y,radius+pulse,0,Math.PI*2);
+    ctx.strokeStyle="#fff0a8";
+    ctx.lineWidth=1.7;
+    ctx.stroke();
+  }
+
       ctx.beginPath();
       ctx.arc(x,y,radius,0,Math.PI*2);
-      ctx.fillStyle=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+      ctx.fillStyle=color;
       ctx.fill();
       if(p.isChild){
         ctx.strokeStyle=palette.child;
@@ -1025,9 +2477,60 @@
         ctx.lineWidth=1.7;
         ctx.stroke();
       }
+      if(p.characterId){
+        ctx.fillStyle="#2b2108";
+        ctx.font="900 7px system-ui";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText(p.characterLabel||"•",x,y+.3);
+      }
     }
 
-    // Keep one label visible per active family. As the leader sits, the next member inherits it.
+    const crewVisual=crewPoint(sim.crew,geometry);
+    const crewTarget=sim.crew.targetPassengerId==null?null:points.find(point=>point.p.id===sim.crew.targetPassengerId);
+    if(sim.crew.state==="assisting" && crewTarget){
+      ctx.save();
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle="rgba(86,224,181,.7)";
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(crewVisual.x,crewVisual.y);
+      ctx.lineTo(crewTarget.x,crewTarget.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    const crewRadius=6.2;
+    if(sim.crew.state==="assisting"){
+      ctx.beginPath();
+      ctx.arc(crewVisual.x,crewVisual.y,crewRadius+3+Math.sin(sim.time*6)*.7,0,Math.PI*2);
+      ctx.strokeStyle="rgba(141,255,218,.88)";
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(crewVisual.x,crewVisual.y,crewRadius,0,Math.PI*2);
+    ctx.fillStyle=sim.crew.color||"#56e0b5";
+    ctx.fill();
+    ctx.strokeStyle="#eafff7";
+    ctx.lineWidth=1.2;
+    ctx.stroke();
+    ctx.fillStyle="#09261e";
+    ctx.font="900 6px system-ui";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText("FA",crewVisual.x,crewVisual.y+.2);
+    ctx.restore();
+
+    for(const {p,x,y} of points){
+      if(p.bubbleText && (p.bubbleUntil||0)>=sim.time){
+        drawCharacterBubble(ctx,p.bubbleText,x,y,w,h);
+      }
+    }
+    if(sim.crew.bubbleText && (sim.crew.bubbleUntil||0)>=sim.time){
+      drawCharacterBubble(ctx,sim.crew.bubbleText,crewVisual.x,crewVisual.y,w,h);
+    }
+
     for(const members of activeFamilies.values()){
       const carrier=members.reduce((best,item)=>item.p.queueIndex<best.p.queueIndex?item:best);
       const label=`${carrier.p.partyLabel}·${carrier.p.partySize}`;
@@ -1041,9 +2544,7 @@
       let labelX=carrier.x+8;
       if(labelX+boxW>w-3) labelX=carrier.x-8-boxW;
       const labelY=clamp(carrier.y-boxH/2-7,2,h-boxH-2);
-      ctx.beginPath();
-      if(ctx.roundRect) ctx.roundRect(labelX,labelY,boxW,boxH,4);
-      else ctx.rect(labelX,labelY,boxW,boxH);
+      roundedRect(ctx,labelX,labelY,boxW,boxH,4);
       ctx.fillStyle="rgba(5,14,25,.90)";
       ctx.fill();
       ctx.strokeStyle=carrier.p.partyColor||palette.family;
@@ -1055,23 +2556,755 @@
     }
 
     if(sim.done){
-      ctx.fillStyle="rgba(6,15,27,.72)";
-      ctx.fillRect(0,0,w,h);
+      const plaqueW=Math.min(190,w-24);
+      const plaqueH=62;
+      const plaqueX=(w-plaqueW)/2;
+      const plaqueY=h/2-plaqueH/2;
+      roundedRect(ctx,plaqueX,plaqueY,plaqueW,plaqueH,12);
+      ctx.fillStyle="rgba(6,15,27,.92)";
+      ctx.fill();
+      ctx.strokeStyle="#4c7898";
+      ctx.lineWidth=1.2;
+      ctx.stroke();
       ctx.fillStyle="#e9f8ff";
       ctx.font="800 25px system-ui";
-      ctx.fillText(formatTime(sim.time),w/2,h/2-8);
+      ctx.fillText(formatTime(sim.time),w/2,plaqueY+23);
       ctx.fillStyle="#9eb0c9";
       ctx.font="12px system-ui";
-      ctx.fillText("boarding complete",w/2,h/2+18);
+      ctx.fillText("boarding complete",w/2,plaqueY+45);
     }
   }
 
-  function renderAll(){
-    let allDone=true;
+  function escapeHtml(value){
+    return String(value??"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  function passengerName(passenger){
+    return passenger.displayName||`Passenger ${passenger.id+1}`;
+  }
+
+  function travelerType(passenger){
+    if(passenger.isReduced) return "reduced-mobility traveler";
+    if(passenger.isChild) return "child";
+    if(passenger.groupType==="assisted") return "assisted-party companion";
+    return "adult";
+  }
+
+  function partyText(passenger){
+    if(passenger.groupType==="single") return "traveling alone";
+    const label=passenger.partyLabel||passenger.unitId;
+    const kind=passenger.groupType==="family"?"family":"assisted party";
+    return `${kind} ${label} · ${passenger.partySize||2} people`;
+  }
+
+  function stateText(passenger,sim){
+    if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="walking-to-restroom") return `backtracking toward front lavatory · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="restroom") return `inside front lavatory · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="incident-pause") return `${passenger.incidentType||"incident"} delay in aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="walking-from-restroom") return `returning toward row ${passenger.row} · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="failed-lift") return `failed overhead-bin lift · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="awaiting-crew") return "blocking the aisle while waiting for cabin crew";
+    if(passenger.state==="crew-assist") return `crew lifting carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
+    if((passenger.queueIndex??Infinity)>=sim.pending) return `waiting at gate · ${Math.max(0,(passenger.queueIndex??0)-sim.pending)} ahead before release`;
+    return passenger.state||"waiting";
+  }
+
+  function row(label,value){
+    return `<div class="sim-tooltip-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  }
+
+  function passengerDetails(passenger,sim){
+    const character=[];
+    if(passenger.characterRole) character.push(row("Role",passenger.characterRole));
+    if(passenger.originalQueueIndex!=null && passenger.lateQueueIndex!=null){
+      character.push(row(
+        "Late arrival",
+        `joined ${passenger.lateQueueIndex+1} of ${sim.queue.length} · normal method position was ${passenger.originalQueueIndex+1}`
+      ));
+    }
+    if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
+    if(passenger.eventState) character.push(row("Current event",passenger.eventState));
+    if(passenger.restroomTripStarted){
+      character.push(row("Aisle crossings",`${passenger.squeezePasses||0} passenger squeezes`));
+      character.push(row("Restroom trip",passenger.restroomTripComplete
+        ? `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed · ${(passenger.restroomExtraDelay||0).toFixed(1)}s extra`
+        : `${(passenger.restroomTripElapsed||0).toFixed(1)}s elapsed`));
+    }
+    if(passenger.baselineWalkSpeed) character.push(row("Normal walking speed",`${passenger.baselineWalkSpeed.toFixed(2)} rows/sec`));
+    if(passenger.incidentStops) character.push(row("Incident stops",`${passenger.incidentStopIndex||0} of ${passenger.incidentStops.length} completed`));
+    if(passenger.disruptionDelaySeconds) character.push(row("Passenger disruption",`${passenger.disruptionDelaySeconds.toFixed(1)}s slowed by ${passenger.disruptedByCharacter||"another traveler"}`));
+    if(passenger.crewYieldSeconds) character.push(row("Yielded to crew",`${passenger.crewYieldSeconds.toFixed(1)}s across ${passenger.crewYieldCount||1} crossing${passenger.crewYieldCount===1?"":"s"}`));
+    if(passenger.requiresCrewHelp){
+      const help=passenger.crewAssistanceComplete
+        ? `${(passenger.crewEventDelay||0).toFixed(1)}s · completed by Maya`
+        : passenger.crewRequestQueued?"requested · crew responding":"required at the overhead bin";
+      character.push(row("Crew help",help));
+    }
+    if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
+    return `
+      <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
+      <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>
+      ${row("Party",partyText(passenger))}
+      ${row("Boarding order",`${(passenger.queueIndex??0)+1} of ${sim.queue.length}`)}
+      ${row("Current state",stateText(passenger,sim))}
+      ${row("Walking speed",`${passenger.walkSpeed.toFixed(2)} rows/sec`)}
+      ${row("Carry-on",passenger.hasBag?(passenger.bagStowed?"stowed overhead":`${passenger.bagBase.toFixed(1)}s base stow`):"none")}
+      ${row("Base seating",`${passenger.seatBase.toFixed(1)}s`)}
+      ${character.join("")}`;
+  }
+
+  function crewDetails(crew,sim){
+    const target=crew.targetPassengerId==null?null:sim.queue.find(p=>p.id===crew.targetPassengerId);
+    return `
+      <div class="sim-tooltip-title">${escapeHtml(crew.displayName)}</div>
+      <div class="sim-tooltip-subtitle">Cabin crew · front-cabin responder</div>
+      ${row("Current state",crew.status||crew.state)}
+      ${row("Current task",crew.eventState||"available")}
+      ${row("Position",crew.state==="idle"?"front door":`near row ${Math.max(1,Math.ceil(crew.pos||0))}`)}
+      ${row("Target",target?`${passengerName(target)} · row ${target.row}`:"none")}
+      ${row("Assists completed",String(crew.assistsCompleted||0))}
+      ${row("Aisle travel",`${(crew.travelDistance||0).toFixed(1)} rows`)}
+      ${row("Passenger squeezes",String(crew.squeezePasses||0))}`;
+  }
+
+  function tooltipHtml(hit,sim){
+    if(hit.kind==="crew") return crewDetails(hit.crew,sim);
+    if(hit.kind==="passenger") return passengerDetails(hit.passenger,sim);
+    const passenger=hit.occupant||hit.assigned;
+    if(!hit.isAssigned){
+      return `<div class="sim-tooltip-title">Seat ${escapeHtml(hit.seatKey)}</div><div class="sim-tooltip-subtitle">Unassigned on this flight</div>${row("Status","empty")}`;
+    }
+    const status=hit.occupant?"occupied":passenger?.state==="seating"?"passenger entering row":"assigned · passenger not seated yet";
+    return `<div class="sim-tooltip-title">Seat ${escapeHtml(hit.seatKey)}</div><div class="sim-tooltip-subtitle">${escapeHtml(status)}</div>${passenger?passengerDetails(passenger,sim):""}`;
+  }
+
+  const $ = id => document.getElementById(id);
+  const controls = {
+    loadFactor:$("loadFactor"),
+    familyShare:$("familyShare"),
+    party2:$("party2"),
+    party3:$("party3"),
+    party4:$("party4"),
+    party5:$("party5"),
+    assistedParties:$("assistedParties"),
+    bagRate:$("bagRate"),
+    sequenceCompliance:$("sequenceCompliance"),
+    priorityPolicy:$("priorityPolicy"),
+    disruptivePassengers:$("disruptivePassengers"),
+    chatter:$("chatter"),
+    speed:$("speed"),
+    seed:$("seed"),
+    trials:$("trials")
+  };
+
+  let sims = {};
+  let manifest = null;
+  let running = false;
+  let lastFrame = performance.now();
+  let accumulator = 0;
+  let benchmarking = false;
+  let benchmarkResult = null;
+  let activePresetId = "custom";
+  let toastTimer = null;
+  let selectedMethods = new Set(METHODS);
+  let raceLayout = "standard";
+  let characterScenario = "none";
+  const simHover={method:null,canvas:null,clientX:0,clientY:0};
+  const raceHud={
+    leader:null,
+    leadFlash:new Map(),
+    spotlightTimer:null,
+    lastPaint:-Infinity,
+    chartSize:"small",
+    history:Object.fromEntries(METHODS.map(method=>[method,[]]))
+  };
+
+  function activeMethods(){
+    return METHODS.filter(method=>selectedMethods.has(method));
+  }
+
+  function ordinal(value){
+    const mod100=value%100;
+    if(mod100>=11 && mod100<=13) return `${value}th`;
+    return `${value}${value%10===1?"st":value%10===2?"nd":value%10===3?"rd":"th"}`;
+  }
+
+  function freshRaceHistory(){
+    return Object.fromEntries(METHODS.map(method=>[method,[]]));
+  }
+
+  function clearRaceHud(){
+    raceHud.leader=null;
+    raceHud.leadFlash.clear();
+    raceHud.lastPaint=-Infinity;
+    raceHud.history=freshRaceHistory();
+    document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+      card.classList.remove("spotlight","finished-card");
+      delete card.dataset.finishPlace;
+    });
+    $("raceLeaderboard").innerHTML="";
+    $("raceChartLegend").innerHTML="";
+    $("raceClock").textContent="00:00";
+  }
+
+  function focusMethod(method){
+    const card=document.querySelector(`.sim-card[data-method="${method}"]`);
+    if(!card || card.hidden) return;
+    document.querySelectorAll(".sim-card.spotlight").forEach(item=>item.classList.remove("spotlight"));
+    card.classList.add("spotlight");
+    card.scrollIntoView({behavior:"smooth",block:"nearest"});
+    clearTimeout(raceHud.spotlightTimer);
+    raceHud.spotlightTimer=setTimeout(()=>card.classList.remove("spotlight"),1800);
+  }
+
+  function gapLabel(row,leader){
+    if(row.done){
+      if(row.rank===1) return "First finisher";
+      return `+${formatTime(Math.max(0,row.time-leader.time))}`;
+    }
+    if(row.rank===1) return "Leader";
+    const gap=Math.max(0,leader.completed-row.completed);
+    if(gap===0) return "Tied on seated";
+    return `${gap} passenger${gap===1?"":"s"} back`;
+  }
+
+  function recordRaceHistory(force=false){
     for(const method of METHODS){
       const sim=sims[method];
       if(!sim) continue;
-      allDone=allDone&&sim.done;
+      const points=raceHud.history[method]||(raceHud.history[method]=[]);
+      const last=points.at(-1);
+      const changed=!last || last.time!==sim.time || last.seated!==sim.completed;
+      const intervalReached=!last || sim.time-last.time>=.5;
+      if(changed && (force || intervalReached || sim.done)){
+        points.push({time:sim.time,seated:sim.completed});
+      }
+    }
+  }
+
+  function setRaceChartSize(size){
+    const valid=["small","medium","large"];
+    raceHud.chartSize=valid.includes(size)?size:"small";
+    $("raceHud").dataset.chartSize=raceHud.chartSize;
+    document.querySelectorAll("[data-chart-size]").forEach(button=>{
+      const active=button.dataset.chartSize===raceHud.chartSize;
+      button.classList.toggle("active",active);
+      button.setAttribute("aria-pressed",String(active));
+    });
+    raceHud.lastPaint=-Infinity;
+    renderRaceHud(true);
+  }
+
+  function drawRaceChart(methods){
+    const canvas=$("raceChart");
+    const rect=canvas.getBoundingClientRect();
+    if(rect.width<20 || rect.height<20) return;
+    const dpr=Math.min(2,globalThis.devicePixelRatio||1);
+    const pixelWidth=Math.max(1,Math.round(rect.width*dpr));
+    const pixelHeight=Math.max(1,Math.round(rect.height*dpr));
+    if(canvas.width!==pixelWidth || canvas.height!==pixelHeight){
+      canvas.width=pixelWidth;
+      canvas.height=pixelHeight;
+    }
+    const ctx=canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const width=rect.width;
+    const height=rect.height;
+    ctx.clearRect(0,0,width,height);
+
+    const margin={left:46,right:14,top:13,bottom:27};
+    const plotW=Math.max(1,width-margin.left-margin.right);
+    const plotH=Math.max(1,height-margin.top-margin.bottom);
+    const total=Math.max(1,...METHODS.map(method=>sims[method]?.queue.length||0));
+    const observedMax=Math.max(0,...METHODS.map(method=>sims[method]?.time||0));
+    const maxTime=Math.max(60,observedMax);
+    const x=time=>margin.left+clamp(time/maxTime,0,1)*plotW;
+    const y=seated=>margin.top+plotH-clamp(seated/total,0,1)*plotH;
+
+    ctx.font="10px system-ui";
+    ctx.lineWidth=1;
+    ctx.textBaseline="middle";
+    for(let index=0;index<=4;index++){
+      const seated=Math.round(total*index/4);
+      const py=y(seated);
+      ctx.strokeStyle="rgba(72,102,133,.38)";
+      ctx.beginPath();
+      ctx.moveTo(margin.left,py);
+      ctx.lineTo(width-margin.right,py);
+      ctx.stroke();
+      ctx.fillStyle="#8da6bf";
+      ctx.textAlign="right";
+      ctx.fillText(String(seated),margin.left-7,py);
+    }
+    for(let index=0;index<=4;index++){
+      const time=maxTime*index/4;
+      const px=x(time);
+      ctx.strokeStyle="rgba(72,102,133,.23)";
+      ctx.beginPath();
+      ctx.moveTo(px,margin.top);
+      ctx.lineTo(px,margin.top+plotH);
+      ctx.stroke();
+      ctx.fillStyle="#8da6bf";
+      ctx.textAlign=index===0?"left":index===4?"right":"center";
+      ctx.textBaseline="top";
+      ctx.fillText(formatTime(time),px,height-margin.bottom+7);
+    }
+
+    ctx.save();
+    ctx.translate(12,margin.top+plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillStyle="#8da6bf";
+    ctx.font="10px system-ui";
+    ctx.textAlign="center";
+    ctx.textBaseline="top";
+    ctx.fillText("Passengers seated",0,0);
+    ctx.restore();
+
+    for(const method of methods){
+      const points=raceHud.history[method]||[];
+      if(!points.length) continue;
+      ctx.strokeStyle=META[method].chartColor;
+      ctx.fillStyle=META[method].chartColor;
+      ctx.lineWidth=2.2;
+      ctx.lineJoin="round";
+      ctx.lineCap="round";
+      ctx.beginPath();
+      ctx.moveTo(x(points[0].time),y(points[0].seated));
+      for(let index=1;index<points.length;index++){
+        const previous=points[index-1];
+        const point=points[index];
+        ctx.lineTo(x(point.time),y(previous.seated));
+        ctx.lineTo(x(point.time),y(point.seated));
+      }
+      ctx.stroke();
+      const last=points.at(-1);
+      ctx.beginPath();
+      ctx.arc(x(last.time),y(last.seated),3.2,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    $("raceChartLegend").innerHTML=methods.map(method=>
+      `<span><i style="--series-color:${META[method].chartColor}"></i>${META[method].shortLabel}</span>`
+    ).join("");
+  }
+
+  function renderRaceHud(force=false){
+    const now=performance.now();
+    if(!force && now-raceHud.lastPaint<120) return;
+    raceHud.lastPaint=now;
+    recordRaceHistory(force);
+    const methods=activeMethods();
+    if(!methods.length || !methods.every(method=>sims[method])) return;
+    const rows=rankRace(methods,sims);
+    const leader=rows[0];
+    const leaderTime=sims[leader.method]?.time||0;
+    if(!raceHud.leader){
+      raceHud.leader=leader.method;
+    }else if(running && leaderTime>1 && raceHud.leader!==leader.method){
+      raceHud.leader=leader.method;
+      raceHud.leadFlash.set(leader.method,now+1200);
+    }
+    const maxTime=Math.max(...METHODS.map(method=>sims[method]?.time||0));
+    $("raceClock").textContent=formatTime(maxTime);
+
+    $("raceLeaderboard").innerHTML=rows.map(row=>{
+      const flash=(raceHud.leadFlash.get(row.method)||0)>now;
+      const place=row.done && row.rank<=3?["🥇","🥈","🥉"][row.rank-1]:row.rank;
+      const status=row.done?`${formatTime(row.time)} finish`:`${Math.round(row.percent)}% seated`;
+      return `<button type="button" class="race-row${row.rank===1?" leader":""}${row.done?" finished":""}${flash?" lead-change":""}" data-method="${row.method}" title="${META[row.method].label}">
+        <span class="race-rank">${place}</span>
+        <span class="race-name">${META[row.method].shortLabel}</span>
+        <span class="race-stat">${status}</span>
+        <span class="race-progress" aria-hidden="true"><span style="width:${clamp(row.percent,0,100).toFixed(1)}%"></span></span>
+        <span class="race-gap">${gapLabel(row,leader)}</span>
+      </button>`;
+    }).join("");
+
+    document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+      card.classList.remove("finished-card");
+      delete card.dataset.finishPlace;
+    });
+    for(const row of rows.filter(item=>item.done)){
+      const card=document.querySelector(`.sim-card[data-method="${row.method}"]`);
+      if(!card) continue;
+      card.classList.add("finished-card");
+      card.dataset.finishPlace=ordinal(row.rank);
+    }
+    drawRaceChart(methods);
+  }
+
+  function initializeRaceHud(){
+    $("raceLeaderboard").addEventListener("click",event=>{
+      const target=event.target.closest("[data-method]");
+      if(target) focusMethod(target.dataset.method);
+    });
+    document.querySelectorAll("[data-chart-size]").forEach(button=>{
+      button.addEventListener("click",()=>setRaceChartSize(button.dataset.chartSize));
+    });
+  }
+
+
+  function hideSimTooltip(){
+    simHover.method=null;
+    simHover.canvas=null;
+    const tooltip=$("simTooltip");
+    tooltip.hidden=true;
+    document.querySelectorAll(".sim-card canvas").forEach(canvas=>canvas.style.cursor="default");
+  }
+
+  function positionSimTooltip(clientX,clientY){
+    const tooltip=$("simTooltip");
+    const gap=14;
+    const rect=tooltip.getBoundingClientRect();
+    let left=clientX+gap;
+    let top=clientY+gap;
+    if(left+rect.width>innerWidth-8) left=clientX-rect.width-gap;
+    if(top+rect.height>innerHeight-8) top=clientY-rect.height-gap;
+    tooltip.style.left=`${Math.max(8,left)}px`;
+    tooltip.style.top=`${Math.max(8,top)}px`;
+  }
+
+  function refreshSimTooltip(){
+    if(!simHover.method || !simHover.canvas || simHover.canvas.closest("article")?.hidden){
+      hideSimTooltip();
+      return;
+    }
+    const sim=sims[simHover.method];
+    if(!sim) return;
+    const hit=hitTestSim(sim,simHover.canvas,simHover.clientX,simHover.clientY);
+    if(!hit){
+      $("simTooltip").hidden=true;
+      simHover.canvas.style.cursor="default";
+      return;
+    }
+    const tooltip=$("simTooltip");
+    tooltip.innerHTML=tooltipHtml(hit,sim);
+    tooltip.hidden=false;
+    simHover.canvas.style.cursor="help";
+    positionSimTooltip(simHover.clientX,simHover.clientY);
+  }
+
+  function initializeSimHover(){
+    for(const method of METHODS){
+      const canvas=$(META[method].canvas);
+      canvas.addEventListener("pointermove",event=>{
+        simHover.method=method;
+        simHover.canvas=canvas;
+        simHover.clientX=event.clientX;
+        simHover.clientY=event.clientY;
+        refreshSimTooltip();
+      });
+      canvas.addEventListener("pointerleave",hideSimTooltip);
+    }
+    window.addEventListener("scroll",hideSimTooltip,{passive:true});
+  }
+
+  function parseRaceView(search){
+    const params=new URLSearchParams(search||"");
+    const requested=(params.get("m")||"").split(",").filter(method=>METHODS.includes(method));
+    const methods=[...new Set(requested)];
+    const chartSize=["small","medium","large"].includes(params.get("chart"))?params.get("chart"):"small";
+    return {
+      methods:methods.length?methods:[...METHODS],
+      layout:params.get("view")==="compact"?"compact":"standard",
+      chartSize
+    };
+  }
+
+  function updateRaceView(){
+    const methods=activeMethods();
+    document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+      card.hidden=!selectedMethods.has(card.dataset.method);
+    });
+    document.querySelectorAll(".method-option input").forEach(input=>{
+      input.checked=selectedMethods.has(input.value);
+    });
+    const grid=$("simGrid");
+    grid.classList.toggle("compact-view",raceLayout==="compact");
+    grid.dataset.layout=raceLayout;
+    for(const button of document.querySelectorAll("[data-layout]")){
+      const active=button.dataset.layout===raceLayout;
+      button.classList.toggle("active",active);
+      button.setAttribute("aria-pressed",String(active));
+    }
+    $("methodSelectionStatus").textContent=`${methods.length} method${methods.length===1?"":"s"} selected · ${raceLayout==="compact"?"Compact fleet":"Roomy"} view`;
+  }
+
+  function clearBenchmark(){
+    benchmarkResult=null;
+    $("benchBody").innerHTML='<tr><td colspan="5" class="empty">No benchmark results yet.</td></tr>';
+    $("barBox").innerHTML="";
+    $("benchSubtitle").textContent="Run a benchmark to average over different manifests and delays.";
+    $("benchStatus").textContent="Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.";
+  }
+
+  function applyMethodSelection(methods,{announce=false}={}){
+    const valid=[...new Set(methods)].filter(method=>METHODS.includes(method));
+    if(!valid.length) return false;
+    selectedMethods=new Set(valid);
+    updateRaceView();
+    clearBenchmark();
+    raceHud.leader=null;
+    raceHud.lastPaint=-Infinity;
+    renderAll();
+    if(announce){
+      const count=valid.length;
+      const continuation=running
+        ? " All six simulations are still running in sync."
+        : " All six simulations remain synchronized behind the view.";
+      $("status").textContent=`Showing ${count} boarding method${count===1?"":"s"}.${continuation}`;
+    }
+    return true;
+  }
+
+  function setRaceLayout(layout){
+    raceLayout=layout==="compact"?"compact":"standard";
+    updateRaceView();
+    renderAll();
+  }
+
+  function setMethodControlsDisabled(disabled){
+    document.querySelectorAll(".method-option input").forEach(input=>input.disabled=disabled);
+    $("selectAllMethodsBtn").disabled=disabled;
+  }
+
+  function renderMethodPicker(){
+    const picker=$("methodPicker");
+    picker.innerHTML="";
+    for(const method of METHODS){
+      const label=document.createElement("label");
+      label.className="method-option";
+      const input=document.createElement("input");
+      input.type="checkbox";
+      input.value=method;
+      input.checked=true;
+      const text=document.createElement("span");
+      text.textContent=META[method].label;
+      label.append(input,text);
+      input.addEventListener("change",()=>{
+        const next=new Set(selectedMethods);
+        if(input.checked) next.add(method);
+        else next.delete(method);
+        if(!next.size){
+          input.checked=true;
+          $("methodSelectionStatus").textContent="At least one boarding method must remain selected.";
+          return;
+        }
+        applyMethodSelection([...next],{announce:true});
+      });
+      picker.appendChild(label);
+    }
+    $("selectAllMethodsBtn").addEventListener("click",()=>applyMethodSelection(METHODS,{announce:true}));
+    $("standardLayoutBtn").addEventListener("click",()=>setRaceLayout("standard"));
+    $("compactLayoutBtn").addEventListener("click",()=>setRaceLayout("compact"));
+    updateRaceView();
+  }
+
+  function normalizedPartyWeights(){
+    const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
+      const value=Number(el.value);
+      return Number.isFinite(value) && value>0 ? value : 0;
+    });
+    const max=Math.max(...raw);
+    if(max<=0) return {raw,normalized:[25,25,25,25],fallback:true};
+    // Divide by the largest input first so even enormous finite weights normalize safely.
+    const scaled=raw.map(value=>value/max);
+    const scaledTotal=scaled.reduce((a,b)=>a+b,0);
+    return {
+      raw,
+      normalized:scaled.map(value=>100*value/scaledTotal),
+      fallback:false
+    };
+  }
+
+  function snapshotScenarioSettings(){
+    return normalizeScenarioSettings({
+      loadFactor:controls.loadFactor.value,
+      familyShare:controls.familyShare.value,
+      partyWeights:[controls.party2.value,controls.party3.value,controls.party4.value,controls.party5.value],
+      assistedParties:controls.assistedParties.value,
+      bagRate:controls.bagRate.value,
+      sequenceCompliance:controls.sequenceCompliance.value,
+      priorityPolicy:controls.priorityPolicy.value,
+      disruptivePassengers:controls.disruptivePassengers.value,
+      chatter:controls.chatter.value,
+      speed:controls.speed.value,
+      seed:controls.seed.value,
+      trials:controls.trials.value,
+      characterScenario
+    });
+  }
+
+  function writeScenarioSettings(settings){
+    const value=normalizeScenarioSettings(settings);
+    controls.loadFactor.value=String(value.loadFactor);
+    controls.familyShare.value=String(value.familyShare);
+    [controls.party2,controls.party3,controls.party4,controls.party5].forEach((control,index)=>{
+      control.value=String(value.partyWeights[index]);
+    });
+    controls.assistedParties.value=String(value.assistedParties);
+    controls.bagRate.value=String(value.bagRate);
+    controls.sequenceCompliance.value=String(value.sequenceCompliance);
+    controls.priorityPolicy.value=value.priorityPolicy;
+    controls.disruptivePassengers.value=String(value.disruptivePassengers);
+    controls.chatter.value=value.chatter;
+    controls.speed.value=String(value.speed);
+    controls.seed.value=String(value.seed);
+    controls.trials.value=String(value.trials);
+    characterScenario=value.characterScenario;
+    updateControlDisplays();
+    return value;
+  }
+
+  function config(){
+    const partyWeightConfig=normalizedPartyWeights();
+    return {
+      loadFactor:+controls.loadFactor.value/100,
+      familyShare:+controls.familyShare.value/100,
+      partyWeights:partyWeightConfig.normalized,
+      partyWeightsFallback:partyWeightConfig.fallback,
+      assistedParties:clamp(+controls.assistedParties.value||0,0,12),
+      bagRate:+controls.bagRate.value/100,
+      sequenceCompliance:+controls.sequenceCompliance.value/100,
+      priorityPolicy:controls.priorityPolicy.value,
+      disruptivePassengers:clamp(Math.floor(+controls.disruptivePassengers.value||0),0,3),
+      chatter:controls.chatter.value,
+      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646),
+      characterScenario
+    };
+  }
+
+  function currentScenarioName(){
+    if(activePresetId==="custom") return "Custom scenario";
+    return SCENARIO_PRESETS.find(preset=>preset.id===activePresetId)?.name||"Custom scenario";
+  }
+
+  function setActivePreset(presetId){
+    activePresetId=presetId||"custom";
+    const selected=SCENARIO_PRESETS.find(preset=>preset.id===activePresetId && preset.included!==false && !preset.disabled);
+    $("activeScenarioLabel").textContent=selected?.name||"Custom scenario";
+    $("activeScenarioLabel").dataset.scenarioId=selected?.id||"custom";
+    document.querySelectorAll(".scenario-card").forEach(card=>{
+      const active=card.dataset.scenarioId===selected?.id;
+      card.classList.toggle("active",active);
+      card.setAttribute("aria-pressed",String(active));
+    });
+  }
+
+  function detectActivePreset(){
+    setActivePreset(matchingPreset(snapshotScenarioSettings())?.id||"custom");
+  }
+
+  function scenarioPreview(settings){
+    const preview=[
+      `${settings.loadFactor}% full`,
+      `${settings.familyShare}% families`,
+      `${settings.bagRate}% bags`,
+      `${settings.sequenceCompliance}% compliance`
+    ];
+    if(settings.disruptivePassengers) preview.push(`${settings.disruptivePassengers} disruption${settings.disruptivePassengers===1?"":"s"}`);
+    if(settings.chatter!=="off") preview.push(`${settings.chatter} chatter`);
+    if(settings.characterScenario==="barbara") preview.push("Barbara aboard");
+    return preview;
+  }
+
+  function renderScenarioCards(){
+    const grid=$("scenarioGrid");
+    grid.innerHTML="";
+    for(const preset of SCENARIO_PRESETS.filter(preset=>preset.included!==false)){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="scenario-card";
+      button.dataset.scenarioId=preset.id;
+      button.disabled=!!preset.disabled;
+      button.setAttribute("aria-pressed","false");
+
+      const heading=document.createElement("span");
+      heading.className="scenario-card-heading";
+      heading.innerHTML=`<span class="scenario-emoji" aria-hidden="true">${preset.emoji}</span><strong>${preset.name}</strong>`;
+      button.appendChild(heading);
+
+      const description=document.createElement("span");
+      description.className="scenario-description";
+      description.textContent=preset.description;
+      button.appendChild(description);
+
+      if(preset.disabled){
+        const soon=document.createElement("span");
+        soon.className="scenario-coming";
+        soon.textContent="Coming when the character-event system lands";
+        button.appendChild(soon);
+      }else{
+        const chips=document.createElement("span");
+        chips.className="scenario-chips";
+        for(const text of scenarioPreview(preset.settings)){
+          const chip=document.createElement("span");
+          chip.className="scenario-chip";
+          chip.textContent=text;
+          chips.appendChild(chip);
+        }
+        button.appendChild(chips);
+        button.addEventListener("click",()=>{
+          writeScenarioSettings(preset.settings);
+          setActivePreset(preset.id);
+          reset();
+          $("status").textContent=`${preset.name} loaded. Seed ${Number(controls.seed.value).toLocaleString()} is ready to race.`;
+        });
+      }
+      grid.appendChild(button);
+    }
+  }
+
+  function reset(){
+    const normalized=writeScenarioSettings(snapshotScenarioSettings());
+    const cfg=config();
+    manifest=makeManifest(cfg.seed,cfg);
+    sims={};
+    for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
+    clearRaceHud();
+    hideSimTooltip();
+    running=false;
+    accumulator=0;
+    $("pauseBtn").textContent="Pause";
+    const familyUnits=manifest.units.filter(u=>u.groupType==="family");
+    const familyCounts=new Map();
+    for(const unit of familyUnits) familyCounts.set(unit.passengers.length,(familyCounts.get(unit.passengers.length)||0)+1);
+    const familySummary=familyUnits.length
+      ? [...familyCounts.entries()].sort((a,b)=>a[0]-b[0]).map(([size,count])=>`${count}×${size}`).join(", ")
+      : "none";
+    const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
+    const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
+    const characterNote=manifest.characters?.length?` ${manifest.characters.map(character=>character.id==="barbara"?"Barbara":"A named passenger").join(", ")} is aboard.`:"";
+    $("benchSeedValue").textContent=normalized.seed.toLocaleString();
+    $("status").textContent=`${currentScenarioName()} · seed ${normalized.seed.toLocaleString()} · ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}${characterNote}`;
+    renderAll();
+  }
+
+  function panelElements(method){
+    return {
+      time:$(method+"Time"),
+      done:$(method+"Done"),
+      conflicts:$(method+"Conflicts"),
+      blocked:$(method+"Blocked"),
+      queue:$(method+"Queue")
+    };
+  }
+
+  function renderAll(){
+    const methods=activeMethods();
+    const allDone=METHODS.every(method=>sims[method]?.done);
+    for(const method of methods){
+      const sim=sims[method];
+      if(!sim) continue;
       drawSim(sim,$(META[method].canvas));
       const el=panelElements(method);
       el.time.textContent=formatTime(sim.time);
@@ -1080,10 +3313,14 @@
       el.blocked.textContent=`${Math.round(sim.blockedSeconds)} s`;
       el.queue.textContent=String(sim.queue.length-sim.pending);
     }
+    renderRaceHud();
+    if(simHover.method) refreshSimTooltip();
     if(allDone && running){
       running=false;
-      const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-      $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
+      const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+      $("status").textContent=methods.length===1
+        ? `Complete. ${META[winner].label} finished ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`
+        : `Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
     }
   }
 
@@ -1104,13 +3341,15 @@
   }
 
   function run(){
-    if(!manifest || METHODS.some(m=>sims[m].done)) reset();
+    const methods=activeMethods();
+    if(!manifest || METHODS.every(method=>sims[method]?.done)) reset();
     running=true;
     $("pauseBtn").textContent="Pause";
-    $("status").textContent="Running the same manifest through all six methods…";
+    $("status").textContent=`Showing ${methods.length} selected method${methods.length===1?"":"s"} while all six simulations run in sync…`;
   }
+
   function pause(){
-    if(!running && METHODS.every(m=>sims[m].time===0)){
+    if(!running && METHODS.every(method=>sims[method]?.time===0)){
       $("status").textContent="Nothing is running yet.";
       return;
     }
@@ -1118,36 +3357,26 @@
     $("pauseBtn").textContent=running?"Pause":"Resume";
     $("status").textContent=running?"Running…":"Paused.";
   }
+
   function finish(){
     running=false;
     $("pauseBtn").textContent="Pause";
+    const methods=activeMethods();
     for(const method of METHODS) sims[method].runToEnd(.15);
     renderAll();
-    const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-    $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
+    const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+    $("status").textContent=methods.length===1
+      ? `Complete. ${META[winner].label} finished ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`
+      : `Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
   }
 
-  function percentile(sorted,p){
-    if(!sorted.length) return NaN;
-    const pos=(sorted.length-1)*p;
-    const lo=Math.floor(pos),hi=Math.ceil(pos);
-    return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
-  }
-  function stats(values){
-    const s=values.slice().sort((a,b)=>a-b);
-    return {
-      mean:s.reduce((a,b)=>a+b,0)/s.length,
-      median:percentile(s,.5),
-      p10:percentile(s,.1),
-      p90:percentile(s,.9)
-    };
-  }
   function renderBenchmark(result){
     const body=$("benchBody");
     body.innerHTML="";
-    const bestMean=Math.min(...METHODS.map(m=>result[m].stats.mean));
-    const maxMean=Math.max(...METHODS.map(m=>result[m].stats.mean));
-    for(const m of METHODS){
+    const methods=result.methods;
+    const bestMean=Math.min(...methods.map(m=>result[m].stats.mean));
+    const maxMean=Math.max(...methods.map(m=>result[m].stats.mean));
+    for(const m of methods){
       const row=document.createElement("tr");
       const st=result[m].stats;
       row.innerHTML=`
@@ -1158,10 +3387,11 @@
         <td>${result[m].wins}</td>`;
       body.appendChild(row);
     }
-    $("benchSubtitle").textContent=`${result.trials} trials · same manifest per trial · lower is better`;
+    const repeatNote=result.repeated?" · exact rerun; deterministic results unchanged":"";
+    $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better${repeatNote}`;
     const box=$("barBox");
     box.innerHTML="";
-    for(const m of METHODS){
+    for(const m of methods){
       const st=result[m].stats;
       const row=document.createElement("div");
       row.className="barrow";
@@ -1178,48 +3408,62 @@
     const benchStatus=$("benchStatus");
     button.disabled=true;
     button.textContent="Benchmarking…";
+    setMethodControlsDisabled(true);
 
     // Capture an independent scenario snapshot. The visible simulations keep their
     // current state and continue animating while these fresh trial instances run.
     const cfg=config();
+    const methods=activeMethods();
     const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
-    const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
-    const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
+    const signature=benchmarkSignature(cfg,trials,methods);
+    const previousResult=benchmarkResult;
+    const times=Object.fromEntries(methods.map(m=>[m,[]]));
+    const wins=Object.fromEntries(methods.map(m=>[m,0]));
 
     try{
       for(let t=0;t<trials;t++){
         const trialCfg={...cfg,seed:cfg.seed+t*7919};
         const man=makeManifest(trialCfg.seed,trialCfg);
         const trialTimes={};
-        for(const method of METHODS){
+          for(const method of methods){
           const sim=new BoardingSim(man,method,trialCfg);
           trialTimes[method]=sim.runToEnd(.20);
           times[method].push(trialTimes[method]);
         }
-        const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
+        const win=methods.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
         wins[win]++;
-        benchStatus.textContent=`Benchmarking ${t+1}/${trials}… The animation remains independent.`;
+        benchStatus.textContent=`Benchmarking ${t+1}/${trials} from base seed ${cfg.seed.toLocaleString()}… The animation remains independent.`;
 
         // Yield after each trial so the browser can paint and advance a running sim.
         await new Promise(resolve=>setTimeout(resolve,0));
       }
-      benchmarkResult={trials};
-      for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
+      const nextResult={trials,seed:cfg.seed,signature,methods:[...methods]};
+      for(const method of methods) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
+      const exactRepeat=previousResult?.signature===signature;
+      nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,methods);
+      benchmarkResult=nextResult;
       renderBenchmark(benchmarkResult);
-      benchStatus.textContent=`Benchmark complete: ${trials} trials using the settings captured at start.`;
+      if(nextResult.repeated){
+        benchStatus.textContent=`Exact benchmark rerun: the settings, ${trials} trials, and base seed ${cfg.seed.toLocaleString()} are unchanged, so the deterministic results are unchanged.`;
+      }else if(exactRepeat){
+        benchStatus.textContent=`This exact benchmark unexpectedly changed. The deterministic model should be investigated.`;
+      }else{
+        benchStatus.textContent=`Benchmark complete: ${trials} trials from base seed ${cfg.seed.toLocaleString()}.`;
+      }
     }finally{
       benchmarking=false;
       button.disabled=false;
       button.textContent="Run benchmark";
+      setMethodControlsDisabled(false);
     }
   }
 
-  controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
   function formatWeight(value){
     if(!Number.isFinite(value)) return "∞";
     if(Math.abs(value)>=1e6) return value.toExponential(2);
     return value.toLocaleString(undefined,{maximumFractionDigits:2});
   }
+
   function updatePartyWeightDisplay(){
     const {raw,normalized,fallback}=normalizedPartyWeights();
     const rawTotal=raw.reduce((a,b)=>a+b,0);
@@ -1228,27 +3472,133 @@
       ? "All weights are zero, so the run-time fallback is 25.0% · 25.0% · 25.0% · 25.0%."
       : `Normalized at run time: ${normalized.map(value=>value.toFixed(1)+"%").join(" · ")}`;
   }
-  [controls.party2,controls.party3,controls.party4,controls.party5].forEach(el=>el.addEventListener("input",updatePartyWeightDisplay));
-  updatePartyWeightDisplay();
-  controls.familyShare.addEventListener("input",()=>{$("familyOut").textContent=`${controls.familyShare.value}%`;});
-  controls.bagRate.addEventListener("input",()=>{$("bagOut").textContent=`${controls.bagRate.value}%`;});
-  controls.sequenceCompliance.addEventListener("input",()=>{$("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;});
-  $("runBtn").addEventListener("click",run);
-  $("pauseBtn").addEventListener("click",pause);
-  $("finishBtn").addEventListener("click",finish);
-  $("resetBtn").addEventListener("click",reset);
-  $("benchBtn").addEventListener("click",benchmark);
-  Object.values(controls).forEach(el=>el.addEventListener("change",()=>{
-    if(el!==controls.speed && el!==controls.trials) reset();
-  }));
 
-  window.addEventListener("resize",renderAll);
-  reset();
-  if(!new URLSearchParams(location.search).has("static")){
-    requestAnimationFrame(animate);
-  }else{
-    renderAll();
+  function updateControlDisplays(){
+    $("loadOut").textContent=`${controls.loadFactor.value}%`;
+    $("familyOut").textContent=`${controls.familyShare.value}%`;
+    $("bagOut").textContent=`${controls.bagRate.value}%`;
+    $("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;
+    $("benchSeedValue").textContent=Number(controls.seed.value||DEFAULT_SCENARIO_SETTINGS.seed).toLocaleString();
+    updatePartyWeightDisplay();
   }
+
+  function generatedSeed(){
+    const max=2147483646;
+    if(globalThis.crypto?.getRandomValues){
+      const values=new Uint32Array(1);
+      globalThis.crypto.getRandomValues(values);
+      return 1+(values[0]%max);
+    }
+    return 1+Math.floor(Math.random()*max);
+  }
+
+  function randomizeSeed(){
+    controls.seed.value=String(generatedSeed());
+    updateControlDisplays();
+    setActivePreset("custom");
+    reset();
+    $("status").textContent=`New random seed ${Number(controls.seed.value).toLocaleString()} is ready.`;
+  }
+
+  function showToast(message){
+    const toast=$("copyToast");
+    toast.textContent=message;
+    toast.classList.add("visible");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>toast.classList.remove("visible"),2600);
+  }
+
+  function fallbackCopy(text){
+    const area=document.createElement("textarea");
+    area.value=text;
+    area.setAttribute("readonly","");
+    area.style.position="fixed";
+    area.style.opacity="0";
+    document.body.appendChild(area);
+    area.select();
+    const copied=document.execCommand("copy");
+    area.remove();
+    return copied;
+  }
+
+  async function copyScenarioLink(){
+    const settings=snapshotScenarioSettings();
+    const preset=matchingPreset(settings);
+    const url=new URL(location.href);
+    url.search=serializeScenarioSettings(settings,preset?.id||"custom");
+    url.searchParams.set("m",activeMethods().join(","));
+    url.searchParams.set("view",raceLayout);
+    url.searchParams.set("chart",raceHud.chartSize);
+    url.hash="";
+    let copied=false;
+    try{
+      await navigator.clipboard.writeText(url.toString());
+      copied=true;
+    }catch{
+      copied=fallbackCopy(url.toString());
+    }
+    showToast(copied
+      ? `Scenario link copied — seed and race view included.`
+      : "Could not copy automatically. The scenario URL is now in the address bar.");
+    if(!copied) history.replaceState(null,"",url);
+  }
+
+  function handleManualControlChange(control){
+    const normalized=writeScenarioSettings(snapshotScenarioSettings());
+    setActivePreset("custom");
+    if(control!==controls.speed && control!==controls.trials) reset();
+    else $("benchSeedValue").textContent=normalized.seed.toLocaleString();
+  }
+
+  function initialize(){
+    document.querySelectorAll("[data-app-version]").forEach(element=>{
+      element.textContent=`v${APP_VERSION}`;
+    });
+    renderScenarioCards();
+    renderMethodPicker();
+    initializeRaceHud();
+    initializeSimHover();
+    const fromUrl=parseScenarioSearch(location.search);
+    const raceView=parseRaceView(location.search);
+    writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);
+    applyMethodSelection(raceView.methods);
+    setRaceLayout(raceView.layout);
+    setRaceChartSize(raceView.chartSize);
+    detectActivePreset();
+
+    controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
+    controls.familyShare.addEventListener("input",()=>{$("familyOut").textContent=`${controls.familyShare.value}%`;});
+    controls.bagRate.addEventListener("input",()=>{$("bagOut").textContent=`${controls.bagRate.value}%`;});
+    controls.sequenceCompliance.addEventListener("input",()=>{$("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;});
+    [controls.party2,controls.party3,controls.party4,controls.party5].forEach(el=>el.addEventListener("input",updatePartyWeightDisplay));
+
+    $("runBtn").addEventListener("click",run);
+    $("pauseBtn").addEventListener("click",pause);
+    $("finishBtn").addEventListener("click",finish);
+    $("resetBtn").addEventListener("click",reset);
+    $("benchBtn").addEventListener("click",benchmark);
+    $("randomizeSeedBtn").addEventListener("click",randomizeSeed);
+    $("benchRandomizeSeedBtn").addEventListener("click",randomizeSeed);
+    $("copyScenarioBtn").addEventListener("click",copyScenarioLink);
+
+    Object.values(controls).forEach(control=>control.addEventListener("change",()=>handleManualControlChange(control)));
+
+    window.addEventListener("resize",()=>{
+      raceHud.lastPaint=-Infinity;
+      renderAll();
+    });
+    reset();
+    if(fromUrl){
+      $("status").textContent=`Shared ${currentScenarioName().toLowerCase()} loaded from the URL with seed ${Number(controls.seed.value).toLocaleString()}.`;
+    }
+    if(!new URLSearchParams(location.search).has("static")){
+      requestAnimationFrame(animate);
+    }else{
+      renderAll();
+    }
+  }
+
+  initialize();
 })();
 </script>
 </body>
