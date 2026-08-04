@@ -8,4 +8,4 @@ Shared tutorials, simulations, and reference material.
 
 ## Simulations
 
-- [Group-Aware Aircraft Boarding Simulator](simulations/group-aware-boarding/) — Compare six boarding methods while modeling families, children, assisted parties, load factor, party-size distributions, carry-ons, and imperfect sequence compliance. [Open the live simulator](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/). [Read how the model works](simulations/group-aware-boarding/MODEL.md).
+- [Boarding Rush](simulations/group-aware-boarding/) — Race six aircraft boarding methods while modeling families, children, assisted parties, load factor, party-size distributions, carry-ons, and imperfect sequence compliance. [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/). [Read how the model works](simulations/group-aware-boarding/MODEL.md).

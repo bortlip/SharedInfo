@@ -1,9 +1,11 @@
-# Group-Aware Aircraft Boarding Simulator
+# Boarding Rush
 
-A deterministic, group-aware aircraft boarding simulator built primarily to be interesting, playful, and easy to explore.
+A deterministic aircraft boarding simulator built primarily to be interesting, playful, and easy to explore.
+
+The folder name remains `group-aware-boarding` so existing repository and GitHub Pages links remain stable. The currently released v2.4 HTML still displays its original title until a future release-promotion PR is explicitly approved and merged.
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/)
-- [Open the unreleased candidate](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/dist/simulator.html)
+- [Open the unreleased Boarding Rush candidate](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/dist/simulator.html)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/src/)
 - [Read how the current released model works](MODEL.md)
 - [Read the product and technical design](design/)
@@ -14,7 +16,7 @@ A deterministic, group-aware aircraft boarding simulator built primarily to be i
 ```text
 index.html             Stable redirect to the released root simulator. Protected.
 simulator.html         Official released version and permanent shared URL. Protected.
-src/                   Modular, unreleased source used for normal feature work.
+src/                   Modular, unreleased Boarding Rush source used for feature work.
 dist/simulator.html    Generated, unreleased release candidate built from src/.
 tools/                 Dependency-free build tooling.
 design/                Product, UI, architecture, and release-process documents.
@@ -22,9 +24,9 @@ tasks/                 One write-up per proposed improvement.
 MODEL.md               Exact functional description of the current released model.
 ```
 
-The root `index.html` and root `simulator.html` remain exactly as they were before this structure was introduced. Existing shared links therefore continue to serve the released v2.4 simulator.
+The root `index.html` and root `simulator.html` remain protected. Existing shared links continue to serve the released v2.4 simulator.
 
-The initial modular source was extracted from that released implementation. Running `python tools/build_simulator.py` bundles the source back into one standalone `dist/simulator.html` candidate.
+Running `python tools/build_simulator.py` bundles the modular source into one standalone `dist/simulator.html` candidate.
 
 ## Development and release rule
 

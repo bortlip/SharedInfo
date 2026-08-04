@@ -4,6 +4,14 @@ import { makeManifest } from "./manifest.js";
 import { BoardingSim } from "./simulation.js";
 import { drawSim } from "./render.js";
 import { formatTime, stats } from "./format.js";
+import {
+  SCENARIO_PRESETS,
+  DEFAULT_SCENARIO_SETTINGS,
+  matchingPreset,
+  normalizeScenarioSettings,
+  parseScenarioSearch,
+  serializeScenarioSettings
+} from "./scenarios.js";
 
 const $ = id => document.getElementById(id);
 const controls = {
@@ -29,6 +37,8 @@ let lastFrame = performance.now();
 let accumulator = 0;
 let benchmarking = false;
 let benchmarkResult = null;
+let activePresetId = "custom";
+let toastTimer = null;
 
 function normalizedPartyWeights(){
   const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
@@ -46,6 +56,40 @@ function normalizedPartyWeights(){
     fallback:false
   };
 }
+
+function snapshotScenarioSettings(){
+  return normalizeScenarioSettings({
+    loadFactor:controls.loadFactor.value,
+    familyShare:controls.familyShare.value,
+    partyWeights:[controls.party2.value,controls.party3.value,controls.party4.value,controls.party5.value],
+    assistedParties:controls.assistedParties.value,
+    bagRate:controls.bagRate.value,
+    sequenceCompliance:controls.sequenceCompliance.value,
+    priorityPolicy:controls.priorityPolicy.value,
+    speed:controls.speed.value,
+    seed:controls.seed.value,
+    trials:controls.trials.value
+  });
+}
+
+function writeScenarioSettings(settings){
+  const value=normalizeScenarioSettings(settings);
+  controls.loadFactor.value=String(value.loadFactor);
+  controls.familyShare.value=String(value.familyShare);
+  [controls.party2,controls.party3,controls.party4,controls.party5].forEach((control,index)=>{
+    control.value=String(value.partyWeights[index]);
+  });
+  controls.assistedParties.value=String(value.assistedParties);
+  controls.bagRate.value=String(value.bagRate);
+  controls.sequenceCompliance.value=String(value.sequenceCompliance);
+  controls.priorityPolicy.value=value.priorityPolicy;
+  controls.speed.value=String(value.speed);
+  controls.seed.value=String(value.seed);
+  controls.trials.value=String(value.trials);
+  updateControlDisplays();
+  return value;
+}
+
 function config(){
   const partyWeightConfig=normalizedPartyWeights();
   return {
@@ -60,7 +104,86 @@ function config(){
     seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
   };
 }
+
+function currentScenarioName(){
+  if(activePresetId==="custom") return "Custom scenario";
+  return SCENARIO_PRESETS.find(preset=>preset.id===activePresetId)?.name||"Custom scenario";
+}
+
+function setActivePreset(presetId){
+  activePresetId=presetId||"custom";
+  const selected=SCENARIO_PRESETS.find(preset=>preset.id===activePresetId && !preset.disabled);
+  $("activeScenarioLabel").textContent=selected?.name||"Custom scenario";
+  $("activeScenarioLabel").dataset.scenarioId=selected?.id||"custom";
+  document.querySelectorAll(".scenario-card").forEach(card=>{
+    const active=card.dataset.scenarioId===selected?.id;
+    card.classList.toggle("active",active);
+    card.setAttribute("aria-pressed",String(active));
+  });
+}
+
+function detectActivePreset(){
+  setActivePreset(matchingPreset(snapshotScenarioSettings())?.id||"custom");
+}
+
+function scenarioPreview(settings){
+  return [
+    `${settings.loadFactor}% full`,
+    `${settings.familyShare}% families`,
+    `${settings.bagRate}% bags`,
+    `${settings.sequenceCompliance}% compliance`
+  ];
+}
+
+function renderScenarioCards(){
+  const grid=$("scenarioGrid");
+  grid.innerHTML="";
+  for(const preset of SCENARIO_PRESETS){
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="scenario-card";
+    button.dataset.scenarioId=preset.id;
+    button.disabled=!!preset.disabled;
+    button.setAttribute("aria-pressed","false");
+
+    const heading=document.createElement("span");
+    heading.className="scenario-card-heading";
+    heading.innerHTML=`<span class="scenario-emoji" aria-hidden="true">${preset.emoji}</span><strong>${preset.name}</strong>`;
+    button.appendChild(heading);
+
+    const description=document.createElement("span");
+    description.className="scenario-description";
+    description.textContent=preset.description;
+    button.appendChild(description);
+
+    if(preset.disabled){
+      const soon=document.createElement("span");
+      soon.className="scenario-coming";
+      soon.textContent="Coming when the character-event system lands";
+      button.appendChild(soon);
+    }else{
+      const chips=document.createElement("span");
+      chips.className="scenario-chips";
+      for(const text of scenarioPreview(preset.settings)){
+        const chip=document.createElement("span");
+        chip.className="scenario-chip";
+        chip.textContent=text;
+        chips.appendChild(chip);
+      }
+      button.appendChild(chips);
+      button.addEventListener("click",()=>{
+        writeScenarioSettings(preset.settings);
+        setActivePreset(preset.id);
+        reset();
+        $("status").textContent=`${preset.name} loaded. Seed ${Number(controls.seed.value).toLocaleString()} is ready to race.`;
+      });
+    }
+    grid.appendChild(button);
+  }
+}
+
 function reset(){
+  const normalized=writeScenarioSettings(snapshotScenarioSettings());
   const cfg=config();
   manifest=makeManifest(cfg.seed,cfg);
   sims={};
@@ -76,7 +199,8 @@ function reset(){
     : "none";
   const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
   const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
-  $("status").textContent=`Ready: ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
+  $("benchSeedValue").textContent=normalized.seed.toLocaleString();
+  $("status").textContent=`${currentScenarioName()} · seed ${normalized.seed.toLocaleString()} · ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
   renderAll();
 }
 
@@ -107,7 +231,7 @@ function renderAll(){
   if(allDone && running){
     running=false;
     const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-    $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
+    $("status").textContent=`Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
   }
 }
 
@@ -131,8 +255,9 @@ function run(){
   if(!manifest || METHODS.some(m=>sims[m].done)) reset();
   running=true;
   $("pauseBtn").textContent="Pause";
-  $("status").textContent="Running the same manifest through all six methods…";
+  $("status").textContent=`Running ${currentScenarioName()} through all six boarding methods…`;
 }
+
 function pause(){
   if(!running && METHODS.every(m=>sims[m].time===0)){
     $("status").textContent="Nothing is running yet.";
@@ -142,13 +267,14 @@ function pause(){
   $("pauseBtn").textContent=running?"Pause":"Resume";
   $("status").textContent=running?"Running…":"Paused.";
 }
+
 function finish(){
   running=false;
   $("pauseBtn").textContent="Pause";
   for(const method of METHODS) sims[method].runToEnd(.15);
   renderAll();
   const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-  $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
+  $("status").textContent=`Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
 }
 
 function renderBenchmark(result){
@@ -167,7 +293,7 @@ function renderBenchmark(result){
       <td>${result[m].wins}</td>`;
     body.appendChild(row);
   }
-  $("benchSubtitle").textContent=`${result.trials} trials · same manifest per trial · lower is better`;
+  $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better`;
   const box=$("barBox");
   box.innerHTML="";
   for(const m of METHODS){
@@ -207,15 +333,15 @@ async function benchmark(){
       }
       const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
       wins[win]++;
-      benchStatus.textContent=`Benchmarking ${t+1}/${trials}… The animation remains independent.`;
+      benchStatus.textContent=`Benchmarking ${t+1}/${trials} from base seed ${cfg.seed.toLocaleString()}… The animation remains independent.`;
 
       // Yield after each trial so the browser can paint and advance a running sim.
       await new Promise(resolve=>setTimeout(resolve,0));
     }
-    benchmarkResult={trials};
+    benchmarkResult={trials,seed:cfg.seed};
     for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
     renderBenchmark(benchmarkResult);
-    benchStatus.textContent=`Benchmark complete: ${trials} trials using the settings captured at start.`;
+    benchStatus.textContent=`Benchmark complete: ${trials} trials from base seed ${cfg.seed.toLocaleString()}.`;
   }finally{
     benchmarking=false;
     button.disabled=false;
@@ -223,12 +349,12 @@ async function benchmark(){
   }
 }
 
-controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
 function formatWeight(value){
   if(!Number.isFinite(value)) return "∞";
   if(Math.abs(value)>=1e6) return value.toExponential(2);
   return value.toLocaleString(undefined,{maximumFractionDigits:2});
 }
+
 function updatePartyWeightDisplay(){
   const {raw,normalized,fallback}=normalizedPartyWeights();
   const rawTotal=raw.reduce((a,b)=>a+b,0);
@@ -237,24 +363,114 @@ function updatePartyWeightDisplay(){
     ? "All weights are zero, so the run-time fallback is 25.0% · 25.0% · 25.0% · 25.0%."
     : `Normalized at run time: ${normalized.map(value=>value.toFixed(1)+"%").join(" · ")}`;
 }
-[controls.party2,controls.party3,controls.party4,controls.party5].forEach(el=>el.addEventListener("input",updatePartyWeightDisplay));
-updatePartyWeightDisplay();
-controls.familyShare.addEventListener("input",()=>{$("familyOut").textContent=`${controls.familyShare.value}%`;});
-controls.bagRate.addEventListener("input",()=>{$("bagOut").textContent=`${controls.bagRate.value}%`;});
-controls.sequenceCompliance.addEventListener("input",()=>{$("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;});
-$("runBtn").addEventListener("click",run);
-$("pauseBtn").addEventListener("click",pause);
-$("finishBtn").addEventListener("click",finish);
-$("resetBtn").addEventListener("click",reset);
-$("benchBtn").addEventListener("click",benchmark);
-Object.values(controls).forEach(el=>el.addEventListener("change",()=>{
-  if(el!==controls.speed && el!==controls.trials) reset();
-}));
 
-window.addEventListener("resize",renderAll);
-reset();
-if(!new URLSearchParams(location.search).has("static")){
-  requestAnimationFrame(animate);
-}else{
-  renderAll();
+function updateControlDisplays(){
+  $("loadOut").textContent=`${controls.loadFactor.value}%`;
+  $("familyOut").textContent=`${controls.familyShare.value}%`;
+  $("bagOut").textContent=`${controls.bagRate.value}%`;
+  $("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;
+  $("benchSeedValue").textContent=Number(controls.seed.value||DEFAULT_SCENARIO_SETTINGS.seed).toLocaleString();
+  updatePartyWeightDisplay();
 }
+
+function generatedSeed(){
+  const max=2147483646;
+  if(globalThis.crypto?.getRandomValues){
+    const values=new Uint32Array(1);
+    globalThis.crypto.getRandomValues(values);
+    return 1+(values[0]%max);
+  }
+  return 1+Math.floor(Math.random()*max);
+}
+
+function randomizeSeed(){
+  controls.seed.value=String(generatedSeed());
+  updateControlDisplays();
+  setActivePreset("custom");
+  reset();
+  $("status").textContent=`New random seed ${Number(controls.seed.value).toLocaleString()} is ready.`;
+}
+
+function showToast(message){
+  const toast=$("copyToast");
+  toast.textContent=message;
+  toast.classList.add("visible");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toast.classList.remove("visible"),2600);
+}
+
+function fallbackCopy(text){
+  const area=document.createElement("textarea");
+  area.value=text;
+  area.setAttribute("readonly","");
+  area.style.position="fixed";
+  area.style.opacity="0";
+  document.body.appendChild(area);
+  area.select();
+  const copied=document.execCommand("copy");
+  area.remove();
+  return copied;
+}
+
+async function copyScenarioLink(){
+  const settings=snapshotScenarioSettings();
+  const preset=matchingPreset(settings);
+  const url=new URL(location.href);
+  url.search=serializeScenarioSettings(settings,preset?.id||"custom");
+  url.hash="";
+  let copied=false;
+  try{
+    await navigator.clipboard.writeText(url.toString());
+    copied=true;
+  }catch{
+    copied=fallbackCopy(url.toString());
+  }
+  showToast(copied
+    ? `Scenario link copied — seed ${settings.seed.toLocaleString()} included.`
+    : "Could not copy automatically. The scenario URL is now in the address bar.");
+  if(!copied) history.replaceState(null,"",url);
+}
+
+function handleManualControlChange(control){
+  const normalized=writeScenarioSettings(snapshotScenarioSettings());
+  setActivePreset("custom");
+  if(control!==controls.speed && control!==controls.trials) reset();
+  else $("benchSeedValue").textContent=normalized.seed.toLocaleString();
+}
+
+function initialize(){
+  renderScenarioCards();
+  const fromUrl=parseScenarioSearch(location.search);
+  writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);
+  detectActivePreset();
+
+  controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
+  controls.familyShare.addEventListener("input",()=>{$("familyOut").textContent=`${controls.familyShare.value}%`;});
+  controls.bagRate.addEventListener("input",()=>{$("bagOut").textContent=`${controls.bagRate.value}%`;});
+  controls.sequenceCompliance.addEventListener("input",()=>{$("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;});
+  [controls.party2,controls.party3,controls.party4,controls.party5].forEach(el=>el.addEventListener("input",updatePartyWeightDisplay));
+
+  $("runBtn").addEventListener("click",run);
+  $("pauseBtn").addEventListener("click",pause);
+  $("finishBtn").addEventListener("click",finish);
+  $("resetBtn").addEventListener("click",reset);
+  $("benchBtn").addEventListener("click",benchmark);
+  $("randomizeSeedBtn").addEventListener("click",randomizeSeed);
+  $("benchRandomizeSeedBtn").addEventListener("click",randomizeSeed);
+  $("copyScenarioBtn").addEventListener("click",copyScenarioLink);
+
+  Object.values(controls).forEach(control=>control.addEventListener("change",()=>handleManualControlChange(control)));
+
+  window.addEventListener("resize",renderAll);
+  reset();
+  if(fromUrl){
+    $("status").textContent=`Shared ${currentScenarioName().toLowerCase()} loaded from the URL with seed ${Number(controls.seed.value).toLocaleString()}.`;
+  }
+  if(!new URLSearchParams(location.search).has("static")){
+    requestAnimationFrame(animate);
+  }else{
+    renderAll();
+  }
+}
+
+initialize();
