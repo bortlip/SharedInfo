@@ -34,8 +34,8 @@ replacement = '// Set `included` to false to remove a scenario from the selector
 if replacement not in text:
     text = text.replace(marker, replacement, 1)
 text, count = re.subn(
-    r'(\n\s{6}id:"[^"]+",\n)(\s{6}name:)',
-    r'\1      included:true,\n\2',
+    r'(\n\s{4}id:"[^"]+",\n)(\s{4}name:)',
+    r'\1    included:true,\n\2',
     text,
 )
 if count != 9:
