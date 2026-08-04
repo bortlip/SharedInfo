@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive aircraft boarding simulator comparing six boarding methods with families, party-size distributions, load factor, and sequence compliance.">
+<link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/simulator.html">
+<title>Group-Aware Aircraft Boarding Simulator v2.4</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#07111f;
+    --panel:#0e1c2e;
+    --panel2:#13243a;
+    --ink:#e8f0ff;
+    --muted:#9eb0c9;
+    --line:#29405f;
+    --accent:#63d7ff;
+    --good:#70e1a1;
+    --warn:#ffc96b;
+    --bad:#ff7d90;
+    --family:#f5b95f;
+    --assist:#d994ff;
+    --single:#68d7ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-width:320px;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:
+      radial-gradient(circle at 12% -10%,rgba(80,157,255,.22),transparent 32rem),
+      radial-gradient(circle at 95% 0%,rgba(112,225,161,.12),transparent 28rem),
+      var(--bg);
+    color:var(--ink);
+  }
+  button,input,select{font:inherit}
+  .shell{max-width:1500px;margin:0 auto;padding:24px}
+  header{display:flex;gap:24px;align-items:flex-start;justify-content:space-between;margin-bottom:18px}
+  h1{font-size:clamp(1.65rem,3vw,2.75rem);line-height:1.05;margin:0 0 8px;letter-spacing:-.035em}
+  header p{margin:0;color:var(--muted);max-width:850px;line-height:1.55}
+  .badge{
+    flex:0 0 auto;
+    border:1px solid #3b587e;
+    background:rgba(19,36,58,.72);
+    color:#bfeeff;
+    border-radius:999px;
+    padding:8px 12px;
+    font-size:.82rem;
+    white-space:nowrap;
+  }
+  .card{
+    background:linear-gradient(180deg,rgba(19,36,58,.97),rgba(10,24,41,.97));
+    border:1px solid var(--line);
+    box-shadow:0 16px 50px rgba(0,0,0,.2);
+    border-radius:18px;
+  }
+  .controls{padding:16px;margin-bottom:16px}
+  .control-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+    gap:12px;
+    align-items:end;
+  }
+  .party-size-control{grid-column:span 2}
+  .control-label{display:block;color:var(--muted);font-size:.78rem;margin-bottom:6px}
+  .weight-grid{display:grid;grid-template-columns:repeat(4,minmax(58px,1fr));gap:6px}
+  .weight-field{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px;color:var(--muted);font-size:.72rem}
+  .weight-field input{min-width:0;padding:9px 6px;text-align:center}
+  .weight-note{margin:7px 0 0;color:#86a2c2;font-size:.70rem;line-height:1.35}
+  .family-dots{display:inline-flex;align-items:center;gap:2px;margin-right:2px}
+  .family-dots .dot{margin:0}
+  label{display:grid;gap:6px;color:var(--muted);font-size:.78rem}
+  input[type="number"],select{
+    width:100%;
+    border:1px solid #36516f;
+    border-radius:10px;
+    background:#081625;
+    color:var(--ink);
+    padding:9px 10px;
+    outline:none;
+  }
+  input[type="range"]{width:100%;accent-color:var(--accent)}
+  .range-line{display:flex;justify-content:space-between;gap:10px}
+  .range-line output{color:var(--ink);font-variant-numeric:tabular-nums}
+  .buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}
+  button{
+    border:1px solid #3b587e;
+    background:#142944;
+    color:var(--ink);
+    padding:9px 13px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:.15s ease;
+  }
+  button:hover{transform:translateY(-1px);border-color:#5f86b6;background:#183252}
+  button.primary{background:linear-gradient(180deg,#1d8cb5,#166783);border-color:#47c7ef;font-weight:700}
+  button.ghost{background:transparent}
+  button:disabled{opacity:.5;cursor:wait;transform:none}
+  .status{margin-left:auto;align-self:center;color:var(--muted);font-size:.85rem}
+  .sim-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(270px,1fr));
+    gap:16px;
+  }
+  .sim-card{padding:14px;min-width:0}
+  .sim-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}
+  .sim-head h2{font-size:1.05rem;margin:0 0 3px}
+  .sim-head p{font-size:.78rem;color:var(--muted);margin:0;line-height:1.35}
+  .time{font-variant-numeric:tabular-nums;font-weight:800;color:#d8f7ff;white-space:nowrap}
+  canvas{
+    width:100%;
+    height:650px;
+    display:block;
+    border-radius:13px;
+    border:1px solid #29405f;
+    background:linear-gradient(180deg,#07131f,#0b1d30);
+  }
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+  .metric{background:#081625;border:1px solid #243d5a;border-radius:10px;padding:8px;min-width:0}
+  .metric>span{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:.67rem;white-space:nowrap}
+  .metric strong{display:block;margin-top:2px;font-size:.87rem;font-variant-numeric:tabular-nums}
+  .info-tip{
+    position:relative;
+    display:inline-grid;
+    flex:0 0 14px;
+    width:14px;
+    height:14px;
+    place-items:center;
+    border:1px solid #54708f;
+    border-radius:50%;
+    color:#c6e9ff;
+    font-size:9px;
+    font-weight:800;
+    line-height:1;
+    cursor:help;
+    outline:none;
+  }
+  .info-tip::after{
+    content:attr(data-tip);
+    position:absolute;
+    z-index:20;
+    left:50%;
+    bottom:calc(100% + 8px);
+    width:230px;
+    padding:8px 9px;
+    border:1px solid #4b6788;
+    border-radius:9px;
+    background:#061321;
+    color:#e9f6ff;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+    font-size:.72rem;
+    font-weight:500;
+    line-height:1.38;
+    white-space:normal;
+    opacity:0;
+    pointer-events:none;
+    transform:translate(-50%,4px);
+    transition:opacity .12s ease,transform .12s ease;
+  }
+  .info-tip:hover::after,.info-tip:focus::after{opacity:1;transform:translate(-50%,0)}
+  .lower{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr);gap:16px;margin-top:16px}
+  .benchmark,.notes{padding:16px}
+  .section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .section-head h2{font-size:1.05rem;margin:0}
+  .section-head p{font-size:.78rem;color:var(--muted);margin:0}
+  .benchmark-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin:0 0 12px}
+  .benchmark-toolbar label{width:112px}
+  .benchmark-toolbar input{padding:8px 9px}
+  .benchmark-toolbar .bench-status{flex:1 1 220px;align-self:center;margin:0;color:var(--muted);font-size:.78rem}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th,td{text-align:right;border-bottom:1px solid #243d5a;padding:9px 7px;font-variant-numeric:tabular-nums}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600}
+  .winner{color:var(--good);font-weight:800}
+  .empty{color:var(--muted);text-align:center!important;padding:22px}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:10px;color:var(--muted);font-size:.75rem}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  .notes p,.notes li{color:var(--muted);line-height:1.45;font-size:.83rem}
+  .notes ul{padding-left:18px;margin:8px 0}
+  details{border-top:1px solid #29405f;margin-top:12px;padding-top:10px}
+  summary{cursor:pointer;color:#c9e7ff;font-size:.85rem}
+  code{background:#081625;padding:1px 5px;border-radius:5px;color:#bcecff}
+  .barbox{margin-top:12px;display:grid;gap:8px}
+  .barrow{display:grid;grid-template-columns:145px 1fr 70px;gap:9px;align-items:center;font-size:.78rem}
+  .track{height:8px;border-radius:999px;background:#081625;overflow:hidden}
+  .fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#4b91ff,#70e1a1);width:0}
+  footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
+  @media(max-width:1100px){
+    .sim-grid{grid-template-columns:repeat(2,minmax(270px,1fr))}
+    canvas{height:620px}
+    .lower{grid-template-columns:1fr}
+  }
+  @media(max-width:720px){
+    .shell{padding:12px}
+    header{display:block}.badge{display:inline-block;margin-top:12px}
+    .sim-grid{grid-template-columns:1fr}
+    .control-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .party-size-control{grid-column:1 / -1}
+    .metrics{grid-template-columns:repeat(2,1fr)}
+    .status{width:100%;margin-left:0}
+    .benchmark-toolbar label{width:100px}
+    .benchmark-toolbar .bench-status{flex-basis:100%}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div>
+      <h1>Group-aware boarding simulator</h1>
+      <p>Six boarding methods face the same A320 manifest: random, strict rear-first, strict front-first, airline zones, WilMA, and a group-safe Steffen variant. Families remain together, and the model includes children, companions, reduced mobility, carry-ons, aisle blocking, seat interference, partial loads, and imperfect sequence compliance.</p>
+    </div>
+    <div class="badge">v2.4 · independent benchmarking · metric help</div>
+  </header>
+
+  <section class="card controls">
+    <div class="control-grid">
+      <label>
+        <span class="range-line"><span>Load factor</span><output id="loadOut">100%</output></span>
+        <input id="loadFactor" type="range" min="50" max="100" step="5" value="100">
+      </label>
+      <label>
+        <span class="range-line"><span>Passengers in families</span><output id="familyOut">30%</output></span>
+        <input id="familyShare" type="range" min="0" max="70" step="5" value="30">
+      </label>
+      <div class="party-size-control">
+        <span class="control-label range-line"><span>Family party-size weights <small>(relative)</small></span><output id="partyWeightTotal">raw total 100</output></span>
+        <div class="weight-grid">
+          <label class="weight-field"><span>2:</span><input id="party2" type="number" min="0" step="any" value="22" title="Relative weight for two-person families; no maximum"></label>
+          <label class="weight-field"><span>3:</span><input id="party3" type="number" min="0" step="any" value="36" title="Relative weight for three-person families; no maximum"></label>
+          <label class="weight-field"><span>4:</span><input id="party4" type="number" min="0" step="any" value="28" title="Relative weight for four-person families; no maximum"></label>
+          <label class="weight-field"><span>5:</span><input id="party5" type="number" min="0" step="any" value="14" title="Relative weight for five-person families; no maximum"></label>
+        </div>
+        <p class="weight-note" id="partyWeightNormalized" aria-live="polite">Normalized at run time: 22.0% · 36.0% · 28.0% · 14.0%</p>
+      </div>
+      <label>
+        Assisted parties
+        <input id="assistedParties" type="number" min="0" max="12" step="1" value="3">
+      </label>
+      <label>
+        Carry-on rate
+        <span class="range-line"><span></span><output id="bagOut">70%</output></span>
+        <input id="bagRate" type="range" min="0" max="100" step="5" value="70">
+      </label>
+      <label>
+        <span class="range-line"><span>Sequence compliance</span><output id="complianceOut">100%</output></span>
+        <input id="sequenceCompliance" type="range" min="0" max="100" step="5" value="100">
+      </label>
+      <label>
+        Priority policy
+        <select id="priorityPolicy">
+          <option value="assist">Assisted parties first</option>
+          <option value="allgroups">All grouped parties first</option>
+          <option value="none">No preboarding</option>
+        </select>
+      </label>
+      <label>
+        Animation speed
+        <select id="speed">
+          <option value="4">4×</option>
+          <option value="16" selected>16×</option>
+          <option value="64">64×</option>
+          <option value="256">256×</option>
+        </select>
+      </label>
+      <label>
+        Seed
+        <input id="seed" type="number" min="1" max="2147483646" step="1" value="12345">
+      </label>
+    </div>
+    <div class="buttons">
+      <button class="primary" id="runBtn">▶ Run comparison</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="finishBtn">Finish instantly</button>
+      <button id="resetBtn" class="ghost">Reset</button>
+      <span class="status" id="status">Ready.</span>
+    </div>
+  </section>
+
+  <main class="sim-grid">
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Random</h2><p>Boarding units shuffled; every party remains contiguous.</p></div>
+        <div class="time" id="randomTime">00:00</div>
+      </div>
+      <canvas id="randomCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="randomDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="randomConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="randomBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="randomQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Strict back to front</h2><p>Rows 31 → 1, randomized only within each row.</p></div>
+        <div class="time" id="backTime">00:00</div>
+      </div>
+      <canvas id="backCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="backDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="backConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="backBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="backQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Strict front to back</h2><p>Rows 1 → 31, randomized only within each row.</p></div>
+        <div class="time" id="frontTime">00:00</div>
+      </div>
+      <canvas id="frontCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="frontDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="frontConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="frontBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="frontQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Airline zones</h2><p>Six-row rear-first zones, shuffled within each zone.</p></div>
+        <div class="time" id="zonesTime">00:00</div>
+      </div>
+      <canvas id="zonesCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="zonesDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="zonesConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="zonesBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="zonesQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>WilMA, group-safe</h2><p>Window, then middle, then aisle; parties remain atomic.</p></div>
+        <div class="time" id="wilmaTime">00:00</div>
+      </div>
+      <canvas id="wilmaCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="wilmaDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="wilmaConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="wilmaBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="wilmaQueue">186</strong></div>
+      </div>
+    </article>
+
+    <article class="card sim-card">
+      <div class="sim-head">
+        <div><h2>Steffen, group-safe</h2><p>Alternating rows and window-first, with each party atomic.</p></div>
+        <div class="time" id="steffenTime">00:00</div>
+      </div>
+      <canvas id="steffenCanvas" width="430" height="650"></canvas>
+      <div class="metrics">
+        <div class="metric"><span>Seated</span><strong id="steffenDone">0 / 186</strong></div>
+        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="steffenConflicts">0</strong></div>
+        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="steffenBlocked">0 s</strong></div>
+        <div class="metric"><span>Queue</span><strong id="steffenQueue">186</strong></div>
+      </div>
+    </article>
+  </main>
+
+  <section class="lower">
+    <article class="card benchmark">
+      <div class="section-head">
+        <div><h2>Monte Carlo comparison</h2><p id="benchSubtitle">Run a benchmark to average over different manifests and delays.</p></div>
+      </div>
+      <div class="benchmark-toolbar">
+        <label>
+          Trials
+          <input id="trials" type="number" min="5" max="200" step="5" value="40">
+        </label>
+        <button id="benchBtn">Run benchmark</button>
+        <p class="bench-status" id="benchStatus" aria-live="polite">Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.</p>
+      </div>
+      <table>
+        <thead><tr><th>Method</th><th>Mean</th><th>Median</th><th>P90</th><th>Wins</th></tr></thead>
+        <tbody id="benchBody"><tr><td colspan="5" class="empty">No benchmark results yet.</td></tr></tbody>
+      </table>
+      <div class="barbox" id="barBox"></div>
+    </article>
+
+    <aside class="card notes">
+      <div class="section-head"><h2>What the model assumes</h2></div>
+      <ul>
+        <li>Families occupy adjacent seats and enter as one contiguous boarding unit. Their colors and labels distinguish one party from the next.</li>
+        <li>Party-size inputs are relative weights. They are normalized to 100% at run time, so totals above or below 100 work normally; all-zero weights use an equal split.</li>
+        <li>Load factor controls occupied seats; unassigned seats remain visibly empty.</li>
+        <li>Sequence compliance is applied to whole parties within their normal priority tier.</li>
+        <li>Children walk and sit more slowly; assisted travelers board with a companion.</li>
+        <li>Carry-ons block the aisle; occupied aisle/middle seats create seat interference.</li>
+        <li>The same manifest, traits, and compliance draws are reused for all six methods.</li>
+      </ul>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--single)"></i>individual</span>
+        <span title="Each warm color is a different family"><span class="family-dots"><i class="dot" style="background:hsl(35 82% 60%)"></i><i class="dot" style="background:hsl(22 82% 60%)"></i><i class="dot" style="background:hsl(48 82% 60%)"></i></span>families · <code>F7·4</code> means family 7, four people</span>
+        <span><i class="dot" style="background:var(--assist)"></i>assisted party</span>
+      </div>
+      <details>
+        <summary>Method and model details</summary>
+        <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
+        <p><strong>Seat conflicts:</strong> when a passenger reaches a seat, the simulator counts each already-seated passenger between the aisle and that seat on the same side of the row. Each same-party blocker adds 2.2 seconds to seating time; a blocker from another party adds 5.4 seconds. Thus a window passenger arriving after both the aisle and middle passengers adds two conflicts.</p>
+        <p><strong>Blocked aisle:</strong> cumulative simulated wall-clock time during which at least one passenger is stowing a bag or entering a seat. Multiple simultaneous blockers are counted once for that time interval, and ordinary walking queues do not add to this metric.</p>
+        <p>This is a comparative discrete-time model, not a calibrated airline forecast. The useful claim is the relative result under stated assumptions; the absolute minutes are scenario output, not revealed scripture.</p>
+      </details>
+    </aside>
+  </section>
+
+  <footer>Standalone HTML · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const ROWS = 31;
+  const COLS = ["A","B","C","D","E","F"];
+  const TOTAL = ROWS * COLS.length;
+  const METHODS = ["random","back","front","zones","wilma","steffen"];
+  const META = {
+    random:{label:"Random", canvas:"randomCanvas"},
+    back:{label:"Strict back to front", canvas:"backCanvas"},
+    front:{label:"Strict front to back", canvas:"frontCanvas"},
+    zones:{label:"Airline zones", canvas:"zonesCanvas"},
+    wilma:{label:"WilMA, group-safe", canvas:"wilmaCanvas"},
+    steffen:{label:"Steffen, group-safe", canvas:"steffenCanvas"}
+  };
+  const SPACING = 0.72;
+  const FIXED_DT = 0.10;
+  const palette = {
+    single:"#68d7ff",
+    family:"#f5b95f",
+    assisted:"#d994ff",
+    empty:"#1c3554",
+    unassigned:"#101d2d",
+    seated:"#5b88c8",
+    aisle:"#0c1a2a",
+    grid:"#29405f",
+    text:"#9eb0c9",
+    child:"#fff4d5"
+  };
+  const FAMILY_HUES = [35,22,48,12,55,29,42,5,60,18,33,50];
+
+  function familyColor(index,seated=false){
+    const hue=FAMILY_HUES[index%FAMILY_HUES.length];
+    const cycle=Math.floor(index/FAMILY_HUES.length)%2;
+    const lightness=seated ? 32+cycle*7 : 61-cycle*9;
+    return `hsl(${hue} 82% ${lightness}%)`;
+  }
+
+  const $ = id => document.getElementById(id);
+  const controls = {
+    loadFactor:$("loadFactor"),
+    familyShare:$("familyShare"),
+    party2:$("party2"),
+    party3:$("party3"),
+    party4:$("party4"),
+    party5:$("party5"),
+    assistedParties:$("assistedParties"),
+    bagRate:$("bagRate"),
+    sequenceCompliance:$("sequenceCompliance"),
+    priorityPolicy:$("priorityPolicy"),
+    speed:$("speed"),
+    seed:$("seed"),
+    trials:$("trials")
+  };
+
+  let sims = {};
+  let manifest = null;
+  let running = false;
+  let lastFrame = performance.now();
+  let accumulator = 0;
+  let benchmarking = false;
+  let benchmarkResult = null;
+
+  function mulberry32(seed){
+    let a = seed >>> 0;
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function shuffle(arr,rng){
+    const out = arr.slice();
+    for(let i=out.length-1;i>0;i--){
+      const j = Math.floor(rng()*(i+1));
+      [out[i],out[j]]=[out[j],out[i]];
+    }
+    return out;
+  }
+  function normalizedPartyWeights(){
+    const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
+      const value=Number(el.value);
+      return Number.isFinite(value) && value>0 ? value : 0;
+    });
+    const max=Math.max(...raw);
+    if(max<=0) return {raw,normalized:[25,25,25,25],fallback:true};
+    // Divide by the largest input first so even enormous finite weights normalize safely.
+    const scaled=raw.map(value=>value/max);
+    const scaledTotal=scaled.reduce((a,b)=>a+b,0);
+    return {
+      raw,
+      normalized:scaled.map(value=>100*value/scaledTotal),
+      fallback:false
+    };
+  }
+  function weightedSize(rng,weights){
+    const total=weights.reduce((a,b)=>a+b,0);
+    if(total<=0) return 2;
+    let x=rng()*total;
+    for(let i=0;i<weights.length;i++){
+      x-=weights[i];
+      if(x<=0) return i+2;
+    }
+    return 5;
+  }
+  function seatInfo(row,col){
+    const idx=COLS.indexOf(col);
+    const side=idx<3?"L":"R";
+    const depth = idx<3 ? 2-idx : idx-3; // A/F=2, B/E=1, C/D=0
+    return {key:`${row}${col}`,row,col,side,depth};
+  }
+  function config(){
+    const partyWeightConfig=normalizedPartyWeights();
+    return {
+      loadFactor:+controls.loadFactor.value/100,
+      familyShare:+controls.familyShare.value/100,
+      partyWeights:partyWeightConfig.normalized,
+      partyWeightsFallback:partyWeightConfig.fallback,
+      assistedParties:clamp(+controls.assistedParties.value||0,0,12),
+      bagRate:+controls.bagRate.value/100,
+      sequenceCompliance:+controls.sequenceCompliance.value/100,
+      priorityPolicy:controls.priorityPolicy.value,
+      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
+    };
+  }
+  function seedMix(seed,salt){
+    let x=(seed ^ salt)>>>0;
+    x=Math.imul(x^(x>>>16),0x7feb352d);
+    x=Math.imul(x^(x>>>15),0x846ca68b);
+    return (x^(x>>>16))>>>0;
+  }
+
+  function makeManifest(seed,cfg){
+    const rng=mulberry32(seedMix(seed,0xA320));
+    const available=new Map();
+    for(let r=1;r<=ROWS;r++) for(const c of COLS){
+      const s=seatInfo(r,c); available.set(s.key,s);
+    }
+    const passengers=[];
+    const units=[];
+    let pid=0, gid=0, familyOrdinal=0;
+
+    const patternsBySize={
+      2:[["A","B"],["B","C"],["C","D"],["D","E"],["E","F"]],
+      3:[["A","B","C"],["B","C","D"],["C","D","E"],["D","E","F"]],
+      4:[["A","B","C","D"],["B","C","D","E"],["C","D","E","F"]],
+      5:[["A","B","C","D","E"],["B","C","D","E","F"]]
+    };
+
+    function takeCluster(size){
+      const candidates=[];
+      for(let r=1;r<=ROWS;r++){
+        for(const pat of patternsBySize[size]){
+          const seats=pat.map(c=>available.get(`${r}${c}`));
+          if(seats.every(Boolean)) candidates.push(seats);
+        }
+      }
+      if(!candidates.length) return null;
+      const chosen=candidates[Math.floor(rng()*candidates.length)];
+      chosen.forEach(s=>available.delete(s.key));
+      return chosen;
+    }
+
+    function newPassenger(seat,unit,type,flags={}){
+      const isChild=!!flags.isChild;
+      const isReduced=!!flags.isReduced;
+      let walkSpeed;
+      if(isReduced) walkSpeed=.46+rng()*.16;
+      else if(isChild) walkSpeed=.82+rng()*.28;
+      else walkSpeed=1.17+rng()*.42;
+
+      const bagProb=isChild?cfg.bagRate*.25:isReduced?cfg.bagRate*.55:cfg.bagRate;
+      const hasBag=rng()<bagProb;
+      const bagBase=hasBag ? 4.2 + rng()*7.5 + rng()*2.5 : .35+rng()*.35;
+      const seatBase=isReduced ? 7.5+rng()*5.5 : isChild ? 3.8+rng()*3.8 : 2.1+rng()*2.8;
+      const p={
+        id:pid++, seatKey:seat.key,row:seat.row,col:seat.col,side:seat.side,depth:seat.depth,
+        unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed
+      };
+      passengers.push(p);
+      unit.passengers.push(p);
+      return p;
+    }
+
+    function finalizeUnit(unit){
+      if(unit.groupType!=="single"){
+        const slowest=Math.min(...unit.passengers.map(p=>p.walkSpeed));
+        unit.passengers.forEach(p=>p.walkSpeed=slowest);
+      }
+      unit.maxRow=Math.max(...unit.passengers.map(p=>p.row));
+      unit.minRow=Math.min(...unit.passengers.map(p=>p.row));
+      unit.avgRow=unit.passengers.reduce((s,p)=>s+p.row,0)/unit.passengers.length;
+      unit.queueRandom=rng();
+      unit.complianceDraw=rng();
+      unit.compliancePosition=rng();
+      units.push(unit);
+    }
+
+    const targetPassengers=clamp(Math.round(TOTAL*cfg.loadFactor),1,TOTAL);
+    const assistedTarget=Math.min(cfg.assistedParties,Math.floor(targetPassengers/2));
+    const familyTarget=Math.min(
+      Math.round(targetPassengers*cfg.familyShare),
+      Math.max(0,targetPassengers-assistedTarget*2)
+    );
+    let familyCount=0;
+    while(familyCount+2<=familyTarget){
+      let size=weightedSize(rng,cfg.partyWeights);
+      size=Math.min(size,familyTarget-familyCount);
+      if(size<2) break;
+      let seats=takeCluster(size);
+      if(!seats){
+        let fallback=size-1;
+        while(fallback>=2 && !(seats=takeCluster(fallback))) fallback--;
+        if(!seats) break;
+        size=fallback;
+      }
+      const familyIndex=familyOrdinal++;
+      const unit={
+        id:`F${gid++}`,
+        groupType:"family",
+        passengers:[],
+        partyLabel:`F${familyIndex+1}`,
+        partyColor:familyColor(familyIndex,false),
+        partySeatedColor:familyColor(familyIndex,true)
+      };
+      seats.sort((a,b)=>b.depth-a.depth || a.col.localeCompare(b.col));
+      let adultCount=size===2?1:size===3?(rng()<.46?2:1):2;
+      adultCount=Math.min(adultCount,size-1);
+      const adultSeatIndices=new Set(
+        seats.map((s,i)=>({i,depth:s.depth})).sort((a,b)=>a.depth-b.depth).slice(0,adultCount).map(x=>x.i)
+      );
+      seats.forEach((seat,i)=>newPassenger(seat,unit,"family",{isChild:!adultSeatIndices.has(i)}));
+      unit.childCount=unit.passengers.filter(p=>p.isChild).length;
+      unit.entryDelay=1.0+unit.childCount*.65+rng()*1.2;
+      finalizeUnit(unit);
+      familyCount+=size;
+    }
+
+    for(let i=0;i<assistedTarget;i++){
+      let seats=takeCluster(2);
+      if(!seats) break;
+      seats.sort((a,b)=>b.depth-a.depth);
+      const unit={id:`A${gid++}`,groupType:"assisted",passengers:[],childCount:0,entryDelay:3.5+rng()*2.5};
+      newPassenger(seats[0],unit,"assisted",{isReduced:true});
+      newPassenger(seats[1],unit,"assisted",{});
+      finalizeUnit(unit);
+    }
+
+    const remainingNeeded=Math.max(0,targetPassengers-passengers.length);
+    const remaining=shuffle([...available.values()],rng).slice(0,remainingNeeded);
+    for(const seat of remaining){
+      const unit={id:`S${gid++}`,groupType:"single",passengers:[],childCount:0,entryDelay:rng()*.25};
+      newPassenger(seat,unit,"single",{});
+      finalizeUnit(unit);
+    }
+
+    return {passengers,units,targetPassengers};
+  }
+
+  function internalOrder(unit){
+    const p=unit.passengers.slice();
+    if(unit.groupType==="assisted"){
+      return p.sort((a,b)=>b.depth-a.depth || (b.isReduced?1:0)-(a.isReduced?1:0));
+    }
+    return p.sort((a,b)=>b.depth-a.depth || (b.isChild?1:0)-(a.isChild?1:0) || b.row-a.row);
+  }
+
+  function steffenSeatRank(p){
+    const seatStage=2-p.depth; // window, middle, aisle
+    const sideStage=p.side==="L"?0:1;
+    const preferredParity=p.side==="L"?1:0;
+    const parityStage=(p.row%2===preferredParity)?0:1;
+    return seatStage*100000 + sideStage*20000 + parityStage*5000 + (ROWS-p.row)*100;
+  }
+
+  function makeQueue(manifest,method,priorityPolicy,sequenceCompliance){
+    const decorated=manifest.units.map(unit=>{
+      let rank;
+      if(method==="random"){
+        rank=unit.queueRandom;
+      }else if(method==="back"){
+        rank=(ROWS-unit.maxRow)*1000+unit.queueRandom*999;
+      }else if(method==="front"){
+        rank=(unit.minRow-1)*1000+unit.queueRandom*999;
+      }else if(method==="zones"){
+        const zone=Math.floor((ROWS-unit.maxRow)/6);
+        rank=zone*1000+unit.queueRandom*999;
+      }else if(method==="wilma"){
+        const seatStage=Math.min(...unit.passengers.map(p=>2-p.depth));
+        rank=seatStage*1000+unit.queueRandom*999;
+      }else{
+        rank=Math.min(...unit.passengers.map(steffenSeatRank))+unit.queueRandom*40;
+      }
+
+      let priority=0;
+      if(priorityPolicy==="assist") priority=unit.groupType==="assisted"?-2:0;
+      else if(priorityPolicy==="allgroups") priority=unit.groupType==="assisted"?-3:unit.groupType==="family"?-2:0;
+      return {unit,rank,priority};
+    });
+
+    const tiers=new Map();
+    for(const item of decorated){
+      if(!tiers.has(item.priority)) tiers.set(item.priority,[]);
+      tiers.get(item.priority).push(item);
+    }
+
+    const orderedUnits=[];
+    for(const priority of [...tiers.keys()].sort((a,b)=>a-b)){
+      const tier=tiers.get(priority).sort((a,b)=>a.rank-b.rank);
+      if(method==="random" || sequenceCompliance>=1){
+        orderedUnits.push(...tier);
+        continue;
+      }
+      const n=tier.length;
+      const repositioned=tier.map((item,index)=>({
+        ...item,
+        position:item.unit.complianceDraw<sequenceCompliance
+          ? index
+          : item.unit.compliancePosition*Math.max(1,n)
+      }));
+      repositioned.sort((a,b)=>a.position-b.position || a.rank-b.rank);
+      orderedUnits.push(...repositioned);
+    }
+
+    const queue=[];
+    for(const {unit} of orderedUnits){
+      const ordered=internalOrder(unit);
+      ordered.forEach((p,i)=>queue.push({
+        ...p,
+        firstInUnit:i===0,
+        entryDelay:i===0?unit.entryDelay:0,
+        partyLabel:unit.partyLabel||unit.id,
+        partySize:unit.passengers.length,
+        partyColor:unit.partyColor||null,
+        partySeatedColor:unit.partySeatedColor||null
+      }));
+    }
+    queue.forEach((p,index)=>p.queueIndex=index);
+    return queue;
+  }
+
+  class BoardingSim{
+    constructor(manifest,method,cfg){
+      this.method=method;
+      this.cfg=cfg;
+      this.queue=makeQueue(manifest,method,cfg.priorityPolicy,cfg.sequenceCompliance);
+      this.assignedSeats=new Set(this.queue.map(p=>p.seatKey));
+      this.active=[];
+      this.pending=0;
+      this.time=0;
+      this.completed=0;
+      this.occupancy=new Map();
+      this.binLoad=new Map();
+      this.seatConflicts=0;
+      this.conflictSeconds=0;
+      this.blockedSeconds=0;
+      this.movementDelay=0;
+      this.done=false;
+      this.doorDelayStarted=false;
+    }
+    nearestToDoor(){
+      let nearest=Infinity;
+      for(const p of this.active) if(p.state!=="seated") nearest=Math.min(nearest,p.pos);
+      return nearest;
+    }
+    computeStow(p){
+      const key=`${p.row}${p.side}`;
+      const load=this.binLoad.get(key)||0;
+      if(p.hasBag) this.binLoad.set(key,load+1);
+      const congestion=p.hasBag?Math.max(0,load-2)*1.45:0;
+      return p.bagBase+congestion;
+    }
+    computeSeat(p){
+      let blockers=0;
+      let penalty=0;
+      for(const [seatKey,occ] of this.occupancy){
+        if(occ.row===p.row && occ.side===p.side && occ.depth<p.depth){
+          blockers++;
+          penalty += occ.unitId===p.unitId ? 2.2 : 5.4;
+        }
+      }
+      if(blockers){
+        this.seatConflicts+=blockers;
+        this.conflictSeconds+=penalty;
+      }
+      return p.seatBase+penalty;
+    }
+    release(dt){
+      if(this.pending>=this.queue.length) return;
+      if(this.nearestToDoor()<SPACING) return;
+      const p=this.queue[this.pending];
+      if(!p.delayRemainingInitialized){
+        p.delayRemaining=p.entryDelay;
+        p.delayRemainingInitialized=true;
+      }
+      if(p.delayRemaining>0){
+        p.delayRemaining=Math.max(0,p.delayRemaining-dt);
+        return;
+      }
+      p.state="walking";
+      p.pos=0;
+      p.remaining=0;
+      this.active.push(p);
+      this.pending++;
+    }
+    step(dt){
+      if(this.done) return;
+      this.time+=dt;
+
+      let anyBlocking=false;
+      for(const p of this.active){
+        if(p.state==="stowing"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          if(p.remaining<=0){
+            p.state="seating";
+            p.remaining=this.computeSeat(p);
+          }
+        }else if(p.state==="seating"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          if(p.remaining<=0){
+            p.state="seated";
+            this.occupancy.set(p.seatKey,p);
+            this.completed++;
+          }
+        }
+      }
+      if(anyBlocking) this.blockedSeconds+=dt;
+      if(this.active.some(p=>p.state==="seated")){
+        this.active=this.active.filter(p=>p.state!=="seated");
+      }
+
+      let leadPos=Infinity;
+      for(const p of this.active){
+        if(p.state==="walking"){
+          let allowed=p.row;
+          if(leadPos<Infinity) allowed=Math.min(allowed,leadPos-SPACING);
+          const available=Math.max(0,allowed-p.pos);
+          const freeMove=p.walkSpeed*dt;
+          const move=Math.min(available,freeMove);
+          p.pos+=move;
+          if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
+          if(p.row-p.pos<=.001){
+            p.pos=p.row;
+            p.state="stowing";
+            p.remaining=this.computeStow(p);
+          }
+        }
+        leadPos=p.pos;
+      }
+
+      this.release(dt);
+      if(this.completed===this.queue.length){
+        this.done=true;
+      }
+      if(this.time>7200){
+        this.done=true;
+        console.warn("Simulation safety stop",this.method);
+      }
+    }
+    runToEnd(dt=.2){
+      while(!this.done) this.step(dt);
+      return this.time;
+    }
+  }
+
+  function reset(){
+    const cfg=config();
+    manifest=makeManifest(cfg.seed,cfg);
+    sims={};
+    for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
+    running=false;
+    accumulator=0;
+    $("pauseBtn").textContent="Pause";
+    const familyUnits=manifest.units.filter(u=>u.groupType==="family");
+    const familyCounts=new Map();
+    for(const unit of familyUnits) familyCounts.set(unit.passengers.length,(familyCounts.get(unit.passengers.length)||0)+1);
+    const familySummary=familyUnits.length
+      ? [...familyCounts.entries()].sort((a,b)=>a[0]-b[0]).map(([size,count])=>`${count}×${size}`).join(", ")
+      : "none";
+    const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
+    const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
+    $("status").textContent=`Ready: ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
+    renderAll();
+  }
+
+  function formatTime(seconds){
+    if(!Number.isFinite(seconds)) return "—";
+    const s=Math.round(seconds);
+    const m=Math.floor(s/60);
+    return `${String(m).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  }
+
+  function panelElements(method){
+    return {
+      time:$(method+"Time"),
+      done:$(method+"Done"),
+      conflicts:$(method+"Conflicts"),
+      blocked:$(method+"Blocked"),
+      queue:$(method+"Queue")
+    };
+  }
+
+  function drawSim(sim,canvas){
+    const ctx=canvas.getContext("2d");
+    const w=canvas.width,h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    const top=34,bottom=h-18;
+    const rowH=(bottom-top)/ROWS;
+    const seatW=Math.min(38,(w-110)/6);
+    const gap=3;
+    const aisleW=Math.max(42,w*.13);
+    const blockW=3*seatW+2*gap;
+    const totalW=blockW*2+aisleW;
+    const left=(w-totalW)/2;
+    const aisleX=left+blockW;
+    const rightX=aisleX+aisleW;
+
+    ctx.fillStyle=palette.aisle;
+    ctx.fillRect(aisleX-5,top-8,aisleW+10,bottom-top+16);
+    ctx.strokeStyle=palette.grid;
+    ctx.lineWidth=1;
+    ctx.strokeRect(aisleX-5,top-8,aisleW+10,bottom-top+16);
+
+    ctx.font="11px system-ui";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+
+    for(let r=1;r<=ROWS;r++){
+      const y=top+(r-1)*rowH;
+      if(r%5===0 || r===1 || r===31){
+        ctx.fillStyle=palette.text;
+        ctx.textAlign="right";
+        ctx.fillText(String(r),left-7,y+rowH/2);
+        ctx.textAlign="center";
+      }
+      for(let ci=0;ci<6;ci++){
+        const col=COLS[ci];
+        const x=ci<3 ? left+ci*(seatW+gap) : rightX+(ci-3)*(seatW+gap);
+        const key=`${r}${col}`;
+        const occ=sim.occupancy.get(key);
+        const assigned=sim.assignedSeats.has(key);
+        ctx.fillStyle=occ
+          ? (occ.groupType==="family"? (occ.partySeatedColor||"#c38a38") : occ.groupType==="assisted" ? "#9a61b9" : palette.seated)
+          : assigned ? palette.empty : palette.unassigned;
+        ctx.fillRect(x,y+1,seatW,rowH-2);
+        ctx.strokeStyle=occ?"rgba(255,255,255,.22)":palette.grid;
+        ctx.strokeRect(x+.5,y+1.5,seatW-1,rowH-3);
+        if(rowH>17){
+          ctx.fillStyle=occ?"rgba(255,255,255,.78)":"rgba(220,235,255,.45)";
+          ctx.font="9px system-ui";
+          ctx.fillText(col,x+seatW/2,y+rowH/2);
+        }
+      }
+    }
+
+    ctx.fillStyle="#0b1726";
+    ctx.fillRect(aisleX,top-29,aisleW,22);
+    ctx.strokeStyle=palette.grid;
+    ctx.strokeRect(aisleX+.5,top-28.5,aisleW-1,21);
+    ctx.fillStyle=palette.text;
+    ctx.font="10px system-ui";
+    ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
+
+    const activePoint=p=>({
+      p,
+      y:top+(clamp(p.pos,0,ROWS)-.5)*rowH,
+      x:aisleX+aisleW/2 + ((p.id%3)-1)*Math.min(4,aisleW*.08)
+    });
+    const points=sim.active.map(activePoint);
+    const activeFamilies=new Map();
+    for(const point of points){
+      if(point.p.groupType!=="family") continue;
+      if(!activeFamilies.has(point.p.unitId)) activeFamilies.set(point.p.unitId,[]);
+      activeFamilies.get(point.p.unitId).push(point);
+    }
+
+    // Subtle connectors make contiguous members of the same family read as one party.
+    for(const members of activeFamilies.values()){
+      if(members.length<2) continue;
+      members.sort((a,b)=>a.p.queueIndex-b.p.queueIndex);
+      ctx.save();
+      ctx.globalAlpha=.48;
+      ctx.strokeStyle=members[0].p.partyColor||palette.family;
+      ctx.lineWidth=2.2;
+      ctx.beginPath();
+      ctx.moveTo(members[0].x,members[0].y);
+      for(let i=1;i<members.length;i++) ctx.lineTo(members[i].x,members[i].y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for(const {p,x,y} of points){
+      const radius=p.isChild?4.3:5.6;
+      ctx.beginPath();
+      ctx.arc(x,y,radius,0,Math.PI*2);
+      ctx.fillStyle=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+      ctx.fill();
+      if(p.isChild){
+        ctx.strokeStyle=palette.child;
+        ctx.lineWidth=1.5;
+        ctx.stroke();
+      }else if(p.isReduced){
+        ctx.strokeStyle="#f6e7ff";
+        ctx.lineWidth=1.7;
+        ctx.stroke();
+      }
+    }
+
+    // Keep one label visible per active family. As the leader sits, the next member inherits it.
+    for(const members of activeFamilies.values()){
+      const carrier=members.reduce((best,item)=>item.p.queueIndex<best.p.queueIndex?item:best);
+      const label=`${carrier.p.partyLabel}·${carrier.p.partySize}`;
+      ctx.save();
+      ctx.font="700 8px system-ui";
+      ctx.textAlign="left";
+      ctx.textBaseline="middle";
+      const padX=3;
+      const boxW=ctx.measureText(label).width+padX*2;
+      const boxH=13;
+      let labelX=carrier.x+8;
+      if(labelX+boxW>w-3) labelX=carrier.x-8-boxW;
+      const labelY=clamp(carrier.y-boxH/2-7,2,h-boxH-2);
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(labelX,labelY,boxW,boxH,4);
+      else ctx.rect(labelX,labelY,boxW,boxH);
+      ctx.fillStyle="rgba(5,14,25,.90)";
+      ctx.fill();
+      ctx.strokeStyle=carrier.p.partyColor||palette.family;
+      ctx.lineWidth=1;
+      ctx.stroke();
+      ctx.fillStyle="#f8fbff";
+      ctx.fillText(label,labelX+padX,labelY+boxH/2+.25);
+      ctx.restore();
+    }
+
+    if(sim.done){
+      ctx.fillStyle="rgba(6,15,27,.72)";
+      ctx.fillRect(0,0,w,h);
+      ctx.fillStyle="#e9f8ff";
+      ctx.font="800 25px system-ui";
+      ctx.fillText(formatTime(sim.time),w/2,h/2-8);
+      ctx.fillStyle="#9eb0c9";
+      ctx.font="12px system-ui";
+      ctx.fillText("boarding complete",w/2,h/2+18);
+    }
+  }
+
+  function renderAll(){
+    let allDone=true;
+    for(const method of METHODS){
+      const sim=sims[method];
+      if(!sim) continue;
+      allDone=allDone&&sim.done;
+      drawSim(sim,$(META[method].canvas));
+      const el=panelElements(method);
+      el.time.textContent=formatTime(sim.time);
+      el.done.textContent=`${sim.completed} / ${sim.queue.length}`;
+      el.conflicts.textContent=String(sim.seatConflicts);
+      el.blocked.textContent=`${Math.round(sim.blockedSeconds)} s`;
+      el.queue.textContent=String(sim.queue.length-sim.pending);
+    }
+    if(allDone && running){
+      running=false;
+      const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+      $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
+    }
+  }
+
+  function animate(now){
+    const elapsed=Math.min(.1,(now-lastFrame)/1000);
+    lastFrame=now;
+    if(running){
+      accumulator += elapsed * (+controls.speed.value);
+      let guard=0;
+      while(accumulator>=FIXED_DT && guard<5000){
+        for(const method of METHODS) sims[method].step(FIXED_DT);
+        accumulator-=FIXED_DT;
+        guard++;
+      }
+    }
+    renderAll();
+    requestAnimationFrame(animate);
+  }
+
+  function run(){
+    if(!manifest || METHODS.some(m=>sims[m].done)) reset();
+    running=true;
+    $("pauseBtn").textContent="Pause";
+    $("status").textContent="Running the same manifest through all six methods…";
+  }
+  function pause(){
+    if(!running && METHODS.every(m=>sims[m].time===0)){
+      $("status").textContent="Nothing is running yet.";
+      return;
+    }
+    running=!running;
+    $("pauseBtn").textContent=running?"Pause":"Resume";
+    $("status").textContent=running?"Running…":"Paused.";
+  }
+  function finish(){
+    running=false;
+    $("pauseBtn").textContent="Pause";
+    for(const method of METHODS) sims[method].runToEnd(.15);
+    renderAll();
+    const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+    $("status").textContent=`Complete. ${META[winner].label} won this run at ${formatTime(sims[winner].time)}.`;
+  }
+
+  function percentile(sorted,p){
+    if(!sorted.length) return NaN;
+    const pos=(sorted.length-1)*p;
+    const lo=Math.floor(pos),hi=Math.ceil(pos);
+    return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
+  }
+  function stats(values){
+    const s=values.slice().sort((a,b)=>a-b);
+    return {
+      mean:s.reduce((a,b)=>a+b,0)/s.length,
+      median:percentile(s,.5),
+      p10:percentile(s,.1),
+      p90:percentile(s,.9)
+    };
+  }
+  function renderBenchmark(result){
+    const body=$("benchBody");
+    body.innerHTML="";
+    const bestMean=Math.min(...METHODS.map(m=>result[m].stats.mean));
+    const maxMean=Math.max(...METHODS.map(m=>result[m].stats.mean));
+    for(const m of METHODS){
+      const row=document.createElement("tr");
+      const st=result[m].stats;
+      row.innerHTML=`
+        <td>${META[m].label}</td>
+        <td class="${st.mean===bestMean?"winner":""}">${formatTime(st.mean)}</td>
+        <td>${formatTime(st.median)}</td>
+        <td>${formatTime(st.p90)}</td>
+        <td>${result[m].wins}</td>`;
+      body.appendChild(row);
+    }
+    $("benchSubtitle").textContent=`${result.trials} trials · same manifest per trial · lower is better`;
+    const box=$("barBox");
+    box.innerHTML="";
+    for(const m of METHODS){
+      const st=result[m].stats;
+      const row=document.createElement("div");
+      row.className="barrow";
+      const pct=maxMean?100*st.mean/maxMean:0;
+      row.innerHTML=`<span>${META[m].label}</span><div class="track"><div class="fill" style="width:${pct}%"></div></div><strong>${formatTime(st.mean)}</strong>`;
+      box.appendChild(row);
+    }
+  }
+
+  async function benchmark(){
+    if(benchmarking) return;
+    benchmarking=true;
+    const button=$("benchBtn");
+    const benchStatus=$("benchStatus");
+    button.disabled=true;
+    button.textContent="Benchmarking…";
+
+    // Capture an independent scenario snapshot. The visible simulations keep their
+    // current state and continue animating while these fresh trial instances run.
+    const cfg=config();
+    const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
+    const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
+    const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
+
+    try{
+      for(let t=0;t<trials;t++){
+        const trialCfg={...cfg,seed:cfg.seed+t*7919};
+        const man=makeManifest(trialCfg.seed,trialCfg);
+        const trialTimes={};
+        for(const method of METHODS){
+          const sim=new BoardingSim(man,method,trialCfg);
+          trialTimes[method]=sim.runToEnd(.20);
+          times[method].push(trialTimes[method]);
+        }
+        const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
+        wins[win]++;
+        benchStatus.textContent=`Benchmarking ${t+1}/${trials}… The animation remains independent.`;
+
+        // Yield after each trial so the browser can paint and advance a running sim.
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+      benchmarkResult={trials};
+      for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
+      renderBenchmark(benchmarkResult);
+      benchStatus.textContent=`Benchmark complete: ${trials} trials using the settings captured at start.`;
+    }finally{
+      benchmarking=false;
+      button.disabled=false;
+      button.textContent="Run benchmark";
+    }
+  }
+
+  controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
+  function formatWeight(value){
+    if(!Number.isFinite(value)) return "∞";
+    if(Math.abs(value)>=1e6) return value.toExponential(2);
+    return value.toLocaleString(undefined,{maximumFractionDigits:2});
+  }
+  function updatePartyWeightDisplay(){
+    const {raw,normalized,fallback}=normalizedPartyWeights();
+    const rawTotal=raw.reduce((a,b)=>a+b,0);
+    $("partyWeightTotal").textContent=`raw total ${formatWeight(rawTotal)}`;
+    $("partyWeightNormalized").textContent=fallback
+      ? "All weights are zero, so the run-time fallback is 25.0% · 25.0% · 25.0% · 25.0%."
+      : `Normalized at run time: ${normalized.map(value=>value.toFixed(1)+"%").join(" · ")}`;
+  }
+  [controls.party2,controls.party3,controls.party4,controls.party5].forEach(el=>el.addEventListener("input",updatePartyWeightDisplay));
+  updatePartyWeightDisplay();
+  controls.familyShare.addEventListener("input",()=>{$("familyOut").textContent=`${controls.familyShare.value}%`;});
+  controls.bagRate.addEventListener("input",()=>{$("bagOut").textContent=`${controls.bagRate.value}%`;});
+  controls.sequenceCompliance.addEventListener("input",()=>{$("complianceOut").textContent=`${controls.sequenceCompliance.value}%`;});
+  $("runBtn").addEventListener("click",run);
+  $("pauseBtn").addEventListener("click",pause);
+  $("finishBtn").addEventListener("click",finish);
+  $("resetBtn").addEventListener("click",reset);
+  $("benchBtn").addEventListener("click",benchmark);
+  Object.values(controls).forEach(el=>el.addEventListener("change",()=>{
+    if(el!==controls.speed && el!==controls.trials) reset();
+  }));
+
+  window.addEventListener("resize",renderAll);
+  reset();
+  if(!new URLSearchParams(location.search).has("static")){
+    requestAnimationFrame(animate);
+  }else{
+    renderAll();
+  }
+})();
+</script>
+</body>
+</html>
