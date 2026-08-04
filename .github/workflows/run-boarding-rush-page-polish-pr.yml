@@ -89,6 +89,7 @@ jobs:
           "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/dist.html
 
           python - <<'PY'
+          import re
           from pathlib import Path
           css=Path('simulations/group-aware-boarding/src/styles.css').read_text(encoding='utf-8')
           assert '.seed-control{grid-column:span 2;min-width:300px}' in css
@@ -96,7 +97,7 @@ jobs:
           for path in ['/tmp/source.html','/tmp/dist.html']:
               html=Path(path).read_text(encoding='utf-8')
               assert '<h1>Boarding Rush</h1>' in html
-              assert html.count('class="scenario-card') == 9
+              assert len(re.findall(r'<button[^>]*class="scenario-card(?: active)?"',html)) == 9
               assert html.count('class="card sim-card"') == 6
               assert 'id="seed"' in html
               assert 'unreleased candidate' not in html
@@ -107,6 +108,7 @@ jobs:
         shell: bash
         run: |
           rm .github/scripts/apply_boarding_rush_polish.py
+          rm .github/scripts/boarding-rush-polish-trigger.txt
           rm .github/workflows/boarding-rush-page-polish.yml
           rm .github/workflows/run-boarding-rush-page-polish-pr.yml
           git config user.name "github-actions[bot]"
