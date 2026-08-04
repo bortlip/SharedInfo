@@ -422,6 +422,27 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   .seed-entry{grid-template-columns:1fr}
   .method-picker,.sim-grid.compact-view{grid-template-columns:1fr}
 }
+
+
+.sim-tooltip{
+  position:fixed;
+  z-index:1000;
+  width:min(300px,calc(100vw - 16px));
+  padding:11px 12px;
+  border:1px solid #5a7898;
+  border-radius:12px;
+  background:rgba(5,15,27,.97);
+  color:#e9f5ff;
+  box-shadow:0 16px 42px rgba(0,0,0,.48);
+  pointer-events:none;
+  backdrop-filter:blur(8px);
+}
+.sim-tooltip[hidden]{display:none}
+.sim-tooltip-title{font-size:.9rem;font-weight:850;line-height:1.2}
+.sim-tooltip-subtitle{margin:2px 0 8px;color:#9fdcf1;font-size:.72rem;line-height:1.3}
+.sim-tooltip-row{display:grid;grid-template-columns:minmax(78px,.72fr) minmax(0,1.28fr);gap:8px;padding:3px 0;border-top:1px solid rgba(66,94,122,.32);font-size:.69rem;line-height:1.3}
+.sim-tooltip-row span{color:#8ea8c1}
+.sim-tooltip-row strong{min-width:0;color:#e8f4ff;font-weight:650;text-align:right;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -727,6 +748,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   <footer>Boarding Rush <span data-app-version>v—</span> · <a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">how the model works</a> · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding">source on GitHub</a></footer>
 </div>
 
+<div id="simTooltip" class="sim-tooltip" role="tooltip" hidden></div>
+
 <script>
 (() => {
   "use strict";
@@ -766,7 +789,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return `hsl(${hue} 82% ${lightness}%)`;
   }
 
-  const APP_VERSION = "3.2.0";
+  const APP_VERSION = "3.3.0";
 
   function mulberry32(seed){
     let a = seed >>> 0;
@@ -1042,7 +1065,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       const seatBase=isReduced ? 7.5+rng()*5.5 : isChild ? 3.8+rng()*3.8 : 2.1+rng()*2.8;
       const p={
         id:pid++, seatKey:seat.key,row:seat.row,col:seat.col,side:seat.side,depth:seat.depth,
-        unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed
+        unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed,
+        displayName:null, characterId:null, characterRole:null, characterStatus:null, eventState:null
       };
       passengers.push(p);
       unit.passengers.push(p);
@@ -1292,7 +1316,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
               });
             }
             p.state="seating";
-            p.remaining=this.computeSeat(p);
+            p.seatingDuration=this.computeSeat(p);
+            p.remaining=p.seatingDuration;
           }
         }else if(p.state==="seating"){
           anyBlocking=true;
@@ -1467,11 +1492,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return palette[item.groupType]||palette.single;
   }
 
-  function drawSim(sim,canvas){
-    const ctx=canvas.getContext("2d");
-    const w=canvas.width,h=canvas.height;
-    ctx.clearRect(0,0,w,h);
-
+  function cabinGeometry(w,h){
     const top=34,bottom=h-18;
     const rowH=(bottom-top)/ROWS;
     const seatW=Math.min(38,(w-130)/6);
@@ -1485,6 +1506,83 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     const aisleX=leftBinX+binW;
     const rightBinX=aisleX+aisleW;
     const rightX=rightBinX+binW;
+    return {w,h,top,bottom,rowH,seatW,gap,aisleW,binW,blockW,totalW,left,leftBinX,aisleX,rightBinX,rightX};
+  }
+
+  function seatRect(geometry,row,col){
+    const ci=COLS.indexOf(col);
+    if(ci<0 || row<1 || row>ROWS) return null;
+    const x=ci<3
+      ? geometry.left+ci*(geometry.seatW+geometry.gap)
+      : geometry.rightX+(ci-3)*(geometry.seatW+geometry.gap);
+    const y=geometry.top+(row-1)*geometry.rowH+1;
+    return {x,y,w:geometry.seatW,h:geometry.rowH-2,cx:x+geometry.seatW/2,cy:y+(geometry.rowH-2)/2};
+  }
+
+  function passengerPoint(passenger,geometry){
+    const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+    const baseX=aisleCenter+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08);
+    let x=baseX;
+    let y=geometry.top+(clamp(passenger.pos,0,ROWS)-.5)*geometry.rowH;
+    let seatingProgress=0;
+    if(passenger.state==="seating"){
+      const target=seatRect(geometry,passenger.row,passenger.col);
+      const duration=Math.max(.001,passenger.seatingDuration||passenger.remaining||1);
+      seatingProgress=clamp(1-passenger.remaining/duration,0,1);
+      const eased=seatingProgress<.5
+        ? 2*seatingProgress*seatingProgress
+        : 1-Math.pow(-2*seatingProgress+2,2)/2;
+      x=baseX+(target.cx-baseX)*eased;
+      y=target.cy-Math.sin(seatingProgress*Math.PI)*Math.min(4,geometry.rowH*.18);
+    }
+    return {p:passenger,x,y,seatingProgress};
+  }
+
+  function hitTestSim(sim,canvas,clientX,clientY){
+    const rect=canvas.getBoundingClientRect();
+    if(!rect.width || !rect.height) return null;
+    const x=(clientX-rect.left)*canvas.width/rect.width;
+    const y=(clientY-rect.top)*canvas.height/rect.height;
+    const geometry=cabinGeometry(canvas.width,canvas.height);
+
+    const active=(sim.active||[]).map(passenger=>passengerPoint(passenger,geometry));
+    for(let index=active.length-1;index>=0;index--){
+      const point=active[index];
+      const radius=(point.p.isChild?4.3:5.6)+5;
+      if(Math.hypot(x-point.x,y-point.y)<=radius){
+        return {kind:"passenger",passenger:point.p,point};
+      }
+    }
+
+    for(let row=1;row<=ROWS;row++){
+      for(const col of COLS){
+        const seat=seatRect(geometry,row,col);
+        if(x<seat.x || x>seat.x+seat.w || y<seat.y || y>seat.y+seat.h) continue;
+        const seatKey=`${row}${col}`;
+        const occupant=sim.occupancy.get(seatKey)||null;
+        const assigned=occupant||sim.queue.find(passenger=>passenger.seatKey===seatKey)||null;
+        return {
+          kind:"seat",
+          row,
+          col,
+          seatKey,
+          occupant,
+          assigned,
+          isAssigned:sim.assignedSeats.has(seatKey),
+          rect:seat
+        };
+      }
+    }
+    return null;
+  }
+
+  function drawSim(sim,canvas){
+    const ctx=canvas.getContext("2d");
+    const w=canvas.width,h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    const geometry=cabinGeometry(w,h);
+    const {top,bottom,rowH,seatW,gap,aisleW,binW,left,leftBinX,aisleX,rightBinX,rightX}=geometry;
 
     const bagsByBin=new Map();
     for(const bag of sim.stowedBags||[]){
@@ -1527,20 +1625,20 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
       for(let ci=0;ci<6;ci++){
         const col=COLS[ci];
-        const x=ci<3 ? left+ci*(seatW+gap) : rightX+(ci-3)*(seatW+gap);
+        const seat=seatRect(geometry,r,col);
         const key=`${r}${col}`;
         const occ=sim.occupancy.get(key);
         const assigned=sim.assignedSeats.has(key);
         ctx.fillStyle=occ
           ? (occ.groupType==="family"? (occ.partySeatedColor||"#c38a38") : occ.groupType==="assisted" ? "#9a61b9" : palette.seated)
           : assigned ? palette.empty : palette.unassigned;
-        ctx.fillRect(x,y+1,seatW,rowH-2);
+        ctx.fillRect(seat.x,seat.y,seat.w,seat.h);
         ctx.strokeStyle=occ?"rgba(255,255,255,.22)":palette.grid;
-        ctx.strokeRect(x+.5,y+1.5,seatW-1,rowH-3);
+        ctx.strokeRect(seat.x+.5,seat.y+.5,seat.w-1,seat.h-1);
         if(rowH>17){
           ctx.fillStyle=occ?"rgba(255,255,255,.78)":"rgba(220,235,255,.45)";
           ctx.font="9px system-ui";
-          ctx.fillText(col,x+seatW/2,y+rowH/2);
+          ctx.fillText(col,seat.cx,seat.cy);
         }
       }
 
@@ -1564,12 +1662,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     ctx.font="10px system-ui";
     ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
 
-    const activePoint=p=>({
-      p,
-      y:top+(clamp(p.pos,0,ROWS)-.5)*rowH,
-      x:aisleX+aisleW/2 + ((p.id%3)-1)*Math.min(4,aisleW*.08)
-    });
-    const points=sim.active.map(activePoint);
+    const points=sim.active.map(passenger=>passengerPoint(passenger,geometry));
     const activeFamilies=new Map();
     for(const point of points){
       if(point.p.groupType!=="family") continue;
@@ -1577,7 +1670,6 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       activeFamilies.get(point.p.unitId).push(point);
     }
 
-    // Subtle connectors make contiguous members of the same family read as one party.
     for(const members of activeFamilies.values()){
       if(members.length<2) continue;
       members.sort((a,b)=>a.p.queueIndex-b.p.queueIndex);
@@ -1592,8 +1684,21 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       ctx.restore();
     }
 
-    for(const {p,x,y} of points){
+    for(const {p,x,y,seatingProgress} of points){
       const color=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+      if(p.state==="seating"){
+        const target=seatRect(geometry,p.row,p.col);
+        ctx.save();
+        ctx.setLineDash([3,3]);
+        ctx.strokeStyle=`rgba(134,220,255,${.24+.34*(1-seatingProgress)})`;
+        ctx.lineWidth=1.2;
+        ctx.beginPath();
+        ctx.moveTo(aisleX+aisleW/2,target.cy);
+        ctx.lineTo(target.cx,target.cy);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       if(p.hasBag && !p.bagStowed){
         let bagX=x+(p.side==="L"?-10:4);
         let bagY=y-2;
@@ -1617,6 +1722,13 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       }
 
       const radius=p.isChild?4.3:5.6;
+      if(p.characterId){
+        ctx.beginPath();
+        ctx.arc(x,y,radius+3.5,0,Math.PI*2);
+        ctx.strokeStyle="#fff0a8";
+        ctx.lineWidth=1.7;
+        ctx.stroke();
+      }
       ctx.beginPath();
       ctx.arc(x,y,radius,0,Math.PI*2);
       ctx.fillStyle=color;
@@ -1632,7 +1744,6 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       }
     }
 
-    // Keep one label visible per active family. As the leader sits, the next member inherits it.
     for(const members of activeFamilies.values()){
       const carrier=members.reduce((best,item)=>item.p.queueIndex<best.p.queueIndex?item:best);
       const label=`${carrier.p.partyLabel}·${carrier.p.partySize}`;
@@ -1677,6 +1788,73 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     }
   }
 
+  function escapeHtml(value){
+    return String(value??"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  function passengerName(passenger){
+    return passenger.displayName||`Passenger ${passenger.id+1}`;
+  }
+
+  function travelerType(passenger){
+    if(passenger.isReduced) return "reduced-mobility traveler";
+    if(passenger.isChild) return "child";
+    if(passenger.groupType==="assisted") return "assisted-party companion";
+    return "adult";
+  }
+
+  function partyText(passenger){
+    if(passenger.groupType==="single") return "traveling alone";
+    const label=passenger.partyLabel||passenger.unitId;
+    const kind=passenger.groupType==="family"?"family":"assisted party";
+    return `${kind} ${label} · ${passenger.partySize||2} people`;
+  }
+
+  function stateText(passenger,sim){
+    if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+    if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
+    if((passenger.queueIndex??Infinity)>=sim.pending) return `waiting at gate · ${Math.max(0,(passenger.queueIndex??0)-sim.pending)} ahead before release`;
+    return passenger.state||"waiting";
+  }
+
+  function row(label,value){
+    return `<div class="sim-tooltip-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  }
+
+  function passengerDetails(passenger,sim){
+    const character=[];
+    if(passenger.characterRole) character.push(row("Role",passenger.characterRole));
+    if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
+    if(passenger.eventState) character.push(row("Current event",passenger.eventState));
+    return `
+      <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
+      <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>
+      ${row("Party",partyText(passenger))}
+      ${row("Boarding order",`${(passenger.queueIndex??0)+1} of ${sim.queue.length}`)}
+      ${row("Current state",stateText(passenger,sim))}
+      ${row("Walking speed",`${passenger.walkSpeed.toFixed(2)} rows/sec`)}
+      ${row("Carry-on",passenger.hasBag?(passenger.bagStowed?"stowed overhead":`${passenger.bagBase.toFixed(1)}s base stow`):"none")}
+      ${row("Base seating",`${passenger.seatBase.toFixed(1)}s`)}
+      ${character.join("")}`;
+  }
+
+  function tooltipHtml(hit,sim){
+    if(hit.kind==="passenger") return passengerDetails(hit.passenger,sim);
+    const passenger=hit.occupant||hit.assigned;
+    if(!hit.isAssigned){
+      return `<div class="sim-tooltip-title">Seat ${escapeHtml(hit.seatKey)}</div><div class="sim-tooltip-subtitle">Unassigned on this flight</div>${row("Status","empty")}`;
+    }
+    const status=hit.occupant?"occupied":passenger?.state==="seating"?"passenger entering row":"assigned · passenger not seated yet";
+    return `<div class="sim-tooltip-title">Seat ${escapeHtml(hit.seatKey)}</div><div class="sim-tooltip-subtitle">${escapeHtml(status)}</div>${passenger?passengerDetails(passenger,sim):""}`;
+  }
+
   const $ = id => document.getElementById(id);
   const controls = {
     loadFactor:$("loadFactor"),
@@ -1705,6 +1883,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   let toastTimer = null;
   let selectedMethods = new Set(METHODS);
   let raceLayout = "standard";
+  const simHover={method:null,canvas:null,clientX:0,clientY:0};
   const raceHud={
     leader:null,
     leadFlash:new Map(),
@@ -1936,6 +2115,62 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     document.querySelectorAll("[data-chart-size]").forEach(button=>{
       button.addEventListener("click",()=>setRaceChartSize(button.dataset.chartSize));
     });
+  }
+
+
+  function hideSimTooltip(){
+    simHover.method=null;
+    simHover.canvas=null;
+    const tooltip=$("simTooltip");
+    tooltip.hidden=true;
+    document.querySelectorAll(".sim-card canvas").forEach(canvas=>canvas.style.cursor="default");
+  }
+
+  function positionSimTooltip(clientX,clientY){
+    const tooltip=$("simTooltip");
+    const gap=14;
+    const rect=tooltip.getBoundingClientRect();
+    let left=clientX+gap;
+    let top=clientY+gap;
+    if(left+rect.width>innerWidth-8) left=clientX-rect.width-gap;
+    if(top+rect.height>innerHeight-8) top=clientY-rect.height-gap;
+    tooltip.style.left=`${Math.max(8,left)}px`;
+    tooltip.style.top=`${Math.max(8,top)}px`;
+  }
+
+  function refreshSimTooltip(){
+    if(!simHover.method || !simHover.canvas || simHover.canvas.closest("article")?.hidden){
+      hideSimTooltip();
+      return;
+    }
+    const sim=sims[simHover.method];
+    if(!sim) return;
+    const hit=hitTestSim(sim,simHover.canvas,simHover.clientX,simHover.clientY);
+    if(!hit){
+      $("simTooltip").hidden=true;
+      simHover.canvas.style.cursor="default";
+      return;
+    }
+    const tooltip=$("simTooltip");
+    tooltip.innerHTML=tooltipHtml(hit,sim);
+    tooltip.hidden=false;
+    simHover.canvas.style.cursor="help";
+    positionSimTooltip(simHover.clientX,simHover.clientY);
+  }
+
+  function initializeSimHover(){
+    for(const method of METHODS){
+      const canvas=$(META[method].canvas);
+      canvas.addEventListener("pointermove",event=>{
+        simHover.method=method;
+        simHover.canvas=canvas;
+        simHover.clientX=event.clientX;
+        simHover.clientY=event.clientY;
+        refreshSimTooltip();
+      });
+      canvas.addEventListener("pointerleave",hideSimTooltip);
+    }
+    window.addEventListener("scroll",hideSimTooltip,{passive:true});
   }
 
   function parseRaceView(search){
@@ -2188,6 +2423,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     sims={};
     for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
     clearRaceHud();
+    hideSimTooltip();
     running=false;
     accumulator=0;
     $("pauseBtn").textContent="Pause";
@@ -2229,6 +2465,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       el.queue.textContent=String(sim.queue.length-sim.pending);
     }
     renderRaceHud();
+    if(simHover.method) refreshSimTooltip();
     if(allDone && running){
       running=false;
       const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
@@ -2471,6 +2708,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     renderScenarioCards();
     renderMethodPicker();
     initializeRaceHud();
+    initializeSimHover();
     const fromUrl=parseScenarioSearch(location.search);
     const raceView=parseRaceView(location.search);
     writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);

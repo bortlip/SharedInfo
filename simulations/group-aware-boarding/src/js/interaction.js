@@ -1,0 +1,66 @@
+function escapeHtml(value){
+  return String(value??"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+function passengerName(passenger){
+  return passenger.displayName||`Passenger ${passenger.id+1}`;
+}
+
+function travelerType(passenger){
+  if(passenger.isReduced) return "reduced-mobility traveler";
+  if(passenger.isChild) return "child";
+  if(passenger.groupType==="assisted") return "assisted-party companion";
+  return "adult";
+}
+
+function partyText(passenger){
+  if(passenger.groupType==="single") return "traveling alone";
+  const label=passenger.partyLabel||passenger.unitId;
+  const kind=passenger.groupType==="family"?"family":"assisted party";
+  return `${kind} ${label} · ${passenger.partySize||2} people`;
+}
+
+function stateText(passenger,sim){
+  if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+  if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+  if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
+  if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
+  if((passenger.queueIndex??Infinity)>=sim.pending) return `waiting at gate · ${Math.max(0,(passenger.queueIndex??0)-sim.pending)} ahead before release`;
+  return passenger.state||"waiting";
+}
+
+function row(label,value){
+  return `<div class="sim-tooltip-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function passengerDetails(passenger,sim){
+  const character=[];
+  if(passenger.characterRole) character.push(row("Role",passenger.characterRole));
+  if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
+  if(passenger.eventState) character.push(row("Current event",passenger.eventState));
+  return `
+    <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
+    <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>
+    ${row("Party",partyText(passenger))}
+    ${row("Boarding order",`${(passenger.queueIndex??0)+1} of ${sim.queue.length}`)}
+    ${row("Current state",stateText(passenger,sim))}
+    ${row("Walking speed",`${passenger.walkSpeed.toFixed(2)} rows/sec`)}
+    ${row("Carry-on",passenger.hasBag?(passenger.bagStowed?"stowed overhead":`${passenger.bagBase.toFixed(1)}s base stow`):"none")}
+    ${row("Base seating",`${passenger.seatBase.toFixed(1)}s`)}
+    ${character.join("")}`;
+}
+
+export function tooltipHtml(hit,sim){
+  if(hit.kind==="passenger") return passengerDetails(hit.passenger,sim);
+  const passenger=hit.occupant||hit.assigned;
+  if(!hit.isAssigned){
+    return `<div class="sim-tooltip-title">Seat ${escapeHtml(hit.seatKey)}</div><div class="sim-tooltip-subtitle">Unassigned on this flight</div>${row("Status","empty")}`;
+  }
+  const status=hit.occupant?"occupied":passenger?.state==="seating"?"passenger entering row":"assigned · passenger not seated yet";
+  return `<div class="sim-tooltip-title">Seat ${escapeHtml(hit.seatKey)}</div><div class="sim-tooltip-subtitle">${escapeHtml(status)}</div>${passenger?passengerDetails(passenger,sim):""}`;
+}

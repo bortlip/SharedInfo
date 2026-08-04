@@ -64,6 +64,14 @@ Selecting or deselecting a method changes only which panels are rendered and whi
 
 "Finish instantly" completes all six animated method simulations. The completion message ranks only the methods currently visible.
 
+### Passenger and seat hover explanations
+
+Hovering a visible passenger dot or seat shows a non-blocking tooltip. Passenger tooltips are derived from that method's live simulation object and include seat, party, boarding position, traveler type, current state, walking speed, carry-on status, and base seating time. Seat tooltips distinguish unassigned, assigned-but-not-seated, actively entering, and occupied seats. Hovering never pauses or changes the simulation.
+
+During the existing `seating` state, the renderer now interpolates the passenger laterally from the aisle toward the assigned seat. The interpolation uses the already-calculated seating duration, including any seat-conflict delay, but it is visual only: the state transition still completes at exactly the same simulated time.
+
+Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara and do not introduce event behavior on their own.
+
 ### Live race HUD and race graph
 
 The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:

@@ -87,7 +87,8 @@ export class BoardingSim{
             });
           }
           p.state="seating";
-          p.remaining=this.computeSeat(p);
+          p.seatingDuration=this.computeSeat(p);
+          p.remaining=p.seatingDuration;
         }
       }else if(p.state==="seating"){
         anyBlocking=true;

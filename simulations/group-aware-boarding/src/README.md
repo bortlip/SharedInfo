@@ -13,7 +13,8 @@ This is the working, unreleased source for **Boarding Rush**, the aircraft board
 - `js/simulation.js` advances aisle, stowing, and seating state.
 - `js/format.js` contains time and benchmark-statistic helpers.
 - `js/race.js` ranks synchronized methods for the visual race HUD.
-- `js/render.js` draws one simulation.
+- `js/render.js` draws one simulation and provides canvas hit testing.
+- `js/interaction.js` formats passenger, seat, and future named-character explanations.
 - `js/app.js` owns controls, scenario selection, animation, sharing, and benchmarking.
 
 Run `python ../tools/build_simulator.py` from this folder, or run the script from any working directory, to regenerate `../dist/simulator.html` and the formatted `../model.html` guide from `../MODEL.md`.

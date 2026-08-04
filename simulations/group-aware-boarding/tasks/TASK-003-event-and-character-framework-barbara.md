@@ -7,6 +7,17 @@
 
 Create a deterministic framework for memorable passenger incidents, then prove it with a visible "Barbara" scenario.
 
+## Foundation now available
+
+The passenger/seat hover slice provides reusable character presentation hooks before Barbara changes behavior:
+
+- optional passenger display name, role, status, and current-event fields
+- a tooltip renderer that automatically displays those fields
+- lateral row-entry motion that future character actions can reuse
+- canvas hit testing for following a named passenger while the race continues
+
+Barbara is not active yet; these fields are inert for ordinary passengers and no event timing has been introduced.
+
 ## Barbara concept
 
 Barbara arrives late, rejoins the queue at an inconvenient point, struggles with a heavy carry-on, requires assistance, and realizes she needs the restroom during boarding.
