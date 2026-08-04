@@ -1,0 +1,122 @@
+name: Run method selection and layout work on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/scripts/apply_method_selection_layout.py
+      - .github/workflows/run-method-selection-layout-pr.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply modular source changes
+        run: python .github/scripts/apply_method_selection_layout.py
+
+      - name: Validate JavaScript and race-view helpers
+        shell: bash
+        run: |
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+          cp simulations/group-aware-boarding/src/js/format.js /tmp/format.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { benchmarkSignature } from 'file:///tmp/format.mjs';
+
+          const cfg={loadFactor:1,familyShare:.3,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.7,sequenceCompliance:1,priorityPolicy:'assist',seed:12345};
+          assert.equal(benchmarkSignature(cfg,40,['random','steffen']),benchmarkSignature({...cfg},40,['random','steffen']));
+          assert.notEqual(benchmarkSignature(cfg,40,['random','steffen']),benchmarkSignature(cfg,40,['random','back']));
+          assert.notEqual(benchmarkSignature(cfg,40,['random']),benchmarkSignature(cfg,40,['random','steffen']));
+          NODE
+
+      - name: Build standalone candidate and validate syntax
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html=Path('simulations/group-aware-boarding/dist/simulator.html').read_text(encoding='utf-8')
+          match=re.search(r'<script>\s*(.*?)\s*</script>',html,re.S)
+          if not match:
+              raise SystemExit('Bundled script not found')
+          Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1),encoding='utf-8')
+          assert 'Choose the racers' in html
+          assert 'Compact fleet' in html
+          assert 'data-method="steffen"' in html
+          assert 'url.searchParams.set("m"' in html
+          assert 'url.searchParams.set("view"' in html
+          PY
+          node --check /tmp/boarding-rush-bundle.js
+
+      - name: Verify protected release files remain unchanged
+        shell: bash
+        run: |
+          git fetch origin main
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke tests
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/src/?static=1&m=random,steffen&view=standard' >/tmp/two-methods.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,back,front,zones,wilma,steffen&view=compact' >/tmp/compact.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=bogus&view=bogus' >/tmp/fallback.html
+
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          def visible_methods(path):
+              html=Path(path).read_text(encoding='utf-8')
+              cards=re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',html)
+              assert len(cards)==6, cards
+              return [method for method,attrs in cards if 'hidden' not in attrs],html
+
+          visible,html=visible_methods('/tmp/two-methods.html')
+          assert visible==['random','steffen'], visible
+          assert html.count('class="method-option"')==6
+          assert 'compact-view' not in re.search(r'<main[^>]+id="simGrid"[^>]*>',html).group(0)
+
+          visible,html=visible_methods('/tmp/compact.html')
+          assert visible==['random','back','front','zones','wilma','steffen'], visible
+          assert 'compact-view' in re.search(r'<main[^>]+id="simGrid"[^>]*>',html).group(0)
+
+          visible,html=visible_methods('/tmp/fallback.html')
+          assert visible==['random','back','front','zones','wilma','steffen'], visible
+          assert 'compact-view' not in re.search(r'<main[^>]+id="simGrid"[^>]*>',html).group(0)
+          PY
+
+      - name: Commit validated changes and remove temporary tooling
+        shell: bash
+        run: |
+          rm .github/scripts/apply_method_selection_layout.py
+          rm .github/workflows/run-method-selection-layout-pr.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add simulations/group-aware-boarding/src \
+                  simulations/group-aware-boarding/dist/simulator.html \
+                  simulations/group-aware-boarding/tasks \
+                  .github/scripts/apply_method_selection_layout.py \
+                  .github/workflows/run-method-selection-layout-pr.yml
+          git commit -m 'Add method selection and race layouts'
+          git push origin HEAD:${{ github.head_ref }}
