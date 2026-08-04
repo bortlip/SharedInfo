@@ -21,6 +21,8 @@ import subprocess
 import textwrap
 from pathlib import Path
 
+from build_model_page import build as build_model_page
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 JS = SRC / "js"
@@ -31,6 +33,7 @@ INDEX_REPO_PATH = "simulations/group-aware-boarding/index.html"
 
 MODULE_ORDER = [
     "constants.js",
+    "version.js",
     "random.js",
     "scenarios.js",
     "manifest.js",
@@ -258,6 +261,7 @@ def build() -> None:
 
     DIST.parent.mkdir(parents=True, exist_ok=True)
     DIST.write_text(output, encoding="utf-8")
+    build_model_page()
 
 
 def main() -> None:

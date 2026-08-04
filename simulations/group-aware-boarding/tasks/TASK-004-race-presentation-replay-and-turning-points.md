@@ -1,10 +1,23 @@
 # TASK-004: Race Presentation, Replay, and Turning Points
 
-**Status:** Idea
+**Status:** Ready
 
 ## Goal
 
 Make six simultaneous simulations entertaining to watch and easy to understand as a competitive race.
+
+## Recommended first visual slice
+
+Build the race HUD before full replay:
+
+- one live leaderboard above the aircraft cards
+- current rank, seated percentage, and gap to the leader for every visible method
+- animated lead-change and finish-order moments
+- short event callouts for a long bag stow, a seat-conflict cluster, and a heavily blocked aisle
+- clicking a leaderboard row briefly emphasizes that aircraft panel
+- no simulation-rule changes and no replay storage in this first slice
+
+This produces an immediate visual payoff while establishing event data that replay and post-race turning-point analysis can reuse.
 
 ## Race presentation
 

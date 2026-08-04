@@ -7,7 +7,8 @@ The folder name remains `group-aware-boarding` so existing repository and GitHub
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/)
 - [Open the unreleased Boarding Rush candidate](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/dist/simulator.html)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/src/)
-- [Read how the current released model works](MODEL.md)
+- [Read the formatted model guide](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html)
+- [Read the canonical model specification](MODEL.md)
 - [Read the product and technical design](design/)
 - [Browse the improvement backlog](tasks/)
 
@@ -17,16 +18,18 @@ The folder name remains `group-aware-boarding` so existing repository and GitHub
 index.html             Stable redirect to the released root simulator. Protected.
 simulator.html         Official released version and permanent shared URL. Protected.
 src/                   Modular, unreleased Boarding Rush source used for feature work.
+src/js/version.js      Single source of truth for the visible app version.
 dist/simulator.html    Generated, unreleased release candidate built from src/.
+model.html             Generated formatted guide built from MODEL.md.
 tools/                 Dependency-free build tooling.
 design/                Product, UI, architecture, and release-process documents.
 tasks/                 One write-up per proposed improvement.
-MODEL.md               Exact functional description of the current released model.
+MODEL.md               Canonical functional description of the current simulator model.
 ```
 
 The root `index.html` and root `simulator.html` remain protected. Existing shared links continue to serve the released v2.4 simulator.
 
-Running `python tools/build_simulator.py` bundles the modular source into one standalone `dist/simulator.html` candidate.
+Running `python tools/build_simulator.py` bundles the modular source into `dist/simulator.html` and regenerates the formatted root `model.html` page from `MODEL.md`.
 
 ## Development and release rule
 

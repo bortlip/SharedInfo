@@ -15,7 +15,13 @@
       <h1>Boarding Rush</h1>
       <p>Pick a flight, choose the racers, and watch boarding strategies compete through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
-    <div class="badge">scenarios · shareable seeds · deterministic races</div>
+    <div class="badge product-badge">
+      <span>scenarios · shareable seeds · deterministic races</span>
+      <a class="version-link" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html" title="Read the detailed model guide">
+        <strong data-app-version>v—</strong>
+        <span>How it works</span>
+      </a>
+    </div>
   </header>
 
   <section class="card scenario-picker" aria-labelledby="scenarioHeading">
@@ -258,6 +264,7 @@
         <span><i class="dot" style="background:var(--assist)"></i>assisted party</span>
         <span title="Carry-ons travel with passengers, animate into their row-side overhead bin, and remain visible there.">🧳 carry-on and overhead-bin placement</span>
       </div>
+      <p class="model-guide-link"><a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">📘 Read the complete model guide</a> for every assumption, formula, boarding rule, measurement, and known omission.</p>
       <details>
         <summary>Method and model details</summary>
         <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
@@ -269,7 +276,7 @@
     </aside>
   </section>
 
-  <footer>Boarding Rush · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+  <footer>Boarding Rush <span data-app-version>v—</span> · <a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">how the model works</a> · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding">source on GitHub</a></footer>
 </div>
 
 <script type="module" src="./js/app.js"></script>

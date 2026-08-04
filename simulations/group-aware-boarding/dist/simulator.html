@@ -49,6 +49,13 @@ header p{margin:0;color:var(--muted);max-width:900px;line-height:1.55}
   font-size:.82rem;
   white-space:nowrap;
 }
+.product-badge{display:grid;gap:5px;justify-items:end;white-space:normal;text-align:right}
+.product-badge>span{white-space:nowrap}
+.version-link{display:inline-flex;align-items:center;gap:7px;color:#dff7ff;text-decoration:none;font-size:.72rem}
+.version-link strong{padding:3px 7px;border:1px solid #4e759a;border-radius:999px;background:#081625;color:#8de4ff;font-variant-numeric:tabular-nums}
+.version-link:hover{color:white}
+.model-guide-link{margin:12px 0 0;padding:10px 11px;border:1px solid #36516f;border-radius:11px;background:#081625;color:var(--muted);font-size:.8rem;line-height:1.45}
+.model-guide-link a,footer a{color:#9fdfff}
 .card{
   background:linear-gradient(180deg,rgba(19,36,58,.97),rgba(10,24,41,.97));
   border:1px solid var(--line);
@@ -341,7 +348,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 }
 @media(max-width:720px){
   .shell{padding:12px}
-  header{display:block}.badge{display:inline-block;margin-top:12px;white-space:normal}
+  header{display:block}.badge{display:inline-grid;margin-top:12px;white-space:normal}.product-badge{justify-items:start;text-align:left}.product-badge>span{white-space:normal}
   .scenario-grid{grid-template-columns:1fr}
   .scenario-card{min-height:0}
   .scenario-toolbar{align-items:flex-start}
@@ -376,7 +383,13 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       <h1>Boarding Rush</h1>
       <p>Pick a flight, choose the racers, and watch boarding strategies compete through the same A320 manifest. Families stay together, children and assisted travelers move at their own pace, bags clog the aisle, and passengers do not always follow the plan.</p>
     </div>
-    <div class="badge">scenarios · shareable seeds · deterministic races</div>
+    <div class="badge product-badge">
+      <span>scenarios · shareable seeds · deterministic races</span>
+      <a class="version-link" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html" title="Read the detailed model guide">
+        <strong data-app-version>v—</strong>
+        <span>How it works</span>
+      </a>
+    </div>
   </header>
 
   <section class="card scenario-picker" aria-labelledby="scenarioHeading">
@@ -619,6 +632,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
         <span><i class="dot" style="background:var(--assist)"></i>assisted party</span>
         <span title="Carry-ons travel with passengers, animate into their row-side overhead bin, and remain visible there.">🧳 carry-on and overhead-bin placement</span>
       </div>
+      <p class="model-guide-link"><a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">📘 Read the complete model guide</a> for every assumption, formula, boarding rule, measurement, and known omission.</p>
       <details>
         <summary>Method and model details</summary>
         <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
@@ -630,7 +644,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     </aside>
   </section>
 
-  <footer>Boarding Rush · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding" style="color:#9fdfff">source on GitHub</a></footer>
+  <footer>Boarding Rush <span data-app-version>v—</span> · <a href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/model.html">how the model works</a> · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/group-aware-boarding">source on GitHub</a></footer>
 </div>
 
 <script>
@@ -671,6 +685,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     const lightness=seated ? 32+cycle*7 : 61-cycle*9;
     return `hsl(${hue} 82% ${lightness}%)`;
   }
+
+  const APP_VERSION = "3.0.0";
 
   function mulberry32(seed){
     let a = seed >>> 0;
@@ -2094,6 +2110,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   }
 
   function initialize(){
+    document.querySelectorAll("[data-app-version]").forEach(element=>{
+      element.textContent=`v${APP_VERSION}`;
+    });
     renderScenarioCards();
     renderMethodPicker();
     const fromUrl=parseScenarioSearch(location.search);

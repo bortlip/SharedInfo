@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Detailed assumptions, formulas, rules, measurements, and omissions for the Boarding Rush aircraft boarding simulator.">
+<title>How Boarding Rush Works — Model Guide</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#0e1c2e;--ink:#e8f0ff;--muted:#9eb0c9;--line:#29405f;--accent:#63d7ff}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 12% -10%,rgba(80,157,255,.22),transparent 34rem),var(--bg);color:var(--ink)}
+a{color:#9fdfff}
+.shell{max-width:1320px;margin:0 auto;padding:24px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:start;padding:24px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(160deg,rgba(19,36,58,.98),rgba(10,24,41,.98))}
+.eyebrow{margin:0 0 7px;color:var(--accent);font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+h1{margin:0;font-size:clamp(2rem,5vw,4rem);letter-spacing:-.05em;line-height:1}
+.hero p{max-width:780px;color:var(--muted);line-height:1.55}
+.hero-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.button{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #456889;border-radius:10px;background:#102943;color:#eaf8ff;text-decoration:none;font-weight:700}
+.version{display:grid;justify-items:end;gap:5px;padding:11px 13px;border:1px solid #456889;border-radius:14px;background:#081625}
+.version span{color:var(--muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.1em}
+.version strong{color:#9ee8ff;font-size:1.05rem;font-variant-numeric:tabular-nums}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:22px;margin-top:22px}
+nav{position:sticky;top:18px;align-self:start;max-height:calc(100vh - 36px);overflow:auto;padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(10,24,41,.96)}
+nav h2{margin:0 0 10px;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+nav ol{list-style:none;padding:0;margin:0;display:grid;gap:3px}
+nav a{display:block;padding:6px 8px;border-radius:8px;color:#c6def3;text-decoration:none;font-size:.78rem;line-height:1.3}
+nav a:hover{background:#132e49;color:white}
+nav .toc-sub a{padding-left:20px;color:#8faac3;font-size:.72rem}
+article{min-width:0;padding:22px clamp(17px,4vw,44px);border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(19,36,58,.97),rgba(10,24,41,.97));box-shadow:0 16px 50px rgba(0,0,0,.2)}
+article h1{display:none}
+article h2{margin:48px 0 13px;padding-top:8px;font-size:1.45rem;letter-spacing:-.02em;border-top:1px solid #29405f}
+article h2:first-of-type{margin-top:0;border-top:0}
+article h3{margin:28px 0 9px;color:#dff7ff;font-size:1.05rem}
+article p,article li{color:#c1cfdf;line-height:1.65}
+article li+li{margin-top:5px}
+code{padding:2px 5px;border-radius:5px;background:#081625;color:#bcecff}
+pre{overflow:auto;padding:14px;border:1px solid #29405f;border-radius:12px;background:#061321}
+pre code{padding:0;background:transparent}
+.table-wrap{overflow:auto;margin:14px 0 22px;border:1px solid #29405f;border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:.87rem}
+th,td{padding:10px 11px;border-bottom:1px solid #243d5a;text-align:left;vertical-align:top}
+th{background:#0b1b2d;color:#bcecff}
+tr:last-child td{border-bottom:0}
+footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.version{justify-items:start}.layout{grid-template-columns:1fr}nav{position:static;max-height:none}}
+@media(max-width:560px){.shell{padding:12px}.hero,article{padding:17px}nav{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="hero">
+  <div>
+    <p class="eyebrow">Boarding Rush model guide</p>
+    <h1>How the boarding race works</h1>
+    <p>A transparent guide to the passengers, parties, queue rules, movement, luggage, delays, measurements, and deliberate simplifications behind the simulation.</p>
+    <div class="hero-actions">
+      <a class="button" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/">✈ Open simulator</a>
+      <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
+    </div>
+  </div>
+  <div class="version"><span>Model version</span><strong>v3.0.0</strong></div>
+</header>
+<div class="layout">
+  <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
+<li class=""><a href="#2-determinism-and-fair-comparison">2. Determinism and fair comparison</a></li>
+<li class="toc-sub"><a href="#scenario-presets-and-shared-links">Scenario presets and shared links</a></li>
+<li class="toc-sub"><a href="#method-visibility-and-synchronized-animation">Method visibility and synchronized animation</a></li>
+<li class="toc-sub"><a href="#roomy-and-compact-fleet-display">Roomy and Compact Fleet display</a></li>
+<li class=""><a href="#3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</a></li>
+<li class="toc-sub"><a href="#load-factor">Load factor</a></li>
+<li class="toc-sub"><a href="#assignment-order">Assignment order</a></li>
+<li class=""><a href="#4-families-adults-and-children">4. Families, adults, and children</a></li>
+<li class="toc-sub"><a href="#what-a-family-means">What a family means</a></li>
+<li class="toc-sub"><a href="#family-share">Family share</a></li>
+<li class="toc-sub"><a href="#party-size-weights">Party-size weights</a></li>
+<li class="toc-sub"><a href="#adults-versus-children">Adults versus children</a></li>
+<li class=""><a href="#5-assisted-parties">5. Assisted parties</a></li>
+<li class=""><a href="#6-individual-passenger-types-and-randomized-traits">6. Individual passenger types and randomized traits</a></li>
+<li class="toc-sub"><a href="#walking-speed">Walking speed</a></li>
+<li class="toc-sub"><a href="#carry-on-probability">Carry-on probability</a></li>
+<li class="toc-sub"><a href="#base-bag-stowing-time">Base bag-stowing time</a></li>
+<li class="toc-sub"><a href="#base-seating-time">Base seating time</a></li>
+<li class="toc-sub"><a href="#individual-entry-delay">Individual entry delay</a></li>
+<li class=""><a href="#7-boarding-units-and-internal-party-order">7. Boarding units and internal party order</a></li>
+<li class=""><a href="#8-priority-policies">8. Priority policies</a></li>
+<li class="toc-sub"><a href="#assisted-parties-first">Assisted parties first</a></li>
+<li class="toc-sub"><a href="#all-grouped-parties-first">All grouped parties first</a></li>
+<li class="toc-sub"><a href="#no-preboarding">No preboarding</a></li>
+<li class=""><a href="#9-the-six-boarding-methods">9. The six boarding methods</a></li>
+<li class="toc-sub"><a href="#random">Random</a></li>
+<li class="toc-sub"><a href="#strict-back-to-front">Strict back to front</a></li>
+<li class="toc-sub"><a href="#strict-front-to-back">Strict front to back</a></li>
+<li class="toc-sub"><a href="#airline-zones">Airline zones</a></li>
+<li class="toc-sub"><a href="#wilma-group-safe">WilMA, group-safe</a></li>
+<li class="toc-sub"><a href="#steffen-group-safe">Steffen, group-safe</a></li>
+<li class=""><a href="#10-sequence-compliance">10. Sequence compliance</a></li>
+<li class=""><a href="#11-entering-and-moving-through-the-aisle">11. Entering and moving through the aisle</a></li>
+<li class="toc-sub"><a href="#door-release">Door release</a></li>
+<li class="toc-sub"><a href="#following-distance">Following distance</a></li>
+<li class="toc-sub"><a href="#reaching-the-row">Reaching the row</a></li>
+<li class=""><a href="#12-overhead-bin-congestion">12. Overhead-bin congestion</a></li>
+<li class=""><a href="#13-seat-conflicts-and-seating">13. Seat conflicts and seating</a></li>
+<li class=""><a href="#14-blocked-aisle-measurement">14. Blocked aisle measurement</a></li>
+<li class=""><a href="#15-completion-and-reported-results">15. Completion and reported results</a></li>
+<li class=""><a href="#16-what-the-model-does-not-currently-include">16. What the model does not currently include</a></li>
+<li class=""><a href="#17-compact-parameter-reference">17. Compact parameter reference</a></li></ol></nav>
+  <article><h1 id="functional-model">Functional Model</h1>
+<p>This document describes what the aircraft boarding simulator models, how it generates passengers and parties, how each boarding method constructs its queue, how movement and delays work, and what the reported measurements mean.</p>
+<p>The simulator is a comparative discrete-time model. It is designed to answer questions such as &quot;under the same manifest and assumptions, which boarding order performs better?&quot; It is not calibrated to predict the exact boarding time of a particular airline or flight.</p>
+<h2 id="1-aircraft-and-time-model">1. Aircraft and time model</h2>
+<p>The cabin has 31 rows and six seats per row:</p>
+<pre><code class="language-text">A B C   aisle   D E F</code></pre>
+<p>That gives 186 seats. Row 1 is at the front door and row 31 is at the rear.</p>
+<p>Seat depth is represented as:</p>
+<ul>
+<li><code>A</code> and <code>F</code>: window seats, depth 2</li>
+<li><code>B</code> and <code>E</code>: middle seats, depth 1</li>
+<li><code>C</code> and <code>D</code>: aisle seats, depth 0</li>
+</ul>
+<p>A passenger&#x27;s aisle position is measured in row units. The door is position 0 and the passenger&#x27;s destination is the number of their row.</p>
+<p>The animated simulation advances in fixed 0.10-second steps. &quot;Finish instantly&quot; uses 0.15-second steps, and Monte Carlo benchmarks use 0.20-second steps. Those larger steps make non-animated runs faster, but they can introduce small rounding differences relative to the animation.</p>
+<p>The animation-speed control changes only how quickly simulated time is processed on screen. It does not change passenger behavior or model parameters.</p>
+<h2 id="2-determinism-and-fair-comparison">2. Determinism and fair comparison</h2>
+<p>Each configuration has a numeric seed. The seed drives a deterministic pseudorandom generator used for:</p>
+<ul>
+<li>seat assignments</li>
+<li>family sizes and adult/child composition</li>
+<li>walking speeds</li>
+<li>carry-on possession</li>
+<li>bag-stowing times</li>
+<li>seating times</li>
+<li>party-entry delays</li>
+<li>random queue positions</li>
+<li>sequence-compliance decisions</li>
+</ul>
+<p>For a single comparison, the simulator creates one manifest and gives that exact manifest to all six methods. Every passenger therefore has the same seat, party membership, walking speed, bag status, stow time, seating time, and compliance draw in every method. Only the queue order changes.</p>
+<p>A benchmark creates a new seeded manifest for each trial. Within each trial, all six methods again receive the same manifest. Trial <code>t</code> uses:</p>
+<pre><code class="language-text">base seed + t * 7919</code></pre>
+<p>The benchmark captures a snapshot of the controls when it starts. It runs separate simulation objects and does not reset, pause, or alter the visible animation.</p>
+<h3 id="scenario-presets-and-shared-links">Scenario presets and shared links</h3>
+<p>A scenario preset is a named collection of control values. Choosing one writes those values into the ordinary controls; it does not select a separate simulation engine or hidden rule set. A manual control change marks the scenario as custom.</p>
+<p>A shared scenario link records the model settings, seed, selected method panels, and Roomy or Compact Fleet display choice. Loading the link reconstructs those values before the manifest is generated. Invalid or obsolete values fall back to supported defaults.</p>
+<h3 id="method-visibility-and-synchronized-animation">Method visibility and synchronized animation</h3>
+<p>The animated comparison creates all six method simulations from the same manifest, even when only one or two method panels are visible. All six continue advancing in lockstep while the race runs.</p>
+<p>Selecting or deselecting a method changes only which panels are rendered and which methods appear in a later benchmark. It does not pause, restart, or recreate the animated simulations. Revealing a previously hidden method therefore shows its current synchronized state.</p>
+<p>&quot;Finish instantly&quot; completes all six animated method simulations. The completion message ranks only the methods currently visible.</p>
+<h3 id="roomy-and-compact-fleet-display">Roomy and Compact Fleet display</h3>
+<p>Roomy and Compact Fleet are rendering choices. They change panel width, canvas display size, headings, and metric layout but do not change canvas coordinates, passenger behavior, time steps, or results.</p>
+<h2 id="3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</h2>
+<h3 id="load-factor">Load factor</h3>
+<p>The number of passengers is:</p>
+<pre><code class="language-text">round(186 * load factor)</code></pre>
+<p>The result is clamped to 1 through 186 passengers. Unassigned seats remain empty.</p>
+<h3 id="assignment-order">Assignment order</h3>
+<p>The manifest is built in this order:</p>
+<ol>
+<li>families</li>
+<li>assisted parties</li>
+<li>individual passengers</li>
+</ol>
+<p>Families and assisted parties are assigned first so the simulator can find contiguous seat clusters for them. Individuals then fill randomly selected remaining seats.</p>
+<p>This ordering can create a mild placement bias: grouped passengers get first choice of valid contiguous clusters, while individuals receive the remaining seats.</p>
+<h2 id="4-families-adults-and-children">4. Families, adults, and children</h2>
+<h3 id="what-a-family-means">What a family means</h3>
+<p>A family is an atomic boarding party of 2 through 5 passengers. All members:</p>
+<ul>
+<li>are placed in one row</li>
+<li>occupy a contiguous run of seat letters</li>
+<li>remain next to one another in the boarding queue</li>
+<li>walk at the speed of the slowest family member</li>
+</ul>
+<p>&quot;Contiguous&quot; is based on seat letters. Therefore clusters such as <code>B-C-D</code> or <code>C-D</code> may cross the aisle. The current model does not place one family across multiple rows or scatter its seats.</p>
+<p>The valid family seat patterns are:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Party size</th>
+<th>Valid same-row patterns</th>
+</tr></thead><tbody>
+<tr>
+<td>2</td>
+<td>AB, BC, CD, DE, EF</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ABC, BCD, CDE, DEF</td>
+</tr>
+<tr>
+<td>4</td>
+<td>ABCD, BCDE, CDEF</td>
+</tr>
+<tr>
+<td>5</td>
+<td>ABCDE, BCDEF</td>
+</tr>
+</tbody></table></div>
+<p>A valid cluster is chosen randomly from all currently available clusters. If the requested family size cannot be placed, the simulator tries progressively smaller sizes down to 2.</p>
+<h3 id="family-share">Family share</h3>
+<p>&quot;Passengers in families&quot; is a target share of the occupied passenger count, not a percentage of parties. The target is rounded to the nearest passenger and capped so that the requested assisted-party pairs can still fit.</p>
+<p>The actual family passenger count may be slightly below the target when:</p>
+<ul>
+<li>only one target family passenger remains, because families require at least two people</li>
+<li>the drawn party size is reduced to fit the remaining target</li>
+<li>no valid contiguous cluster remains</li>
+</ul>
+<h3 id="party-size-weights">Party-size weights</h3>
+<p>The four party-size inputs are relative weights for sizes 2, 3, 4, and 5. They do not need to add to 100.</p>
+<p>At run time, all positive finite weights are scaled into percentages. For example:</p>
+<pre><code class="language-text">2-person: 1
+3-person: 2
+4-person: 1
+5-person: 0</code></pre>
+<p>becomes:</p>
+<pre><code class="language-text">25%, 50%, 25%, 0%</code></pre>
+<p>Negative, zero, nonnumeric, and nonfinite values contribute zero weight. If all four effective weights are zero, the simulator uses an equal 25% distribution.</p>
+<p>The normalization first divides every weight by the largest weight. This avoids numeric overflow even when the user enters very large finite values.</p>
+<h3 id="adults-versus-children">Adults versus children</h3>
+<p>Children are explicitly modeled, but &quot;parent&quot; is not a separate behavioral type. Family adults serve as the parent/adult members of the party, but the model does not simulate parenting actions individually.</p>
+<p>Family composition is generated as follows:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Family size</th>
+<th>Adult count</th>
+<th>Child count</th>
+</tr></thead><tbody>
+<tr>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1 adult 54% of the time; 2 adults 46% of the time</td>
+<td>2 or 1</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td>5</td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tbody></table></div>
+<p>Adults are preferentially assigned the seats closest to the aisle within the family&#x27;s cluster. The remaining seats are assigned to children. This tends to put children toward the window and adults toward the aisle.</p>
+<p>The family receives an entry delay before its first member enters the plane:</p>
+<pre><code class="language-text">1.0 + 0.65 * number of children + uniform random value from 0.0 to 1.2 seconds</code></pre>
+<p>This is a coarse representation of organizing the party at the door. The model does not separately simulate a parent folding a stroller, checking a child&#x27;s boarding pass, helping with a coat, or similar sub-actions.</p>
+<h2 id="5-assisted-parties">5. Assisted parties</h2>
+<p>Each assisted party contains exactly two people:</p>
+<ul>
+<li>one reduced-mobility passenger</li>
+<li>one ordinary adult companion</li>
+</ul>
+<p>They receive a contiguous two-seat cluster in one row. The reduced-mobility passenger and companion remain adjacent in the queue and walk together at the slower member&#x27;s speed.</p>
+<p>The requested number of assisted parties is clamped to 0 through 12 and also limited by the number of occupied seats.</p>
+<p>An assisted party receives a first-member entry delay uniformly distributed from 3.5 to 6.0 seconds.</p>
+<p>The model does not distinguish wheelchairs, canes, visual impairment, temporary injury, or other specific assistance needs. &quot;Reduced mobility&quot; is one generalized passenger type.</p>
+<h2 id="6-individual-passenger-types-and-randomized-traits">6. Individual passenger types and randomized traits</h2>
+<p>Every passenger receives intrinsic traits once when the manifest is generated.</p>
+<h3 id="walking-speed">Walking speed</h3>
+<p>Walking speed is sampled independently by passenger type:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Passenger type</th>
+<th>Walking speed, row units per simulated second</th>
+</tr></thead><tbody>
+<tr>
+<td>Ordinary adult</td>
+<td>1.17 to 1.59</td>
+</tr>
+<tr>
+<td>Child</td>
+<td>0.82 to 1.10</td>
+</tr>
+<tr>
+<td>Reduced-mobility passenger</td>
+<td>0.46 to 0.62</td>
+</tr>
+</tbody></table></div>
+<p>For a family or assisted party, every member&#x27;s effective walking speed is replaced with the slowest speed in that party. This keeps the party together rather than allowing faster members to run ahead.</p>
+<p>Individual passengers retain their own sampled speeds.</p>
+<h3 id="carry-on-probability">Carry-on probability</h3>
+<p>The carry-on-rate control is the probability that an ordinary adult has a bag requiring stowage.</p>
+<p>Other passenger types use scaled probabilities:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Passenger type</th>
+<th>Probability of having a carry-on</th>
+</tr></thead><tbody>
+<tr>
+<td>Ordinary adult</td>
+<td>configured carry-on rate</td>
+</tr>
+<tr>
+<td>Child</td>
+<td>configured rate x 0.25</td>
+</tr>
+<tr>
+<td>Reduced-mobility passenger</td>
+<td>configured rate x 0.55</td>
+</tr>
+</tbody></table></div>
+<p>An assisted companion is an ordinary adult and therefore uses the full configured rate.</p>
+<p>The model gives each passenger either zero or one carry-on. It does not model personal items separately, multiple bags, bag size, checked luggage, or bag sharing within a family.</p>
+<h3 id="base-bag-stowing-time">Base bag-stowing time</h3>
+<p>Passengers do not all take the same time to stow a bag.</p>
+<p>A passenger with a carry-on receives:</p>
+<pre><code class="language-text">4.2 + uniform(0, 7.5) + uniform(0, 2.5) seconds</code></pre>
+<p>The possible range is 4.2 to 14.2 seconds. Because this is the sum of two independent uniform draws, middle values are more common than the extreme endpoints.</p>
+<p>A passenger without a carry-on still receives a short row-arrival pause:</p>
+<pre><code class="language-text">uniform(0.35, 0.70) seconds</code></pre>
+<p>This represents locating the row and preparing to enter the seat rather than literal bag stowage.</p>
+<h3 id="base-seating-time">Base seating time</h3>
+<p>Passengers also receive different base seating times:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Passenger type</th>
+<th>Base seating time</th>
+</tr></thead><tbody>
+<tr>
+<td>Ordinary adult</td>
+<td>2.1 to 4.9 seconds</td>
+</tr>
+<tr>
+<td>Child</td>
+<td>3.8 to 7.6 seconds</td>
+</tr>
+<tr>
+<td>Reduced-mobility passenger</td>
+<td>7.5 to 13.0 seconds</td>
+</tr>
+</tbody></table></div>
+<p>Seat-conflict penalties are added to these base values later.</p>
+<h3 id="individual-entry-delay">Individual entry delay</h3>
+<p>An individual passenger receives a door-entry delay uniformly distributed from 0.0 to 0.25 seconds.</p>
+<p>For a family or assisted party, only the first member receives the party&#x27;s entry delay. Later members remain contiguous in the queue but still enter one at a time as aisle spacing permits.</p>
+<h2 id="7-boarding-units-and-internal-party-order">7. Boarding units and internal party order</h2>
+<p>The queue is built from boarding units, not directly from individual passengers.</p>
+<p>A boarding unit is one of:</p>
+<ul>
+<li>a single passenger</li>
+<li>a family</li>
+<li>an assisted pair</li>
+</ul>
+<p>A unit is never split by sequence noncompliance or by a boarding method. Once a unit&#x27;s queue position is chosen, all of its members are emitted consecutively.</p>
+<p>Within a family, deeper seats board first:</p>
+<ol>
+<li>window</li>
+<li>middle</li>
+<li>aisle</li>
+</ol>
+<p>Children sort before adults when two members have equal seat depth. Within assisted parties, deeper seats also board first; a reduced-mobility passenger sorts before the companion when depth is tied.</p>
+<p>This internal ordering deliberately reduces conflicts within the party. It is part of the model, not an emergent decision made by simulated people.</p>
+<h2 id="8-priority-policies">8. Priority policies</h2>
+<p>Priority policy is applied before the selected boarding method.</p>
+<h3 id="assisted-parties-first">Assisted parties first</h3>
+<p>Assisted parties form the first priority tier. Families and individuals share the normal tier.</p>
+<h3 id="all-grouped-parties-first">All grouped parties first</h3>
+<p>The tiers are:</p>
+<ol>
+<li>assisted parties</li>
+<li>families</li>
+<li>individuals</li>
+</ol>
+<h3 id="no-preboarding">No preboarding</h3>
+<p>Every unit shares one tier.</p>
+<p>The selected boarding method orders units only within each priority tier. A lower-priority tier cannot move ahead of a higher-priority tier because of row, seat, or compliance ranking.</p>
+<h2 id="9-the-six-boarding-methods">9. The six boarding methods</h2>
+<p>Each method assigns a rank to every boarding unit. Random values break ties within the relevant row, zone, or seat class.</p>
+<h3 id="random">Random</h3>
+<p>Every boarding unit receives one random rank. Sequence compliance does not alter this method because the queue is already random.</p>
+<h3 id="strict-back-to-front">Strict back to front</h3>
+<p>Units are sorted by their rear-most row, from row 31 toward row 1. Units in the same row are randomized.</p>
+<p>Because all current grouped parties occupy one row, the unit&#x27;s rear-most and front-most rows are the same. The <code>maxRow</code> rule nevertheless makes the behavior explicit if multi-row parties are added later.</p>
+<h3 id="strict-front-to-back">Strict front to back</h3>
+<p>Units are sorted by their front-most row, from row 1 toward row 31. Units in the same row are randomized.</p>
+<h3 id="airline-zones">Airline zones</h3>
+<p>The cabin is divided into rear-first row zones using:</p>
+<pre><code class="language-text">floor((31 - row) / 6)</code></pre>
+<p>This produces:</p>
+<ol>
+<li>rows 26-31</li>
+<li>rows 20-25</li>
+<li>rows 14-19</li>
+<li>rows 8-13</li>
+<li>rows 2-7</li>
+<li>row 1</li>
+</ol>
+<p>Units are randomized within each zone.</p>
+<h3 id="wilma-group-safe">WilMA, group-safe</h3>
+<p>WilMA means window, middle, aisle. Seat classes receive these stages:</p>
+<ul>
+<li>window: 0</li>
+<li>middle: 1</li>
+<li>aisle: 2</li>
+</ul>
+<p>A party is ranked by its earliest-stage member. Therefore a family containing a window passenger enters the window group even if it also contains middle or aisle passengers. The party remains intact, so this is a group-safe adaptation rather than pure passenger-by-passenger WilMA.</p>
+<p>Units are randomized within each seat stage.</p>
+<h3 id="steffen-group-safe">Steffen, group-safe</h3>
+<p>Each passenger receives a seat rank based on:</p>
+<ol>
+<li>window before middle before aisle</li>
+<li>left side before right side</li>
+<li>preferred row parity: odd rows on the left, even rows on the right</li>
+<li>rear rows before front rows</li>
+</ol>
+<p>A party uses the best, or earliest, rank among its members and remains intact. A small random value breaks close ties.</p>
+<p>This is a practical group-safe variant inspired by Steffen ordering. It is not a claim that the implementation reproduces every detail of the original idealized Steffen procedure.</p>
+<h2 id="10-sequence-compliance">10. Sequence compliance</h2>
+<p>Sequence compliance is applied to whole boarding units within their priority tier.</p>
+<p>Each unit has two pre-generated random values:</p>
+<ul>
+<li>a compliance draw</li>
+<li>a random replacement position</li>
+</ul>
+<p>For an ordered method:</p>
+<ul>
+<li>if the compliance draw is below the configured compliance rate, the unit keeps its method-derived index</li>
+<li>otherwise, the unit receives a random continuous position within that tier</li>
+</ul>
+<p>The tier is then resorted by those positions. This allows noncompliant units to move earlier or later and can indirectly shift compliant units around them.</p>
+<p>At 100% compliance, the method&#x27;s order is preserved. At 0%, ordered methods become approximately random within each priority tier. Families and assisted pairs still remain contiguous.</p>
+<p>The Random method is unaffected by this control.</p>
+<h2 id="11-entering-and-moving-through-the-aisle">11. Entering and moving through the aisle</h2>
+<h3 id="door-release">Door release</h3>
+<p>The next passenger may enter only when the nearest active passenger is at least 0.72 row units from the door.</p>
+<p>Once the door has enough clearance, the next passenger&#x27;s entry-delay countdown runs. When it reaches zero, that passenger enters at position 0.</p>
+<p>There is no independent gate-agent release schedule or boarding-pass scan model. Door release is controlled by the passenger-specific entry delay and aisle clearance.</p>
+<h3 id="following-distance">Following distance</h3>
+<p>Passengers cannot pass one another. Each walking passenger is limited by:</p>
+<ul>
+<li>their destination row</li>
+<li>the preceding passenger&#x27;s position minus 0.72 row units</li>
+</ul>
+<p>A passenger moves by at most:</p>
+<pre><code class="language-text">walking speed * time step</code></pre>
+<p>When blocked by the passenger ahead, the passenger stops at the allowed following distance.</p>
+<h3 id="reaching-the-row">Reaching the row</h3>
+<p>When a passenger reaches their destination row, they enter the stowing state. They remain physically in the aisle at that row while stowing and seating. Passengers behind may queue, while passengers already farther back in the cabin may continue and perform their own stowing or seating concurrently.</p>
+<h2 id="12-overhead-bin-congestion">12. Overhead-bin congestion</h2>
+<p>The simulator tracks a bag count separately for each row and side of the aircraft, such as row 12 left or row 12 right.</p>
+<p>When a passenger with a carry-on reaches the row, their bag increments that row-side count. The first three bags on a row side receive no congestion penalty. Starting with the fourth bag, the stow time increases by:</p>
+<pre><code class="language-text">1.45 * (number of earlier bags beyond the first two)</code></pre>
+<p>Using the pre-increment bag count <code>load</code>, the code is:</p>
+<pre><code class="language-text">max(0, load - 2) * 1.45 seconds</code></pre>
+<p>Examples:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Bag arriving on that row side</th>
+<th>Earlier bag count</th>
+<th>Congestion penalty</th>
+</tr></thead><tbody>
+<tr>
+<td>1st</td>
+<td>0</td>
+<td>0.00 s</td>
+</tr>
+<tr>
+<td>2nd</td>
+<td>1</td>
+<td>0.00 s</td>
+</tr>
+<tr>
+<td>3rd</td>
+<td>2</td>
+<td>0.00 s</td>
+</tr>
+<tr>
+<td>4th</td>
+<td>3</td>
+<td>1.45 s</td>
+</tr>
+<tr>
+<td>5th</td>
+<td>4</td>
+<td>2.90 s</td>
+</tr>
+</tbody></table></div>
+<p>Passengers without a carry-on do not increment bin load and receive no bin-congestion penalty.</p>
+<p>This is congestion, not bin capacity. The model does not make a passenger search another row, move backward, move forward, check a bag, or fail to find space.</p>
+<p>The animation draws a suitcase beside every active passenger who has a carry-on. During stowing, the marker moves toward that passenger&#x27;s row-side overhead strip. When stowing finishes, a persistent bag record is drawn inside that strip for the rest of the run. The animation is a visualization of the existing bag state; the drawn strip is not a physical capacity scale and does not add any new delay.</p>
+<h2 id="13-seat-conflicts-and-seating">13. Seat conflicts and seating</h2>
+<p>A seat conflict occurs when a passenger needs to reach a deeper seat but one or more already-seated passengers are between that seat and the aisle on the same side of the same row.</p>
+<p>For example, if the aisle and middle seats are occupied when a window passenger arrives, that arrival causes two conflicts.</p>
+<p>For each blocker:</p>
+<ul>
+<li>a blocker in the same family or assisted party adds 2.2 seconds</li>
+<li>a blocker from another party adds 5.4 seconds</li>
+</ul>
+<p>The simulator adds one to the seat-conflict count for each blocking passenger and adds the corresponding penalty to the arriving passenger&#x27;s seating time.</p>
+<p>Only passengers already marked seated count as blockers. A passenger currently stowing or seating is represented as an aisle obstruction rather than an occupied-seat blocker.</p>
+<p>Total seating time is:</p>
+<pre><code class="language-text">base seating time + all seat-conflict penalties</code></pre>
+<p>The displayed &quot;Seat conflicts&quot; value is the number of blocking-passenger events, not seconds. The simulator also internally accumulates conflict-delay seconds, although the current interface does not display that total separately.</p>
+<h2 id="14-blocked-aisle-measurement">14. Blocked aisle measurement</h2>
+<p>During each simulation step, the aisle is considered blocked if at least one active passenger is:</p>
+<ul>
+<li>stowing a bag or completing the row-arrival pause</li>
+<li>entering a seat</li>
+</ul>
+<p>If any such passenger exists, the step duration is added once to &quot;Blocked aisle.&quot;</p>
+<p>This is the union of blocked time, not the sum across blockers. If three passengers are simultaneously stowing at different rows for one second, the metric increases by one second, not three.</p>
+<p>A walking passenger who is merely queued behind someone does not independently add blocked-aisle time. The simulator tracks walking-delay time internally, but the current interface does not display it.</p>
+<h2 id="15-completion-and-reported-results">15. Completion and reported results</h2>
+<p>A method simulation ends when every passenger is seated. A 7,200-second safety limit prevents an accidental infinite run.</p>
+<p>During an animated race, all six method simulations continue until all six are complete, including methods whose panels are hidden. The displayed winner is chosen from the currently visible method set.</p>
+<p>Each visible method reports:</p>
+<ul>
+<li>total simulated time</li>
+<li>seated passengers</li>
+<li>seat-conflict count</li>
+<li>blocked-aisle seconds</li>
+<li>passengers not yet released through the door</li>
+</ul>
+<p>The Monte Carlo benchmark runs only the methods selected when the benchmark starts. Its table reports:</p>
+<ul>
+<li>mean completion time</li>
+<li>median completion time</li>
+<li>90th percentile completion time</li>
+<li>number of trial wins</li>
+</ul>
+<p>Percentiles use linear interpolation between neighboring sorted values.</p>
+<p>A win is assigned to the method with the smallest completion time in that trial. Exact ties are resolved by the fixed method-list order because the implementation sorts methods by time and selects the first result. The order is Random, Back to Front, Front to Back, Airline Zones, WilMA, then Steffen. Exact ties should be uncommon but are not split fractionally.</p>
+<h2 id="16-what-the-model-does-not-currently-include">16. What the model does not currently include</h2>
+<p>The simulator intentionally omits several real-world effects:</p>
+<ul>
+<li>families seated across multiple rows or in scattered seats</li>
+<li>family members separating in the boarding queue</li>
+<li>individual child ages or behavior beyond the child category</li>
+<li>explicit parent-assistance actions during walking, stowing, or seating</li>
+<li>strollers, car seats, lap infants, or child-restraint installation</li>
+<li>multiple carry-ons, bag sizes, personal items, or shared family bags</li>
+<li>finite overhead-bin capacity, overflow, searching, or reverse movement</li>
+<li>physically scaled bag dimensions or overhead-bin volume; suitcase markers are explanatory symbols</li>
+<li>passengers overtaking one another</li>
+<li>people leaving the aisle to let others pass</li>
+<li>a separate jet-bridge or gate queue</li>
+<li>ticket scanning, document problems, crew intervention, or boarding announcements</li>
+<li>late arrivals after a boarding group has begun</li>
+<li>aircraft-specific aisle width, seat pitch, or door geometry</li>
+<li>connections between deplaning and boarding</li>
+<li>calibrated demographic or airline operational data</li>
+</ul>
+<p>Those omissions matter. The simulator is most trustworthy as a controlled comparison of queueing strategies under its stated assumptions, not as a literal forecast of how many minutes a real A320 flight will require.</p>
+<h2 id="17-compact-parameter-reference">17. Compact parameter reference</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Feature</th>
+<th>Current implementation</th>
+</tr></thead><tbody>
+<tr>
+<td>Cabin</td>
+<td>31 rows x 6 seats = 186</td>
+</tr>
+<tr>
+<td>Family size</td>
+<td>2-5 passengers, weighted distribution</td>
+</tr>
+<tr>
+<td>Family seating</td>
+<td>Same-row contiguous seat letters; may cross aisle</td>
+</tr>
+<tr>
+<td>Family adults</td>
+<td>1 in size 2; 1 or 2 in size 3; 2 in sizes 4-5</td>
+</tr>
+<tr>
+<td>Child behavior</td>
+<td>Slower walking, longer seating, lower bag probability</td>
+</tr>
+<tr>
+<td>Assisted party</td>
+<td>One reduced-mobility passenger plus one adult companion</td>
+</tr>
+<tr>
+<td>Adult walk speed</td>
+<td>1.17-1.59 row units/s</td>
+</tr>
+<tr>
+<td>Child walk speed</td>
+<td>0.82-1.10 row units/s</td>
+</tr>
+<tr>
+<td>Reduced-mobility walk speed</td>
+<td>0.46-0.62 row units/s</td>
+</tr>
+<tr>
+<td>Carry-on stow time</td>
+<td>4.2-14.2 s before congestion</td>
+</tr>
+<tr>
+<td>No-bag row pause</td>
+<td>0.35-0.70 s</td>
+</tr>
+<tr>
+<td>Adult seating</td>
+<td>2.1-4.9 s before conflicts</td>
+</tr>
+<tr>
+<td>Child seating</td>
+<td>3.8-7.6 s before conflicts</td>
+</tr>
+<tr>
+<td>Reduced-mobility seating</td>
+<td>7.5-13.0 s before conflicts</td>
+</tr>
+<tr>
+<td>Same-party seat blocker</td>
+<td>+2.2 s and +1 conflict</td>
+</tr>
+<tr>
+<td>Other-party seat blocker</td>
+<td>+5.4 s and +1 conflict</td>
+</tr>
+<tr>
+<td>Aisle spacing</td>
+<td>0.72 row units</td>
+</tr>
+<tr>
+<td>Bin congestion</td>
+<td>+1.45 s per earlier bag beyond the first two</td>
+</tr>
+<tr>
+<td>Animation step</td>
+<td>0.10 s</td>
+</tr>
+<tr>
+<td>Instant-finish step</td>
+<td>0.15 s</td>
+</tr>
+<tr>
+<td>Benchmark step</td>
+<td>0.20 s</td>
+</tr>
+<tr>
+<td>Method panel selection</td>
+<td>Visibility and benchmark field only; all six animated methods stay synchronized</td>
+</tr>
+<tr>
+<td>Display modes</td>
+<td>Roomy or Compact Fleet; presentation only</td>
+</tr>
+<tr>
+<td>Visible luggage</td>
+<td>Carry-on marker travels to a persistent row-side bin marker; no physical capacity</td>
+</tr>
+</tbody></table></div></article>
+</div>
+<footer>Boarding Rush v3.0.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+</div>
+</body>
+</html>
