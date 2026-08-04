@@ -21,6 +21,15 @@ export class BoardingSim{
     this.done=false;
     this.doorDelayStarted=false;
   }
+  setCharacterMoment(p,status,eventState,bubble=null,duration=0){
+    if(!p.characterId) return;
+    p.characterStatus=status;
+    p.eventState=eventState;
+    if(bubble){
+      p.bubbleText=bubble;
+      p.bubbleUntil=this.time+duration;
+    }
+  }
   nearestToDoor(){
     let nearest=Infinity;
     for(const p of this.active) if(p.state!=="seated") nearest=Math.min(nearest,p.pos);
@@ -48,6 +57,30 @@ export class BoardingSim{
     }
     return p.seatBase+penalty;
   }
+  beginStowing(p){
+    p.state="stowing";
+    p.stowDuration=this.computeStow(p);
+    p.remaining=p.stowDuration;
+    if(p.characterId){
+      if(!p.heavyBagDelayCounted){
+        p.eventDelaySeconds=(p.eventDelaySeconds||0)+(p.heavyBagExtra||0);
+        p.heavyBagDelayCounted=true;
+      }
+      this.setCharacterMoment(
+        p,
+        "wrestling with the carry-on",
+        "struggling with a very heavy bag",
+        "This bag was lighter at home.",
+        Math.min(7,p.stowDuration)
+      );
+    }
+  }
+  beginSeating(p){
+    p.state="seating";
+    p.seatingDuration=this.computeSeat(p);
+    p.remaining=p.seatingDuration;
+    this.setCharacterMoment(p,"almost there",`entering row ${p.row} toward ${p.seatKey}`);
+  }
   release(dt){
     if(this.pending>=this.queue.length) return;
     if(this.nearestToDoor()<SPACING) return;
@@ -63,8 +96,10 @@ export class BoardingSim{
     p.state="walking";
     p.pos=0;
     p.remaining=0;
+    p.eventDelaySeconds=p.eventDelaySeconds||0;
     this.active.push(p);
     this.pending++;
+    this.setCharacterMoment(p,"finally aboard","heading down the aisle","Made it!",3.5);
   }
   step(dt){
     if(this.done) return;
@@ -72,7 +107,16 @@ export class BoardingSim{
 
     let anyBlocking=false;
     for(const p of this.active){
-      if(p.state==="stowing"){
+      if(p.state==="character-pause"){
+        anyBlocking=true;
+        p.remaining-=dt;
+        p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+        if(p.remaining<=0){
+          p.state="walking";
+          p.remaining=0;
+          this.setCharacterMoment(p,"committed now","continuing to her seat","Too late now.",2.4);
+        }
+      }else if(p.state==="stowing"){
         anyBlocking=true;
         p.remaining-=dt;
         if(p.remaining<=0){
@@ -83,12 +127,10 @@ export class BoardingSim{
               row:p.row,
               side:p.side,
               groupType:p.groupType,
-              color:p.partyColor||null
+              color:p.partyColor||p.characterColor||null
             });
           }
-          p.state="seating";
-          p.seatingDuration=this.computeSeat(p);
-          p.remaining=p.seatingDuration;
+          this.beginSeating(p);
         }
       }else if(p.state==="seating"){
         anyBlocking=true;
@@ -97,6 +139,7 @@ export class BoardingSim{
           p.state="seated";
           this.occupancy.set(p.seatKey,p);
           this.completed++;
+          this.setCharacterMoment(p,"settled, for now","seated");
         }
       }
     }
@@ -115,11 +158,27 @@ export class BoardingSim{
         const move=Math.min(available,freeMove);
         p.pos+=move;
         if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
-        if(p.row-p.pos<=.001){
+
+        if(
+          p.characterId==="barbara"
+          && !p.restroomPauseComplete
+          && p.row>p.restroomPauseRow+.001
+          && p.pos+1e-7>=p.restroomPauseRow
+        ){
+          p.pos=p.restroomPauseRow;
+          p.state="character-pause";
+          p.remaining=p.restroomPauseDuration;
+          p.restroomPauseComplete=true;
+          this.setCharacterMoment(
+            p,
+            "regretting several decisions",
+            "paused in the aisle thinking about the restroom",
+            "I should have used the restroom.",
+            p.restroomPauseDuration
+          );
+        }else if(p.row-p.pos<=.001){
           p.pos=p.row;
-          p.state="stowing";
-          p.stowDuration=this.computeStow(p);
-          p.remaining=p.stowDuration;
+          this.beginStowing(p);
         }
       }
       leadPos=p.pos;

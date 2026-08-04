@@ -8,6 +8,7 @@ This is the working, unreleased source for **Boarding Rush**, the aircraft board
 - `js/version.js` contains the single user-visible application version.
 - `js/random.js` contains deterministic random and utility functions.
 - `js/scenarios.js` defines presets, URL serialization, validation, and schema versioning.
+- `js/characters.js` defines deterministic named-character scenarios and queue insertion.
 - `js/manifest.js` creates passengers, parties, seats, and traits.
 - `js/methods.js` constructs the six boarding orders.
 - `js/simulation.js` advances aisle, stowing, and seating state.

@@ -27,6 +27,7 @@ function partyText(passenger){
 
 function stateText(passenger,sim){
   if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+  if(passenger.state==="character-pause") return `paused in the aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
   if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
@@ -41,8 +42,15 @@ function row(label,value){
 function passengerDetails(passenger,sim){
   const character=[];
   if(passenger.characterRole) character.push(row("Role",passenger.characterRole));
+  if(passenger.originalQueueIndex!=null && passenger.lateQueueIndex!=null){
+    character.push(row(
+      "Late arrival",
+      `joined ${passenger.lateQueueIndex+1} of ${sim.queue.length} · normal method position was ${passenger.originalQueueIndex+1}`
+    ));
+  }
   if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
   if(passenger.eventState) character.push(row("Current event",passenger.eventState));
+  if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
   return `
     <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
     <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>

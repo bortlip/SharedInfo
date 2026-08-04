@@ -30,7 +30,62 @@ function drawBag(ctx,x,y,w,h,color,alpha=1){
 
 function bagColor(item){
   if(item.groupType==="family") return item.color||palette.family;
-  return palette[item.groupType]||palette.single;
+  return item.color||palette[item.groupType]||palette.single;
+}
+
+function wrapBubbleText(ctx,text,maxWidth){
+  const words=String(text).split(/\s+/);
+  const lines=[];
+  let line="";
+  for(const word of words){
+    const next=line?`${line} ${word}`:word;
+    if(line && ctx.measureText(next).width>maxWidth){
+      lines.push(line);
+      line=word;
+    }else line=next;
+  }
+  if(line) lines.push(line);
+  if(lines.length>3){
+    lines.length=3;
+    lines[2]=`${lines[2].replace(/[.…]*$/u,"")}…`;
+  }
+  return lines;
+}
+
+function drawCharacterBubble(ctx,text,x,y,w,h){
+  ctx.save();
+  ctx.font="700 9px system-ui";
+  const lines=wrapBubbleText(ctx,text,112);
+  const bubbleW=Math.min(132,Math.max(72,...lines.map(line=>ctx.measureText(line).width+14)));
+  const bubbleH=10+lines.length*11;
+  let bubbleX=clamp(x+12,4,w-bubbleW-4);
+  let bubbleY=y-bubbleH-15;
+  let below=false;
+  if(bubbleY<4){
+    bubbleY=y+14;
+    below=true;
+  }
+  bubbleY=clamp(bubbleY,4,h-bubbleH-4);
+  roundedRect(ctx,bubbleX,bubbleY,bubbleW,bubbleH,7);
+  ctx.fillStyle="rgba(255,249,218,.96)";
+  ctx.fill();
+  ctx.strokeStyle="#d8ae45";
+  ctx.lineWidth=1.2;
+  ctx.stroke();
+  ctx.beginPath();
+  const tailY=below?bubbleY:bubbleY+bubbleH;
+  ctx.moveTo(clamp(x,bubbleX+8,bubbleX+bubbleW-8),tailY);
+  ctx.lineTo(x,below?y+7:y-7);
+  ctx.lineTo(clamp(x+8,bubbleX+8,bubbleX+bubbleW-8),tailY);
+  ctx.fillStyle="rgba(255,249,218,.96)";
+  ctx.fill();
+  ctx.strokeStyle="#d8ae45";
+  ctx.stroke();
+  ctx.fillStyle="#34270d";
+  ctx.textAlign="left";
+  ctx.textBaseline="top";
+  lines.forEach((line,index)=>ctx.fillText(line,bubbleX+7,bubbleY+6+index*11));
+  ctx.restore();
 }
 
 export function cabinGeometry(w,h){
@@ -226,7 +281,7 @@ export function drawSim(sim,canvas){
   }
 
   for(const {p,x,y,seatingProgress} of points){
-    const color=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+    const color=p.characterColor||(p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType]);
     if(p.state==="seating"){
       const target=seatRect(geometry,p.row,p.col);
       ctx.save();
@@ -263,13 +318,15 @@ export function drawSim(sim,canvas){
     }
 
     const radius=p.isChild?4.3:5.6;
-    if(p.characterId){
-      ctx.beginPath();
-      ctx.arc(x,y,radius+3.5,0,Math.PI*2);
-      ctx.strokeStyle="#fff0a8";
-      ctx.lineWidth=1.7;
-      ctx.stroke();
-    }
+if(p.characterId){
+  const pulse=3.5+Math.sin(sim.time*5)*.7;
+  ctx.beginPath();
+  ctx.arc(x,y,radius+pulse,0,Math.PI*2);
+  ctx.strokeStyle="#fff0a8";
+  ctx.lineWidth=1.7;
+  ctx.stroke();
+}
+
     ctx.beginPath();
     ctx.arc(x,y,radius,0,Math.PI*2);
     ctx.fillStyle=color;
@@ -282,6 +339,19 @@ export function drawSim(sim,canvas){
       ctx.strokeStyle="#f6e7ff";
       ctx.lineWidth=1.7;
       ctx.stroke();
+    }
+    if(p.characterId){
+      ctx.fillStyle="#2b2108";
+      ctx.font="900 7px system-ui";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText("B",x,y+.3);
+    }
+  }
+
+  for(const {p,x,y} of points){
+    if(p.characterId && p.bubbleText && (p.bubbleUntil||0)>=sim.time){
+      drawCharacterBubble(ctx,p.bubbleText,x,y,w,h);
     }
   }
 

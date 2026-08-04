@@ -789,7 +789,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     return `hsl(${hue} 82% ${lightness}%)`;
   }
 
-  const APP_VERSION = "3.3.0";
+  const APP_VERSION = "3.4.0";
 
   function mulberry32(seed){
     let a = seed >>> 0;
@@ -822,7 +822,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     priorityPolicy:"assist",
     speed:16,
     seed:12345,
-    trials:40
+    trials:40,
+    characterScenario:"none"
   };
 
   // Set `included` to false to remove a scenario from the selector without deleting its definition.
@@ -891,18 +892,20 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       description:"The boarding order is more of a gentle suggestion than an enforceable policy.",
       settings:{loadFactor:100,familyShare:35,partyWeights:[15,30,35,20],assistedParties:5,bagRate:85,sequenceCompliance:35,priorityPolicy:"none",speed:16,seed:40404,trials:40}
     },
-    {
-      id:"barbara",
-      included:true,
-      name:"Barbara Mode",
-      emoji:"🍷",
-      description:"She is late. Her bag is heavy. She has made several decisions.",
-      disabled:true
-    }
+  {
+    id:"barbara",
+    included:true,
+    name:"Barbara Mode",
+    emoji:"🍷",
+    description:"She is late. Her bag is heavy. She has made several decisions.",
+    settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:82,sequenceCompliance:88,priorityPolicy:"assist",speed:16,seed:8675309,trials:40,characterScenario:"barbara"}
+  }
+
   ];
 
   const PRIORITY_POLICIES = new Set(["assist","allgroups","none"]);
   const SPEEDS = new Set([4,16,64,256]);
+  const CHARACTER_SCENARIOS = new Set(["none","barbara"]);
 
   function bounded(value,min,max,fallback,integer=false){
     const n=Number(value);
@@ -933,7 +936,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       priorityPolicy:priority,
       speed:SPEEDS.has(speedValue)?speedValue:fallback.speed,
       seed:bounded(input.seed,1,2147483646,fallback.seed,true),
-      trials:bounded(input.trials,5,200,fallback.trials,true)
+      trials:bounded(input.trials,5,200,fallback.trials,true),
+      characterScenario:CHARACTER_SCENARIOS.has(input.characterScenario)?input.characterScenario:fallback.characterScenario
     };
   }
 
@@ -949,7 +953,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       && a.priorityPolicy===b.priorityPolicy
       && a.speed===b.speed
       && a.seed===b.seed
-      && a.trials===b.trials;
+      && a.trials===b.trials
+      && a.characterScenario===b.characterScenario;
   }
 
   function matchingPreset(settings){
@@ -975,7 +980,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       priorityPolicy:get("pp",defaults.priorityPolicy),
       speed:get("sp",defaults.speed),
       seed:get("sd",defaults.seed),
-      trials:get("tr",defaults.trials)
+      trials:get("tr",defaults.trials),
+      characterScenario:get("ch",defaults.characterScenario)
     });
   }
 
@@ -994,7 +1000,80 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     params.set("sp",String(value.speed));
     params.set("sd",String(value.seed));
     params.set("tr",String(value.trials));
+    params.set("ch",value.characterScenario);
     return params.toString();
+  }
+
+  function seedMix(seed,salt){
+    let x=(seed ^ salt)>>>0;
+    x=Math.imul(x^(x>>>16),0x7feb352d);
+    x=Math.imul(x^(x>>>15),0x846ca68b);
+    return (x^(x>>>16))>>>0;
+  }
+
+  function applyCharacterScenario(manifest,seed,cfg){
+    manifest.characterScenario=cfg.characterScenario||"none";
+    manifest.characters=[];
+    if(manifest.characterScenario!=="barbara") return manifest;
+
+    const rng=mulberry32(seedMix(seed,0xBA4BA4A));
+    const preferred=manifest.passengers.filter(passenger=>
+      passenger.groupType==="single" && !passenger.isChild && !passenger.isReduced && passenger.row>=10
+    );
+    const fallback=manifest.passengers.filter(passenger=>!passenger.isChild && !passenger.isReduced && passenger.row>=6);
+    const candidates=preferred.length?preferred:fallback;
+    if(!candidates.length) throw new Error("Barbara Mode requires an eligible adult passenger");
+
+    const passenger=candidates[Math.floor(rng()*candidates.length)];
+    const baselineBagBase=passenger.bagBase;
+    passenger.displayName="Barbara";
+    passenger.characterId="barbara";
+    passenger.characterRole="late-arriving passenger";
+    passenger.characterStatus="running late";
+    passenger.eventState="trying to join the boarding line";
+    passenger.characterColor="#ffcf66";
+    passenger.baselineBagBase=baselineBagBase;
+    passenger.baselineHasBag=passenger.hasBag;
+    passenger.hasBag=true;
+    passenger.bagBase=18+rng()*6;
+    passenger.heavyBagExtra=Math.max(0,passenger.bagBase-baselineBagBase);
+    passenger.lateQueueFraction=.62+rng()*.18;
+    passenger.restroomPauseRow=clamp(
+      Math.round(passenger.row*(.35+rng()*.24)),
+      3,
+      Math.max(3,passenger.row-2)
+    );
+    passenger.restroomPauseDuration=4.5+rng()*3.5;
+    passenger.eventDelaySeconds=0;
+    passenger.bubbleText=null;
+    passenger.bubbleUntil=0;
+
+    manifest.characters.push({
+      id:"barbara",
+      passengerId:passenger.id,
+      seatKey:passenger.seatKey,
+      heavyBagExtra:passenger.heavyBagExtra,
+      lateQueueFraction:passenger.lateQueueFraction,
+      restroomPauseRow:passenger.restroomPauseRow,
+      restroomPauseDuration:passenger.restroomPauseDuration
+    });
+    return manifest;
+  }
+
+  function repositionCharacterPassengers(queue){
+    const characters=queue.filter(passenger=>passenger.characterId);
+    for(const passenger of characters){
+      const originalIndex=queue.indexOf(passenger);
+      if(originalIndex<0) continue;
+      queue.splice(originalIndex,1);
+      const requested=Math.round(queue.length*clamp(passenger.lateQueueFraction??.7,0,1));
+      const targetIndex=clamp(requested,0,queue.length);
+      passenger.originalQueueIndex=originalIndex;
+      passenger.lateQueueIndex=targetIndex;
+      passenger.queueDisplacement=targetIndex-originalIndex;
+      queue.splice(targetIndex,0,passenger);
+    }
+    return queue;
   }
 
   function weightedSize(rng,weights){
@@ -1145,7 +1224,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       finalizeUnit(unit);
     }
 
-    return {passengers,units,targetPassengers};
+    const manifest={passengers,units,targetPassengers};
+    return applyCharacterScenario(manifest,seed,cfg);
   }
 
   function internalOrder(unit){
@@ -1226,6 +1306,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
         partySeatedColor:unit.partySeatedColor||null
       }));
     }
+    repositionCharacterPassengers(queue);
     queue.forEach((p,index)=>p.queueIndex=index);
     return queue;
   }
@@ -1249,6 +1330,15 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       this.movementDelay=0;
       this.done=false;
       this.doorDelayStarted=false;
+    }
+    setCharacterMoment(p,status,eventState,bubble=null,duration=0){
+      if(!p.characterId) return;
+      p.characterStatus=status;
+      p.eventState=eventState;
+      if(bubble){
+        p.bubbleText=bubble;
+        p.bubbleUntil=this.time+duration;
+      }
     }
     nearestToDoor(){
       let nearest=Infinity;
@@ -1277,6 +1367,30 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       }
       return p.seatBase+penalty;
     }
+    beginStowing(p){
+      p.state="stowing";
+      p.stowDuration=this.computeStow(p);
+      p.remaining=p.stowDuration;
+      if(p.characterId){
+        if(!p.heavyBagDelayCounted){
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+(p.heavyBagExtra||0);
+          p.heavyBagDelayCounted=true;
+        }
+        this.setCharacterMoment(
+          p,
+          "wrestling with the carry-on",
+          "struggling with a very heavy bag",
+          "This bag was lighter at home.",
+          Math.min(7,p.stowDuration)
+        );
+      }
+    }
+    beginSeating(p){
+      p.state="seating";
+      p.seatingDuration=this.computeSeat(p);
+      p.remaining=p.seatingDuration;
+      this.setCharacterMoment(p,"almost there",`entering row ${p.row} toward ${p.seatKey}`);
+    }
     release(dt){
       if(this.pending>=this.queue.length) return;
       if(this.nearestToDoor()<SPACING) return;
@@ -1292,8 +1406,10 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       p.state="walking";
       p.pos=0;
       p.remaining=0;
+      p.eventDelaySeconds=p.eventDelaySeconds||0;
       this.active.push(p);
       this.pending++;
+      this.setCharacterMoment(p,"finally aboard","heading down the aisle","Made it!",3.5);
     }
     step(dt){
       if(this.done) return;
@@ -1301,7 +1417,16 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
       let anyBlocking=false;
       for(const p of this.active){
-        if(p.state==="stowing"){
+        if(p.state==="character-pause"){
+          anyBlocking=true;
+          p.remaining-=dt;
+          p.eventDelaySeconds=(p.eventDelaySeconds||0)+dt;
+          if(p.remaining<=0){
+            p.state="walking";
+            p.remaining=0;
+            this.setCharacterMoment(p,"committed now","continuing to her seat","Too late now.",2.4);
+          }
+        }else if(p.state==="stowing"){
           anyBlocking=true;
           p.remaining-=dt;
           if(p.remaining<=0){
@@ -1312,12 +1437,10 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
                 row:p.row,
                 side:p.side,
                 groupType:p.groupType,
-                color:p.partyColor||null
+                color:p.partyColor||p.characterColor||null
               });
             }
-            p.state="seating";
-            p.seatingDuration=this.computeSeat(p);
-            p.remaining=p.seatingDuration;
+            this.beginSeating(p);
           }
         }else if(p.state==="seating"){
           anyBlocking=true;
@@ -1326,6 +1449,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
             p.state="seated";
             this.occupancy.set(p.seatKey,p);
             this.completed++;
+            this.setCharacterMoment(p,"settled, for now","seated");
           }
         }
       }
@@ -1344,11 +1468,27 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
           const move=Math.min(available,freeMove);
           p.pos+=move;
           if(available+1e-7<freeMove && p.pos<p.row-.001) this.movementDelay+=dt;
-          if(p.row-p.pos<=.001){
+
+          if(
+            p.characterId==="barbara"
+            && !p.restroomPauseComplete
+            && p.row>p.restroomPauseRow+.001
+            && p.pos+1e-7>=p.restroomPauseRow
+          ){
+            p.pos=p.restroomPauseRow;
+            p.state="character-pause";
+            p.remaining=p.restroomPauseDuration;
+            p.restroomPauseComplete=true;
+            this.setCharacterMoment(
+              p,
+              "regretting several decisions",
+              "paused in the aisle thinking about the restroom",
+              "I should have used the restroom.",
+              p.restroomPauseDuration
+            );
+          }else if(p.row-p.pos<=.001){
             p.pos=p.row;
-            p.state="stowing";
-            p.stowDuration=this.computeStow(p);
-            p.remaining=p.stowDuration;
+            this.beginStowing(p);
           }
         }
         leadPos=p.pos;
@@ -1401,6 +1541,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       bagRate:cfg.bagRate,
       sequenceCompliance:cfg.sequenceCompliance,
       priorityPolicy:cfg.priorityPolicy,
+      characterScenario:cfg.characterScenario||"none",
       seed:cfg.seed,
       trials,
       methods:[...methods]
@@ -1489,7 +1630,62 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
   function bagColor(item){
     if(item.groupType==="family") return item.color||palette.family;
-    return palette[item.groupType]||palette.single;
+    return item.color||palette[item.groupType]||palette.single;
+  }
+
+  function wrapBubbleText(ctx,text,maxWidth){
+    const words=String(text).split(/\s+/);
+    const lines=[];
+    let line="";
+    for(const word of words){
+      const next=line?`${line} ${word}`:word;
+      if(line && ctx.measureText(next).width>maxWidth){
+        lines.push(line);
+        line=word;
+      }else line=next;
+    }
+    if(line) lines.push(line);
+    if(lines.length>3){
+      lines.length=3;
+      lines[2]=`${lines[2].replace(/[.…]*$/u,"")}…`;
+    }
+    return lines;
+  }
+
+  function drawCharacterBubble(ctx,text,x,y,w,h){
+    ctx.save();
+    ctx.font="700 9px system-ui";
+    const lines=wrapBubbleText(ctx,text,112);
+    const bubbleW=Math.min(132,Math.max(72,...lines.map(line=>ctx.measureText(line).width+14)));
+    const bubbleH=10+lines.length*11;
+    let bubbleX=clamp(x+12,4,w-bubbleW-4);
+    let bubbleY=y-bubbleH-15;
+    let below=false;
+    if(bubbleY<4){
+      bubbleY=y+14;
+      below=true;
+    }
+    bubbleY=clamp(bubbleY,4,h-bubbleH-4);
+    roundedRect(ctx,bubbleX,bubbleY,bubbleW,bubbleH,7);
+    ctx.fillStyle="rgba(255,249,218,.96)";
+    ctx.fill();
+    ctx.strokeStyle="#d8ae45";
+    ctx.lineWidth=1.2;
+    ctx.stroke();
+    ctx.beginPath();
+    const tailY=below?bubbleY:bubbleY+bubbleH;
+    ctx.moveTo(clamp(x,bubbleX+8,bubbleX+bubbleW-8),tailY);
+    ctx.lineTo(x,below?y+7:y-7);
+    ctx.lineTo(clamp(x+8,bubbleX+8,bubbleX+bubbleW-8),tailY);
+    ctx.fillStyle="rgba(255,249,218,.96)";
+    ctx.fill();
+    ctx.strokeStyle="#d8ae45";
+    ctx.stroke();
+    ctx.fillStyle="#34270d";
+    ctx.textAlign="left";
+    ctx.textBaseline="top";
+    lines.forEach((line,index)=>ctx.fillText(line,bubbleX+7,bubbleY+6+index*11));
+    ctx.restore();
   }
 
   function cabinGeometry(w,h){
@@ -1685,7 +1881,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     }
 
     for(const {p,x,y,seatingProgress} of points){
-      const color=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+      const color=p.characterColor||(p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType]);
       if(p.state==="seating"){
         const target=seatRect(geometry,p.row,p.col);
         ctx.save();
@@ -1722,13 +1918,15 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       }
 
       const radius=p.isChild?4.3:5.6;
-      if(p.characterId){
-        ctx.beginPath();
-        ctx.arc(x,y,radius+3.5,0,Math.PI*2);
-        ctx.strokeStyle="#fff0a8";
-        ctx.lineWidth=1.7;
-        ctx.stroke();
-      }
+  if(p.characterId){
+    const pulse=3.5+Math.sin(sim.time*5)*.7;
+    ctx.beginPath();
+    ctx.arc(x,y,radius+pulse,0,Math.PI*2);
+    ctx.strokeStyle="#fff0a8";
+    ctx.lineWidth=1.7;
+    ctx.stroke();
+  }
+
       ctx.beginPath();
       ctx.arc(x,y,radius,0,Math.PI*2);
       ctx.fillStyle=color;
@@ -1741,6 +1939,19 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
         ctx.strokeStyle="#f6e7ff";
         ctx.lineWidth=1.7;
         ctx.stroke();
+      }
+      if(p.characterId){
+        ctx.fillStyle="#2b2108";
+        ctx.font="900 7px system-ui";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText("B",x,y+.3);
+      }
+    }
+
+    for(const {p,x,y} of points){
+      if(p.characterId && p.bubbleText && (p.bubbleUntil||0)>=sim.time){
+        drawCharacterBubble(ctx,p.bubbleText,x,y,w,h);
       }
     }
 
@@ -1817,6 +2028,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
 
   function stateText(passenger,sim){
     if(passenger.state==="walking") return `walking the aisle · near row ${Math.max(1,Math.ceil(passenger.pos||0))}`;
+    if(passenger.state==="character-pause") return `paused in the aisle · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="stowing") return `stowing carry-on · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="seating") return `entering row ${passenger.row} toward seat ${passenger.seatKey} · ${Math.max(0,passenger.remaining||0).toFixed(1)}s left`;
     if(passenger.state==="seated" || sim.occupancy.has(passenger.seatKey)) return "seated";
@@ -1831,8 +2043,15 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   function passengerDetails(passenger,sim){
     const character=[];
     if(passenger.characterRole) character.push(row("Role",passenger.characterRole));
+    if(passenger.originalQueueIndex!=null && passenger.lateQueueIndex!=null){
+      character.push(row(
+        "Late arrival",
+        `joined ${passenger.lateQueueIndex+1} of ${sim.queue.length} · normal method position was ${passenger.originalQueueIndex+1}`
+      ));
+    }
     if(passenger.characterStatus) character.push(row("Character",passenger.characterStatus));
     if(passenger.eventState) character.push(row("Current event",passenger.eventState));
+    if(passenger.characterId) character.push(row("Direct event delay",`${(passenger.eventDelaySeconds||0).toFixed(1)}s`));
     return `
       <div class="sim-tooltip-title">${escapeHtml(passengerName(passenger))}</div>
       <div class="sim-tooltip-subtitle">Seat ${escapeHtml(passenger.seatKey)} · ${escapeHtml(travelerType(passenger))}</div>
@@ -1883,6 +2102,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   let toastTimer = null;
   let selectedMethods = new Set(METHODS);
   let raceLayout = "standard";
+  let characterScenario = "none";
   const simHover={method:null,canvas:null,clientX:0,clientY:0};
   const raceHud={
     leader:null,
@@ -2302,7 +2522,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       priorityPolicy:controls.priorityPolicy.value,
       speed:controls.speed.value,
       seed:controls.seed.value,
-      trials:controls.trials.value
+      trials:controls.trials.value,
+      characterScenario
     });
   }
 
@@ -2320,6 +2541,7 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
     controls.speed.value=String(value.speed);
     controls.seed.value=String(value.seed);
     controls.trials.value=String(value.trials);
+    characterScenario=value.characterScenario;
     updateControlDisplays();
     return value;
   }
@@ -2335,7 +2557,8 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       bagRate:+controls.bagRate.value/100,
       sequenceCompliance:+controls.sequenceCompliance.value/100,
       priorityPolicy:controls.priorityPolicy.value,
-      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
+      seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646),
+      characterScenario
     };
   }
 
@@ -2361,12 +2584,14 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
   }
 
   function scenarioPreview(settings){
-    return [
+    const preview=[
       `${settings.loadFactor}% full`,
       `${settings.familyShare}% families`,
       `${settings.bagRate}% bags`,
       `${settings.sequenceCompliance}% compliance`
     ];
+    if(settings.characterScenario==="barbara") preview.push("Barbara aboard");
+    return preview;
   }
 
   function renderScenarioCards(){
@@ -2435,8 +2660,9 @@ footer{text-align:center;color:#6f829d;font-size:.75rem;padding:18px 0 4px}
       : "none";
     const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
     const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
+    const characterNote=manifest.characters?.length?` ${manifest.characters.map(character=>character.id==="barbara"?"Barbara":"A named passenger").join(", ")} is aboard.`:"";
     $("benchSeedValue").textContent=normalized.seed.toLocaleString();
-    $("status").textContent=`${currentScenarioName()} · seed ${normalized.seed.toLocaleString()} · ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
+    $("status").textContent=`${currentScenarioName()} · seed ${normalized.seed.toLocaleString()} · ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}${characterNote}`;
     renderAll();
   }
 

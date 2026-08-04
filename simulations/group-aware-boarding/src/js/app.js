@@ -44,6 +44,7 @@ let activePresetId = "custom";
 let toastTimer = null;
 let selectedMethods = new Set(METHODS);
 let raceLayout = "standard";
+let characterScenario = "none";
 const simHover={method:null,canvas:null,clientX:0,clientY:0};
 const raceHud={
   leader:null,
@@ -463,7 +464,8 @@ function snapshotScenarioSettings(){
     priorityPolicy:controls.priorityPolicy.value,
     speed:controls.speed.value,
     seed:controls.seed.value,
-    trials:controls.trials.value
+    trials:controls.trials.value,
+    characterScenario
   });
 }
 
@@ -481,6 +483,7 @@ function writeScenarioSettings(settings){
   controls.speed.value=String(value.speed);
   controls.seed.value=String(value.seed);
   controls.trials.value=String(value.trials);
+  characterScenario=value.characterScenario;
   updateControlDisplays();
   return value;
 }
@@ -496,7 +499,8 @@ function config(){
     bagRate:+controls.bagRate.value/100,
     sequenceCompliance:+controls.sequenceCompliance.value/100,
     priorityPolicy:controls.priorityPolicy.value,
-    seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646)
+    seed:clamp(Math.floor(+controls.seed.value||1),1,2147483646),
+    characterScenario
   };
 }
 
@@ -522,12 +526,14 @@ function detectActivePreset(){
 }
 
 function scenarioPreview(settings){
-  return [
+  const preview=[
     `${settings.loadFactor}% full`,
     `${settings.familyShare}% families`,
     `${settings.bagRate}% bags`,
     `${settings.sequenceCompliance}% compliance`
   ];
+  if(settings.characterScenario==="barbara") preview.push("Barbara aboard");
+  return preview;
 }
 
 function renderScenarioCards(){
@@ -596,8 +602,9 @@ function reset(){
     : "none";
   const maxFamily=familyUnits.length?Math.max(...familyUnits.map(u=>u.passengers.length)):0;
   const fallbackNote=cfg.partyWeightsFallback?" Party weights were all zero, so an equal split was used.":"";
+  const characterNote=manifest.characters?.length?` ${manifest.characters.map(character=>character.id==="barbara"?"Barbara":"A named passenger").join(", ")} is aboard.`:"";
   $("benchSeedValue").textContent=normalized.seed.toLocaleString();
-  $("status").textContent=`${currentScenarioName()} · seed ${normalized.seed.toLocaleString()} · ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}`;
+  $("status").textContent=`${currentScenarioName()} · seed ${normalized.seed.toLocaleString()} · ${manifest.passengers.length}/${TOTAL} seats occupied, ${familyUnits.length} families (${familySummary}${maxFamily?`; max ${maxFamily}`:""}), ${manifest.units.filter(u=>u.groupType==="assisted").length} assisted parties.${fallbackNote}${characterNote}`;
   renderAll();
 }
 

@@ -70,7 +70,17 @@ Hovering a visible passenger dot or seat shows a non-blocking tooltip. Passenger
 
 During the existing `seating` state, the renderer now interpolates the passenger laterally from the aisle toward the assigned seat. The interpolation uses the already-calculated seating duration, including any seat-conflict delay, but it is visual only: the state transition still completes at exactly the same simulated time.
 
-Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara and do not introduce event behavior on their own.
+Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara.
+
+### Barbara Mode and the character-event foundation
+
+Barbara Mode activates one deterministic named-passenger script. A character-specific pseudorandom stream selects an eligible adult individual after the ordinary manifest has been generated, so enabling or disabling Barbara does not disturb the ordinary seat, family, speed, or timing draws. Her seat and intrinsic character values are shared by all six methods.
+
+Each method first constructs its normal queue. Barbara is then removed exactly once and reinserted at the same seed-derived late-arrival fraction of that queue. Her hover tooltip shows both the resulting boarding position and the position she would have occupied under that method before arriving late. Queue construction tests require every passenger ID to remain present exactly once.
+
+Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay. While walking, she also makes one bounded restroom-realization pause at a seeded row before her destination. The pause blocks the aisle like another visible stationary passenger, adds its elapsed time to direct character-event delay, and then returns her to ordinary forward walking. She does not reverse direction or visit a restroom in this phase.
+
+A pulsing marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.
 
 ### Live race HUD and race graph
 

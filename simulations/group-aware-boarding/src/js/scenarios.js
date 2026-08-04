@@ -10,7 +10,8 @@ export const DEFAULT_SCENARIO_SETTINGS = {
   priorityPolicy:"assist",
   speed:16,
   seed:12345,
-  trials:40
+  trials:40,
+  characterScenario:"none"
 };
 
 // Set `included` to false to remove a scenario from the selector without deleting its definition.
@@ -79,18 +80,20 @@ export const SCENARIO_PRESETS = [
     description:"The boarding order is more of a gentle suggestion than an enforceable policy.",
     settings:{loadFactor:100,familyShare:35,partyWeights:[15,30,35,20],assistedParties:5,bagRate:85,sequenceCompliance:35,priorityPolicy:"none",speed:16,seed:40404,trials:40}
   },
-  {
-    id:"barbara",
-    included:true,
-    name:"Barbara Mode",
-    emoji:"🍷",
-    description:"She is late. Her bag is heavy. She has made several decisions.",
-    disabled:true
-  }
+{
+  id:"barbara",
+  included:true,
+  name:"Barbara Mode",
+  emoji:"🍷",
+  description:"She is late. Her bag is heavy. She has made several decisions.",
+  settings:{loadFactor:100,familyShare:30,partyWeights:[22,36,28,14],assistedParties:3,bagRate:82,sequenceCompliance:88,priorityPolicy:"assist",speed:16,seed:8675309,trials:40,characterScenario:"barbara"}
+}
+
 ];
 
 const PRIORITY_POLICIES = new Set(["assist","allgroups","none"]);
 const SPEEDS = new Set([4,16,64,256]);
+const CHARACTER_SCENARIOS = new Set(["none","barbara"]);
 
 function bounded(value,min,max,fallback,integer=false){
   const n=Number(value);
@@ -121,7 +124,8 @@ export function normalizeScenarioSettings(input={}){
     priorityPolicy:priority,
     speed:SPEEDS.has(speedValue)?speedValue:fallback.speed,
     seed:bounded(input.seed,1,2147483646,fallback.seed,true),
-    trials:bounded(input.trials,5,200,fallback.trials,true)
+    trials:bounded(input.trials,5,200,fallback.trials,true),
+    characterScenario:CHARACTER_SCENARIOS.has(input.characterScenario)?input.characterScenario:fallback.characterScenario
   };
 }
 
@@ -137,7 +141,8 @@ export function settingsEqual(left,right){
     && a.priorityPolicy===b.priorityPolicy
     && a.speed===b.speed
     && a.seed===b.seed
-    && a.trials===b.trials;
+    && a.trials===b.trials
+    && a.characterScenario===b.characterScenario;
 }
 
 export function matchingPreset(settings){
@@ -163,7 +168,8 @@ export function parseScenarioSearch(search){
     priorityPolicy:get("pp",defaults.priorityPolicy),
     speed:get("sp",defaults.speed),
     seed:get("sd",defaults.seed),
-    trials:get("tr",defaults.trials)
+    trials:get("tr",defaults.trials),
+    characterScenario:get("ch",defaults.characterScenario)
   });
 }
 
@@ -182,5 +188,6 @@ export function serializeScenarioSettings(settings,presetId="custom"){
   params.set("sp",String(value.speed));
   params.set("sd",String(value.seed));
   params.set("tr",String(value.trials));
+  params.set("ch",value.characterScenario);
   return params.toString();
 }

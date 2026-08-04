@@ -60,7 +60,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
       <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
     </div>
   </div>
-  <div class="version"><span>Model version</span><strong>v3.3.0</strong></div>
+  <div class="version"><span>Model version</span><strong>v3.4.0</strong></div>
 </header>
 <div class="layout">
   <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
@@ -68,6 +68,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <li class="toc-sub"><a href="#scenario-presets-and-shared-links">Scenario presets and shared links</a></li>
 <li class="toc-sub"><a href="#method-visibility-and-synchronized-animation">Method visibility and synchronized animation</a></li>
 <li class="toc-sub"><a href="#passenger-and-seat-hover-explanations">Passenger and seat hover explanations</a></li>
+<li class="toc-sub"><a href="#barbara-mode-and-the-character-event-foundation">Barbara Mode and the character-event foundation</a></li>
 <li class="toc-sub"><a href="#live-race-hud-and-race-graph">Live race HUD and race graph</a></li>
 <li class="toc-sub"><a href="#roomy-and-compact-fleet-display">Roomy and Compact Fleet display</a></li>
 <li class=""><a href="#3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</a></li>
@@ -151,7 +152,12 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <h3 id="passenger-and-seat-hover-explanations">Passenger and seat hover explanations</h3>
 <p>Hovering a visible passenger dot or seat shows a non-blocking tooltip. Passenger tooltips are derived from that method&#x27;s live simulation object and include seat, party, boarding position, traveler type, current state, walking speed, carry-on status, and base seating time. Seat tooltips distinguish unassigned, assigned-but-not-seated, actively entering, and occupied seats. Hovering never pauses or changes the simulation.</p>
 <p>During the existing <code>seating</code> state, the renderer now interpolates the passenger laterally from the aisle toward the assigned seat. The interpolation uses the already-calculated seating duration, including any seat-conflict delay, but it is visual only: the state transition still completes at exactly the same simulated time.</p>
-<p>Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara and do not introduce event behavior on their own.</p>
+<p>Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara.</p>
+<h3 id="barbara-mode-and-the-character-event-foundation">Barbara Mode and the character-event foundation</h3>
+<p>Barbara Mode activates one deterministic named-passenger script. A character-specific pseudorandom stream selects an eligible adult individual after the ordinary manifest has been generated, so enabling or disabling Barbara does not disturb the ordinary seat, family, speed, or timing draws. Her seat and intrinsic character values are shared by all six methods.</p>
+<p>Each method first constructs its normal queue. Barbara is then removed exactly once and reinserted at the same seed-derived late-arrival fraction of that queue. Her hover tooltip shows both the resulting boarding position and the position she would have occupied under that method before arriving late. Queue construction tests require every passenger ID to remain present exactly once.</p>
+<p>Barbara always has a heavy carry-on. Its seeded base stow time replaces her ordinary bag time, and the difference is tracked as direct character-event delay. While walking, she also makes one bounded restroom-realization pause at a seeded row before her destination. The pause blocks the aisle like another visible stationary passenger, adds its elapsed time to direct character-event delay, and then returns her to ordinary forward walking. She does not reverse direction or visit a restroom in this phase.</p>
+<p>A pulsing marker, short passenger-anchored speech or thought bubbles, and live hover status make each action visible where it occurs. These presentation elements do not pause the race. No event ticker or post-race recap is generated.</p>
 <h3 id="live-race-hud-and-race-graph">Live race HUD and race graph</h3>
 <p>The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:</p>
 <ol>
@@ -661,7 +667,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </tr>
 </tbody></table></div></article>
 </div>
-<footer>Boarding Rush v3.3.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+<footer>Boarding Rush v3.4.0 · This guide is generated from the canonical MODEL.md specification.</footer>
 </div>
 </body>
 </html>
