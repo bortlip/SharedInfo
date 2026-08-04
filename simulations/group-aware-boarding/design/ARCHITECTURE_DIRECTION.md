@@ -2,11 +2,51 @@
 
 ## Current state
 
-The released simulator is one self-contained HTML file. That is excellent for GitHub Pages deployment and sharing, but it will become increasingly difficult to maintain as characters, events, replay, inspectors, charts, and alternative aircraft are added.
+The official released simulator remains one self-contained root `simulator.html` file so existing shared links remain stable.
 
-## Desired source layout
+Development is now split into modular browser source under `src/`, with a dependency-free build that emits one standalone, unreleased candidate at `dist/simulator.html`.
 
-A future development source tree may look like:
+```text
+src/
+  index.html
+  styles.css
+  js/
+    constants.js
+    random.js
+    manifest.js
+    methods.js
+    simulation.js
+    format.js
+    render.js
+    app.js
+dist/
+  simulator.html
+tools/
+  build_simulator.py
+```
+
+This is the first modular boundary, not the final architecture. It separates markup, styling, deterministic utilities, manifest generation, queue methods, simulation state, formatting, rendering, and page orchestration without introducing a package manager or external build dependency.
+
+## Build model
+
+`src/index.html` is directly previewable as an ES-module page. The build script:
+
+1. reads the source HTML and stylesheet
+2. reads modules in dependency order
+3. removes module import/export syntax
+4. wraps the combined script in a private function scope
+5. inlines the CSS and JavaScript
+6. writes one portable `dist/simulator.html`
+
+An unchanged source tree must produce byte-identical candidate output.
+
+The root released simulator is not generated automatically. Promotion from `dist/` to the root happens only in a user-approved release PR.
+
+## Next architectural boundary
+
+The simulation engine still contains some page-oriented assumptions. Future work should continue separating model state from DOM and canvas concerns.
+
+A more mature source tree may evolve toward:
 
 ```text
 src/
@@ -30,20 +70,19 @@ src/
     replay.js
     results.js
   scenarios/
+  workers/
   styles/
 tests/
 tools/
-dev/
-  simulator.html
 dist/
   simulator.html
 ```
 
-The source may use modules or TypeScript, while the release process still emits one standalone `dist/simulator.html` file.
+The current modules can be split further only when a selected feature benefits from the new boundary. We should avoid architecture tourism—moving functions around merely because folders look industrious. 🙂
 
 ## Model boundaries
 
-The simulation engine should not depend on canvas or DOM objects. It should emit state snapshots and events such as:
+The simulation engine should eventually have no dependency on canvas or DOM objects. It should emit state snapshots and events such as:
 
 ```text
 passengerEntered
@@ -55,19 +94,22 @@ passengerSeated
 simulationCompleted
 ```
 
-The renderer observes those events. This separation is essential for replay, testing, headless benchmarks, and alternative visualizations.
+The renderer observes those events. This separation is essential for replay, testing, headless benchmarks, alternative visualizations, and character-event explanations.
 
 ## Replay
 
-Deterministic replay should store the scenario configuration, seed, and event stream rather than video frames. The UI can reconstruct any point in the run by replaying or checkpointing simulation state.
+Deterministic replay should store scenario configuration, seed, and event/state information rather than video frames. The UI can reconstruct a moment by replaying from the beginning or from periodic checkpoints.
 
 ## Benchmarking
 
-Large benchmark and sensitivity runs should eventually execute in a Web Worker. The worker receives immutable scenario data and returns aggregate results and optional sampled traces.
+Large benchmark and sensitivity runs should execute in a Web Worker. The worker receives immutable scenario data and returns progress, aggregate results, cancellation acknowledgement, and optional sampled traces.
 
 ## Testing priorities
 
-- Released and development copies begin byte-identical
+- Root `index.html` and root `simulator.html` never change in feature PRs
+- Source modules parse independently
+- Bundled candidate parses and loads
+- Build output is reproducible
 - Same seed and settings produce identical manifests
 - All methods receive matching passenger traits
 - Parties never split unless a future scenario explicitly permits it
@@ -75,4 +117,4 @@ Large benchmark and sensitivity runs should eventually execute in a Web Worker. 
 - Queue insertion never duplicates or loses a passenger
 - Every run terminates
 - Replay reaches the same final fingerprint as the original run
-- Release build matches the approved development artifact
+- A release promotion makes root `simulator.html` byte-identical to the approved candidate
