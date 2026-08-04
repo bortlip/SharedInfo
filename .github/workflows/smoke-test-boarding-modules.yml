@@ -46,14 +46,19 @@ jobs:
           trap 'kill $server_pid' EXIT
           sleep 1
 
-          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3000 --dump-dom \
-            'http://127.0.0.1:8765/src/?static=1' >/tmp/source-dom.html
-          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3000 --dump-dom \
-            'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/candidate-dom.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --enable-logging=stderr --v=1 --virtual-time-budget=3000 --dump-dom \
+            'http://127.0.0.1:8765/src/?static=1' >/tmp/source-dom.html 2>/tmp/source-chrome.log
+          "$browser" --headless=new --no-sandbox --disable-gpu --enable-logging=stderr --v=1 --virtual-time-budget=3000 --dump-dom \
+            'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/candidate-dom.html 2>/tmp/candidate-chrome.log
 
           python - <<'PY'
           from pathlib import Path
-          for path in [Path('/tmp/source-dom.html'), Path('/tmp/candidate-dom.html')]:
+          checks = [
+              (Path('/tmp/source-dom.html'), Path('/tmp/source-chrome.log')),
+              (Path('/tmp/candidate-dom.html'), Path('/tmp/candidate-chrome.log')),
+          ]
+          failed = False
+          for path, log_path in checks:
               html = path.read_text(encoding='utf-8')
               status_ok = 'Ready: 186/186 seats occupied' in html
               card_count = html.count('class="card sim-card"')
@@ -62,9 +67,13 @@ jobs:
               if not status_ok:
                   start = html.find('id="status"')
                   print('status fragment:', html[start:start + 300])
-              assert status_ok
-              assert card_count == 6
-              assert benchmark_ok
+                  log = log_path.read_text(encoding='utf-8', errors='replace')
+                  interesting = [line for line in log.splitlines() if 'CONSOLE' in line or 'Uncaught' in line or 'ReferenceError' in line or 'SyntaxError' in line]
+                  print('browser diagnostics:')
+                  print('\n'.join(interesting[-30:]) or '(no console diagnostic captured)')
+              failed = failed or not status_ok or card_count != 6 or not benchmark_ok
+          if failed:
+              raise SystemExit(1)
           PY
 
       - name: Remove temporary workflow after successful validation
