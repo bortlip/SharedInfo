@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .github/scripts/apply_barbara_phase_one.py
+      - .github/scripts/normalize_barbara_patcher.py
       - .github/workflows/run-barbara-phase-one-pr.yml
 
 permissions:
@@ -21,7 +22,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply Barbara phase one
-        run: python .github/scripts/apply_barbara_phase_one.py
+        run: |
+          python .github/scripts/normalize_barbara_patcher.py
+          python .github/scripts/apply_barbara_phase_one.py
 
       - name: Validate modules and character framework
         shell: bash
@@ -220,9 +223,10 @@ jobs:
         shell: bash
         run: |
           rm .github/scripts/apply_barbara_phase_one.py
+          rm .github/scripts/normalize_barbara_patcher.py
           rm .github/workflows/run-barbara-phase-one-pr.yml
           git config user.name 'github-actions[bot]'
           git config user.email '4189826+github-actions[bot]@users.noreply.github.com'
-          git add simulations/group-aware-boarding .github/scripts/apply_barbara_phase_one.py .github/workflows/run-barbara-phase-one-pr.yml
+          git add simulations/group-aware-boarding .github/scripts/apply_barbara_phase_one.py .github/scripts/normalize_barbara_patcher.py .github/workflows/run-barbara-phase-one-pr.yml
           git commit -m 'Add deterministic Barbara character events'
           git push origin HEAD:${{ github.head_ref }}
