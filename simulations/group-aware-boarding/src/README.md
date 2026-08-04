@@ -12,6 +12,7 @@ This is the working, unreleased source for **Boarding Rush**, the aircraft board
 - `js/methods.js` constructs the six boarding orders.
 - `js/simulation.js` advances aisle, stowing, and seating state.
 - `js/format.js` contains time and benchmark-statistic helpers.
+- `js/race.js` ranks synchronized methods for the visual race HUD.
 - `js/render.js` draws one simulation.
 - `js/app.js` owns controls, scenario selection, animation, sharing, and benchmarking.
 

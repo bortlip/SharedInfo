@@ -5,6 +5,7 @@ import { makeManifest } from "./manifest.js";
 import { BoardingSim } from "./simulation.js";
 import { drawSim } from "./render.js";
 import { benchmarkSignature, formatTime, sameBenchmarkResults, stats } from "./format.js";
+import { rankRace, simultaneousBlockers } from "./race.js";
 import {
   SCENARIO_PRESETS,
   DEFAULT_SCENARIO_SETTINGS,
@@ -42,9 +43,196 @@ let activePresetId = "custom";
 let toastTimer = null;
 let selectedMethods = new Set(METHODS);
 let raceLayout = "standard";
+const raceHud={
+  leader:null,
+  events:[],
+  seen:new Set(),
+  blocking:new Map(),
+  finished:new Set(),
+  leadFlash:new Map(),
+  spotlightTimer:null,
+  lastPaint:-Infinity
+};
 
 function activeMethods(){
   return METHODS.filter(method=>selectedMethods.has(method));
+}
+
+function ordinal(value){
+  const mod100=value%100;
+  if(mod100>=11 && mod100<=13) return `${value}th`;
+  return `${value}${value%10===1?"st":value%10===2?"nd":value%10===3?"rd":"th"}`;
+}
+
+function clearRaceHud(){
+  raceHud.leader=null;
+  raceHud.events=[];
+  raceHud.seen.clear();
+  raceHud.blocking.clear();
+  raceHud.finished.clear();
+  raceHud.leadFlash.clear();
+  raceHud.lastPaint=-Infinity;
+  document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+    card.classList.remove("spotlight","event-pulse","finished-card");
+    delete card.dataset.finishPlace;
+  });
+  $("raceLeaderboard").innerHTML="";
+  $("raceEvents").innerHTML='<span class="race-events-empty">Lead changes, long bag stows, conflict clusters, and finish moments will appear here.</span>';
+  $("raceClock").textContent="00:00";
+}
+
+function pulseMethod(method){
+  const card=document.querySelector(`.sim-card[data-method="${method}"]`);
+  if(!card || card.hidden) return;
+  card.classList.remove("event-pulse");
+  void card.offsetWidth;
+  card.classList.add("event-pulse");
+  setTimeout(()=>card.classList.remove("event-pulse"),1050);
+}
+
+function focusMethod(method){
+  const card=document.querySelector(`.sim-card[data-method="${method}"]`);
+  if(!card || card.hidden) return;
+  document.querySelectorAll(".sim-card.spotlight").forEach(item=>item.classList.remove("spotlight"));
+  card.classList.add("spotlight");
+  card.scrollIntoView({behavior:"smooth",block:"nearest"});
+  clearTimeout(raceHud.spotlightTimer);
+  raceHud.spotlightTimer=setTimeout(()=>card.classList.remove("spotlight"),1800);
+}
+
+function addRaceEvent(method,icon,text,key){
+  if(key && raceHud.seen.has(key)) return;
+  if(key) raceHud.seen.add(key);
+  raceHud.events.unshift({method,icon,text,time:sims[method]?.time||0});
+  raceHud.events=raceHud.events.slice(0,8);
+  pulseMethod(method);
+}
+
+function detectRaceEvents(rows){
+  if(!rows.length) return;
+  const leader=rows[0].method;
+  const leaderTime=sims[leader]?.time||0;
+  if(!raceHud.leader){
+    raceHud.leader=leader;
+  }else if(running && leaderTime>1 && raceHud.leader!==leader){
+    raceHud.leader=leader;
+    raceHud.leadFlash.set(leader,performance.now()+1200);
+    addRaceEvent(leader,"▲",`${META[leader].label} takes the lead`,`lead:${leader}:${Math.round(leaderTime*10)}`);
+  }
+
+  for(const row of rows){
+    const method=row.method;
+    const sim=sims[method];
+    if(!sim) continue;
+
+    for(const passenger of sim.active){
+      if(passenger.state==="stowing" && passenger.hasBag && passenger.stowDuration>=11.5){
+        addRaceEvent(
+          method,
+          "🧳",
+          `${META[method].label}: ${passenger.stowDuration.toFixed(1)}s carry-on at row ${passenger.row}`,
+          `bag:${method}:${passenger.id}`
+        );
+      }
+      if(passenger.state==="seating" && passenger.visualBlockers>=2){
+        addRaceEvent(
+          method,
+          "💺",
+          `${META[method].label}: double seat conflict at row ${passenger.row}`,
+          `seat:${method}:${passenger.id}`
+        );
+      }
+    }
+
+    const blockers=simultaneousBlockers(sim);
+    const blocking=raceHud.blocking.get(method)||false;
+    if(blockers>=3 && !blocking){
+      raceHud.blocking.set(method,true);
+      addRaceEvent(
+        method,
+        "⛔",
+        `${META[method].label}: ${blockers} simultaneous aisle blockers`,
+        `block:${method}:${Math.round(sim.time*10)}`
+      );
+    }else if(blockers<2){
+      raceHud.blocking.set(method,false);
+    }
+
+    if(sim.done && !raceHud.finished.has(method)){
+      raceHud.finished.add(method);
+      const finishers=METHODS.filter(candidate=>sims[candidate]?.done)
+        .sort((a,b)=>sims[a].time-sims[b].time || METHODS.indexOf(a)-METHODS.indexOf(b));
+      const place=finishers.indexOf(method)+1;
+      addRaceEvent(
+        method,
+        "🏁",
+        `${META[method].label} finishes ${ordinal(place)} at ${formatTime(sim.time)}`,
+        `finish:${method}`
+      );
+    }
+  }
+}
+
+function gapLabel(row,leader){
+  if(row.done){
+    if(row.rank===1) return "First finisher";
+    return `+${formatTime(Math.max(0,row.time-leader.time))}`;
+  }
+  if(row.rank===1) return "Leader";
+  const gap=Math.max(0,leader.completed-row.completed);
+  if(gap===0) return "Tied on seated";
+  return `${gap} passenger${gap===1?"":"s"} back`;
+}
+
+function renderRaceHud(force=false){
+  const now=performance.now();
+  if(!force && now-raceHud.lastPaint<120) return;
+  raceHud.lastPaint=now;
+  const methods=activeMethods();
+  if(!methods.length || !methods.every(method=>sims[method])) return;
+  const rows=rankRace(methods,sims);
+  detectRaceEvents(rows);
+  const leader=rows[0];
+  const maxTime=Math.max(...METHODS.map(method=>sims[method]?.time||0));
+  $("raceClock").textContent=formatTime(maxTime);
+
+  $("raceLeaderboard").innerHTML=rows.map(row=>{
+    const flash=(raceHud.leadFlash.get(row.method)||0)>now;
+    const place=row.done && row.rank<=3?["🥇","🥈","🥉"][row.rank-1]:row.rank;
+    const status=row.done?`${formatTime(row.time)} finish`:`${Math.round(row.percent)}% seated`;
+    return `<button type="button" class="race-row${row.rank===1?" leader":""}${row.done?" finished":""}${flash?" lead-change":""}" data-method="${row.method}">
+      <span class="race-rank">${place}</span>
+      <span class="race-name">${META[row.method].label}</span>
+      <span class="race-stat">${status}</span>
+      <span class="race-progress" aria-hidden="true"><span style="width:${clamp(row.percent,0,100).toFixed(1)}%"></span></span>
+      <span class="race-gap">${gapLabel(row,leader)}</span>
+    </button>`;
+  }).join("");
+
+  document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+    card.classList.remove("finished-card");
+    delete card.dataset.finishPlace;
+  });
+  for(const row of rows.filter(item=>item.done)){
+    const card=document.querySelector(`.sim-card[data-method="${row.method}"]`);
+    if(!card) continue;
+    card.classList.add("finished-card");
+    card.dataset.finishPlace=ordinal(row.rank);
+  }
+
+  const visibleEvents=raceHud.events.filter(event=>selectedMethods.has(event.method)).slice(0,5);
+  $("raceEvents").innerHTML=visibleEvents.length
+    ? visibleEvents.map(event=>`<button type="button" class="race-event" data-method="${event.method}"><span aria-hidden="true">${event.icon}</span> ${event.text} <time>${formatTime(event.time)}</time></button>`).join("")
+    : '<span class="race-events-empty">Lead changes, long bag stows, conflict clusters, and finish moments will appear here.</span>';
+}
+
+function initializeRaceHud(){
+  for(const id of ["raceLeaderboard","raceEvents"]){
+    $(id).addEventListener("click",event=>{
+      const target=event.target.closest("[data-method]");
+      if(target) focusMethod(target.dataset.method);
+    });
+  }
 }
 
 function parseRaceView(search){
@@ -90,6 +278,7 @@ function applyMethodSelection(methods,{announce=false}={}){
   selectedMethods=new Set(valid);
   updateRaceView();
   clearBenchmark();
+  raceHud.leader=null;
   renderAll();
   if(announce){
     const count=valid.length;
@@ -292,6 +481,7 @@ function reset(){
   manifest=makeManifest(cfg.seed,cfg);
   sims={};
   for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
+  clearRaceHud();
   running=false;
   accumulator=0;
   $("pauseBtn").textContent="Pause";
@@ -332,6 +522,7 @@ function renderAll(){
     el.blocked.textContent=`${Math.round(sim.blockedSeconds)} s`;
     el.queue.textContent=String(sim.queue.length-sim.pending);
   }
+  renderRaceHud();
   if(allDone && running){
     running=false;
     const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
@@ -572,6 +763,7 @@ function initialize(){
   });
   renderScenarioCards();
   renderMethodPicker();
+  initializeRaceHud();
   const fromUrl=parseScenarioSearch(location.search);
   const raceView=parseRaceView(location.search);
   writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);

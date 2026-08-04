@@ -136,6 +136,29 @@
     </div>
   </section>
 
+  <section class="card race-hud" aria-labelledby="raceHudHeading">
+    <div class="race-hud-head">
+      <div>
+        <div class="race-title-line">
+          <h2 id="raceHudHeading">Live race</h2>
+          <span class="provisional-badge">provisional ranking</span>
+        </div>
+        <p>Ranked by seated passengers; ties use passengers entered and aisle progress. The HUD never changes the simulation.</p>
+      </div>
+      <div class="race-clock" aria-label="Current simulated race time">
+        <span>Race clock</span>
+        <strong id="raceClock">00:00</strong>
+      </div>
+    </div>
+    <div class="race-leaderboard" id="raceLeaderboard" aria-label="Live boarding method leaderboard"></div>
+    <div class="race-events-wrap">
+      <span class="race-events-label">Race moments</span>
+      <div class="race-events" id="raceEvents" aria-live="polite">
+        <span class="race-events-empty">Lead changes, long bag stows, conflict clusters, and finish moments will appear here.</span>
+      </div>
+    </div>
+  </section>
+
   <main class="sim-grid" id="simGrid">
     <article class="card sim-card" data-method="random">
       <div class="sim-head">
