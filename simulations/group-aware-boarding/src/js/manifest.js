@@ -69,7 +69,8 @@ export function makeManifest(seed,cfg){
     const seatBase=isReduced ? 7.5+rng()*5.5 : isChild ? 3.8+rng()*3.8 : 2.1+rng()*2.8;
     const p={
       id:pid++, seatKey:seat.key,row:seat.row,col:seat.col,side:seat.side,depth:seat.depth,
-      unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed
+      unitId:unit.id, groupType:type, isChild,isReduced, hasBag, bagBase, seatBase, walkSpeed,
+      displayName:null, characterId:null, characterRole:null, characterStatus:null, eventState:null
     };
     passengers.push(p);
     unit.passengers.push(p);

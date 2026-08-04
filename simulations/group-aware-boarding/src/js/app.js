@@ -3,7 +3,8 @@ import { APP_VERSION } from "./version.js";
 import { clamp } from "./random.js";
 import { makeManifest } from "./manifest.js";
 import { BoardingSim } from "./simulation.js";
-import { drawSim } from "./render.js";
+import { drawSim, hitTestSim } from "./render.js";
+import { tooltipHtml } from "./interaction.js";
 import { benchmarkSignature, formatTime, sameBenchmarkResults, stats } from "./format.js";
 import { rankRace } from "./race.js";
 import {
@@ -43,6 +44,7 @@ let activePresetId = "custom";
 let toastTimer = null;
 let selectedMethods = new Set(METHODS);
 let raceLayout = "standard";
+const simHover={method:null,canvas:null,clientX:0,clientY:0};
 const raceHud={
   leader:null,
   leadFlash:new Map(),
@@ -274,6 +276,62 @@ function initializeRaceHud(){
   document.querySelectorAll("[data-chart-size]").forEach(button=>{
     button.addEventListener("click",()=>setRaceChartSize(button.dataset.chartSize));
   });
+}
+
+
+function hideSimTooltip(){
+  simHover.method=null;
+  simHover.canvas=null;
+  const tooltip=$("simTooltip");
+  tooltip.hidden=true;
+  document.querySelectorAll(".sim-card canvas").forEach(canvas=>canvas.style.cursor="default");
+}
+
+function positionSimTooltip(clientX,clientY){
+  const tooltip=$("simTooltip");
+  const gap=14;
+  const rect=tooltip.getBoundingClientRect();
+  let left=clientX+gap;
+  let top=clientY+gap;
+  if(left+rect.width>innerWidth-8) left=clientX-rect.width-gap;
+  if(top+rect.height>innerHeight-8) top=clientY-rect.height-gap;
+  tooltip.style.left=`${Math.max(8,left)}px`;
+  tooltip.style.top=`${Math.max(8,top)}px`;
+}
+
+function refreshSimTooltip(){
+  if(!simHover.method || !simHover.canvas || simHover.canvas.closest("article")?.hidden){
+    hideSimTooltip();
+    return;
+  }
+  const sim=sims[simHover.method];
+  if(!sim) return;
+  const hit=hitTestSim(sim,simHover.canvas,simHover.clientX,simHover.clientY);
+  if(!hit){
+    $("simTooltip").hidden=true;
+    simHover.canvas.style.cursor="default";
+    return;
+  }
+  const tooltip=$("simTooltip");
+  tooltip.innerHTML=tooltipHtml(hit,sim);
+  tooltip.hidden=false;
+  simHover.canvas.style.cursor="help";
+  positionSimTooltip(simHover.clientX,simHover.clientY);
+}
+
+function initializeSimHover(){
+  for(const method of METHODS){
+    const canvas=$(META[method].canvas);
+    canvas.addEventListener("pointermove",event=>{
+      simHover.method=method;
+      simHover.canvas=canvas;
+      simHover.clientX=event.clientX;
+      simHover.clientY=event.clientY;
+      refreshSimTooltip();
+    });
+    canvas.addEventListener("pointerleave",hideSimTooltip);
+  }
+  window.addEventListener("scroll",hideSimTooltip,{passive:true});
 }
 
 function parseRaceView(search){
@@ -526,6 +584,7 @@ function reset(){
   sims={};
   for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
   clearRaceHud();
+  hideSimTooltip();
   running=false;
   accumulator=0;
   $("pauseBtn").textContent="Pause";
@@ -567,6 +626,7 @@ function renderAll(){
     el.queue.textContent=String(sim.queue.length-sim.pending);
   }
   renderRaceHud();
+  if(simHover.method) refreshSimTooltip();
   if(allDone && running){
     running=false;
     const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
@@ -809,6 +869,7 @@ function initialize(){
   renderScenarioCards();
   renderMethodPicker();
   initializeRaceHud();
+  initializeSimHover();
   const fromUrl=parseScenarioSearch(location.search);
   const raceView=parseRaceView(location.search);
   writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);

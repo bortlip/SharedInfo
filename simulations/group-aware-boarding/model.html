@@ -60,13 +60,14 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
       <a class="button" href="https://github.com/bortlip/SharedInfo/blob/main/simulations/group-aware-boarding/MODEL.md">View Markdown source</a>
     </div>
   </div>
-  <div class="version"><span>Model version</span><strong>v3.2.0</strong></div>
+  <div class="version"><span>Model version</span><strong>v3.3.0</strong></div>
 </header>
 <div class="layout">
   <nav aria-label="Model guide contents"><h2>On this page</h2><ol><li class=""><a href="#1-aircraft-and-time-model">1. Aircraft and time model</a></li>
 <li class=""><a href="#2-determinism-and-fair-comparison">2. Determinism and fair comparison</a></li>
 <li class="toc-sub"><a href="#scenario-presets-and-shared-links">Scenario presets and shared links</a></li>
 <li class="toc-sub"><a href="#method-visibility-and-synchronized-animation">Method visibility and synchronized animation</a></li>
+<li class="toc-sub"><a href="#passenger-and-seat-hover-explanations">Passenger and seat hover explanations</a></li>
 <li class="toc-sub"><a href="#live-race-hud-and-race-graph">Live race HUD and race graph</a></li>
 <li class="toc-sub"><a href="#roomy-and-compact-fleet-display">Roomy and Compact Fleet display</a></li>
 <li class=""><a href="#3-manifest-size-and-seat-assignment">3. Manifest size and seat assignment</a></li>
@@ -147,6 +148,10 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 <p>The animated comparison creates all six method simulations from the same manifest, even when only one or two method panels are visible. All six continue advancing in lockstep while the race runs.</p>
 <p>Selecting or deselecting a method changes only which panels are rendered and which methods appear in a later benchmark. It does not pause, restart, or recreate the animated simulations. Revealing a previously hidden method therefore shows its current synchronized state.</p>
 <p>&quot;Finish instantly&quot; completes all six animated method simulations. The completion message ranks only the methods currently visible.</p>
+<h3 id="passenger-and-seat-hover-explanations">Passenger and seat hover explanations</h3>
+<p>Hovering a visible passenger dot or seat shows a non-blocking tooltip. Passenger tooltips are derived from that method&#x27;s live simulation object and include seat, party, boarding position, traveler type, current state, walking speed, carry-on status, and base seating time. Seat tooltips distinguish unassigned, assigned-but-not-seated, actively entering, and occupied seats. Hovering never pauses or changes the simulation.</p>
+<p>During the existing <code>seating</code> state, the renderer now interpolates the passenger laterally from the aisle toward the assigned seat. The interpolation uses the already-calculated seating duration, including any seat-conflict delay, but it is visual only: the state transition still completes at exactly the same simulated time.</p>
+<p>Passenger records also expose optional display-name, character-role, character-status, and event-state fields. Ordinary passengers leave these fields empty. They are presentation hooks for deterministic named characters such as Barbara and do not introduce event behavior on their own.</p>
 <h3 id="live-race-hud-and-race-graph">Live race HUD and race graph</h3>
 <p>The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:</p>
 <ol>
@@ -656,7 +661,7 @@ footer{padding:22px 0 4px;text-align:center;color:#71869f;font-size:.76rem}
 </tr>
 </tbody></table></div></article>
 </div>
-<footer>Boarding Rush v3.2.0 · This guide is generated from the canonical MODEL.md specification.</footer>
+<footer>Boarding Rush v3.3.0 · This guide is generated from the canonical MODEL.md specification.</footer>
 </div>
 </body>
 </html>

@@ -33,11 +33,7 @@ function bagColor(item){
   return palette[item.groupType]||palette.single;
 }
 
-export function drawSim(sim,canvas){
-  const ctx=canvas.getContext("2d");
-  const w=canvas.width,h=canvas.height;
-  ctx.clearRect(0,0,w,h);
-
+export function cabinGeometry(w,h){
   const top=34,bottom=h-18;
   const rowH=(bottom-top)/ROWS;
   const seatW=Math.min(38,(w-130)/6);
@@ -51,6 +47,83 @@ export function drawSim(sim,canvas){
   const aisleX=leftBinX+binW;
   const rightBinX=aisleX+aisleW;
   const rightX=rightBinX+binW;
+  return {w,h,top,bottom,rowH,seatW,gap,aisleW,binW,blockW,totalW,left,leftBinX,aisleX,rightBinX,rightX};
+}
+
+export function seatRect(geometry,row,col){
+  const ci=COLS.indexOf(col);
+  if(ci<0 || row<1 || row>ROWS) return null;
+  const x=ci<3
+    ? geometry.left+ci*(geometry.seatW+geometry.gap)
+    : geometry.rightX+(ci-3)*(geometry.seatW+geometry.gap);
+  const y=geometry.top+(row-1)*geometry.rowH+1;
+  return {x,y,w:geometry.seatW,h:geometry.rowH-2,cx:x+geometry.seatW/2,cy:y+(geometry.rowH-2)/2};
+}
+
+export function passengerPoint(passenger,geometry){
+  const aisleCenter=geometry.aisleX+geometry.aisleW/2;
+  const baseX=aisleCenter+((passenger.id%3)-1)*Math.min(4,geometry.aisleW*.08);
+  let x=baseX;
+  let y=geometry.top+(clamp(passenger.pos,0,ROWS)-.5)*geometry.rowH;
+  let seatingProgress=0;
+  if(passenger.state==="seating"){
+    const target=seatRect(geometry,passenger.row,passenger.col);
+    const duration=Math.max(.001,passenger.seatingDuration||passenger.remaining||1);
+    seatingProgress=clamp(1-passenger.remaining/duration,0,1);
+    const eased=seatingProgress<.5
+      ? 2*seatingProgress*seatingProgress
+      : 1-Math.pow(-2*seatingProgress+2,2)/2;
+    x=baseX+(target.cx-baseX)*eased;
+    y=target.cy-Math.sin(seatingProgress*Math.PI)*Math.min(4,geometry.rowH*.18);
+  }
+  return {p:passenger,x,y,seatingProgress};
+}
+
+export function hitTestSim(sim,canvas,clientX,clientY){
+  const rect=canvas.getBoundingClientRect();
+  if(!rect.width || !rect.height) return null;
+  const x=(clientX-rect.left)*canvas.width/rect.width;
+  const y=(clientY-rect.top)*canvas.height/rect.height;
+  const geometry=cabinGeometry(canvas.width,canvas.height);
+
+  const active=(sim.active||[]).map(passenger=>passengerPoint(passenger,geometry));
+  for(let index=active.length-1;index>=0;index--){
+    const point=active[index];
+    const radius=(point.p.isChild?4.3:5.6)+5;
+    if(Math.hypot(x-point.x,y-point.y)<=radius){
+      return {kind:"passenger",passenger:point.p,point};
+    }
+  }
+
+  for(let row=1;row<=ROWS;row++){
+    for(const col of COLS){
+      const seat=seatRect(geometry,row,col);
+      if(x<seat.x || x>seat.x+seat.w || y<seat.y || y>seat.y+seat.h) continue;
+      const seatKey=`${row}${col}`;
+      const occupant=sim.occupancy.get(seatKey)||null;
+      const assigned=occupant||sim.queue.find(passenger=>passenger.seatKey===seatKey)||null;
+      return {
+        kind:"seat",
+        row,
+        col,
+        seatKey,
+        occupant,
+        assigned,
+        isAssigned:sim.assignedSeats.has(seatKey),
+        rect:seat
+      };
+    }
+  }
+  return null;
+}
+
+export function drawSim(sim,canvas){
+  const ctx=canvas.getContext("2d");
+  const w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const geometry=cabinGeometry(w,h);
+  const {top,bottom,rowH,seatW,gap,aisleW,binW,left,leftBinX,aisleX,rightBinX,rightX}=geometry;
 
   const bagsByBin=new Map();
   for(const bag of sim.stowedBags||[]){
@@ -93,20 +166,20 @@ export function drawSim(sim,canvas){
 
     for(let ci=0;ci<6;ci++){
       const col=COLS[ci];
-      const x=ci<3 ? left+ci*(seatW+gap) : rightX+(ci-3)*(seatW+gap);
+      const seat=seatRect(geometry,r,col);
       const key=`${r}${col}`;
       const occ=sim.occupancy.get(key);
       const assigned=sim.assignedSeats.has(key);
       ctx.fillStyle=occ
         ? (occ.groupType==="family"? (occ.partySeatedColor||"#c38a38") : occ.groupType==="assisted" ? "#9a61b9" : palette.seated)
         : assigned ? palette.empty : palette.unassigned;
-      ctx.fillRect(x,y+1,seatW,rowH-2);
+      ctx.fillRect(seat.x,seat.y,seat.w,seat.h);
       ctx.strokeStyle=occ?"rgba(255,255,255,.22)":palette.grid;
-      ctx.strokeRect(x+.5,y+1.5,seatW-1,rowH-3);
+      ctx.strokeRect(seat.x+.5,seat.y+.5,seat.w-1,seat.h-1);
       if(rowH>17){
         ctx.fillStyle=occ?"rgba(255,255,255,.78)":"rgba(220,235,255,.45)";
         ctx.font="9px system-ui";
-        ctx.fillText(col,x+seatW/2,y+rowH/2);
+        ctx.fillText(col,seat.cx,seat.cy);
       }
     }
 
@@ -130,12 +203,7 @@ export function drawSim(sim,canvas){
   ctx.font="10px system-ui";
   ctx.fillText(`door · ${sim.queue.length-sim.pending} waiting`,aisleX+aisleW/2,top-18);
 
-  const activePoint=p=>({
-    p,
-    y:top+(clamp(p.pos,0,ROWS)-.5)*rowH,
-    x:aisleX+aisleW/2 + ((p.id%3)-1)*Math.min(4,aisleW*.08)
-  });
-  const points=sim.active.map(activePoint);
+  const points=sim.active.map(passenger=>passengerPoint(passenger,geometry));
   const activeFamilies=new Map();
   for(const point of points){
     if(point.p.groupType!=="family") continue;
@@ -143,7 +211,6 @@ export function drawSim(sim,canvas){
     activeFamilies.get(point.p.unitId).push(point);
   }
 
-  // Subtle connectors make contiguous members of the same family read as one party.
   for(const members of activeFamilies.values()){
     if(members.length<2) continue;
     members.sort((a,b)=>a.p.queueIndex-b.p.queueIndex);
@@ -158,8 +225,21 @@ export function drawSim(sim,canvas){
     ctx.restore();
   }
 
-  for(const {p,x,y} of points){
+  for(const {p,x,y,seatingProgress} of points){
     const color=p.groupType==="family"?(p.partyColor||palette.family):palette[p.groupType];
+    if(p.state==="seating"){
+      const target=seatRect(geometry,p.row,p.col);
+      ctx.save();
+      ctx.setLineDash([3,3]);
+      ctx.strokeStyle=`rgba(134,220,255,${.24+.34*(1-seatingProgress)})`;
+      ctx.lineWidth=1.2;
+      ctx.beginPath();
+      ctx.moveTo(aisleX+aisleW/2,target.cy);
+      ctx.lineTo(target.cx,target.cy);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if(p.hasBag && !p.bagStowed){
       let bagX=x+(p.side==="L"?-10:4);
       let bagY=y-2;
@@ -183,6 +263,13 @@ export function drawSim(sim,canvas){
     }
 
     const radius=p.isChild?4.3:5.6;
+    if(p.characterId){
+      ctx.beginPath();
+      ctx.arc(x,y,radius+3.5,0,Math.PI*2);
+      ctx.strokeStyle="#fff0a8";
+      ctx.lineWidth=1.7;
+      ctx.stroke();
+    }
     ctx.beginPath();
     ctx.arc(x,y,radius,0,Math.PI*2);
     ctx.fillStyle=color;
@@ -198,7 +285,6 @@ export function drawSim(sim,canvas){
     }
   }
 
-  // Keep one label visible per active family. As the leader sits, the next member inherits it.
   for(const members of activeFamilies.values()){
     const carrier=members.reduce((best,item)=>item.p.queueIndex<best.p.queueIndex?item:best);
     const label=`${carrier.p.partyLabel}·${carrier.p.partySize}`;

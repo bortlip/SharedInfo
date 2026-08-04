@@ -1,44 +1,31 @@
 # TASK-002: Passenger Inspector and Explainability
 
-**Status:** Idea
+**Status:** In progress
 
 ## Goal
 
-Turn passengers from anonymous dots into understandable participants and make simulation mechanics inspectable while the race is running.
+Turn passengers from anonymous dots into understandable participants while keeping the race moving.
 
-## Interaction
+## Hover-first slice — done in candidate
 
-Clicking or keyboard-selecting a passenger opens an inspector showing:
+- hovering an active passenger shows live passenger details without pausing
+- hovering any seat explains whether it is unassigned, waiting for its passenger, being entered, or occupied
+- tooltips report seat, party, boarding order, traveler type, current state, walking speed, carry-on status, and base seating time
+- the passenger visibly moves laterally from the aisle toward the assigned seat during the existing seating state
+- optional display-name and character-status fields are supported for future named characters
+- all values come from simulation state and the visual layer does not change results
 
-- name or generated label
-- seat, party, and queue position
-- adult, child, reduced-mobility, or future archetype
-- walking speed
-- bag status and base stow time
-- base seating time
-- current state and remaining action time
-- seat conflicts caused or experienced
-- cumulative waiting time
-- why the method placed this party at its queue position
-- active traits and event history
+## Later explainability
 
-Selecting a family should show the whole party and preserve the visual connectors already used in the cabin.
-
-## Explainability features
-
-When a passenger stops, the inspector should state why: door spacing, passenger ahead, stowing, seat conflict, party coordination, or event behavior.
-
-The result screen should link important delays back to the responsible passengers and events.
-
-## UI direction
-
-Use a side drawer on wide screens and a bottom sheet on mobile. Selection must work with pointer, keyboard, and touch. The cabin should spotlight the selected person without stopping the race.
+- explicit stop reasons such as door spacing, a passenger ahead, stowing, or party coordination
+- touch and keyboard access that does not depend on hover
+- richer family-level inspection
+- event history and named-character timelines
 
 ## Acceptance criteria
 
-- Every visible passenger can be selected
-- Inspector values come from simulation state, not duplicated UI calculations
-- Stop reasons are explicit
-- Party membership is easy to understand
-- Selection remains synchronized across rerenders
-- No change to simulation outcome occurs from inspecting
+- Every visible active passenger and every seat can be explained
+- Tooltip values come from simulation state, not duplicated model calculations
+- Hover never pauses or changes the simulation
+- Row-entry animation completes on the existing seating-state schedule
+- Character metadata can appear without special-case UI code
