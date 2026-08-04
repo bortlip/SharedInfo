@@ -51,11 +51,21 @@ jobs:
           "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3000 --dump-dom \
             'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/candidate-dom.html
 
-          for dom in /tmp/source-dom.html /tmp/candidate-dom.html; do
-            grep -q 'Ready: 186/186 seats occupied' "$dom"
-            test "$(grep -o '<article class="card sim-card">' "$dom" | wc -l)" -eq 6
-            grep -q 'id="benchBtn"' "$dom"
-          done
+          python - <<'PY'
+          from pathlib import Path
+          for path in [Path('/tmp/source-dom.html'), Path('/tmp/candidate-dom.html')]:
+              html = path.read_text(encoding='utf-8')
+              status_ok = 'Ready: 186/186 seats occupied' in html
+              card_count = html.count('class="card sim-card"')
+              benchmark_ok = 'id="benchBtn"' in html
+              print(path.name, {'status_ok': status_ok, 'card_count': card_count, 'benchmark_ok': benchmark_ok})
+              if not status_ok:
+                  start = html.find('id="status"')
+                  print('status fragment:', html[start:start + 300])
+              assert status_ok
+              assert card_count == 6
+              assert benchmark_ok
+          PY
 
       - name: Remove temporary workflow after successful validation
         shell: bash
