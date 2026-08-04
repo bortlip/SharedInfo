@@ -1,0 +1,116 @@
+name: Run Boarding Rush page polish on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/scripts/apply_boarding_rush_polish.py
+      - .github/workflows/boarding-rush-page-polish.yml
+      - .github/workflows/run-boarding-rush-page-polish-pr.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply source changes
+        run: python .github/scripts/apply_boarding_rush_polish.py
+
+      - name: Validate modules and benchmark helpers
+        shell: bash
+        run: |
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+          cp simulations/group-aware-boarding/src/js/format.js /tmp/format.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { benchmarkSignature, sameBenchmarkResults } from 'file:///tmp/format.mjs';
+
+          const cfg={loadFactor:1,familyShare:.3,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.7,sequenceCompliance:1,priorityPolicy:'assist',seed:12345};
+          assert.equal(benchmarkSignature(cfg,40),benchmarkSignature({...cfg},40));
+          assert.notEqual(benchmarkSignature(cfg,40),benchmarkSignature({...cfg,seed:12346},40));
+          assert.notEqual(benchmarkSignature(cfg,40),benchmarkSignature({...cfg},45));
+
+          const methods=['random','back'];
+          const result={random:{wins:2,stats:{mean:10,median:9,p10:8,p90:12}},back:{wins:3,stats:{mean:11,median:10,p10:9,p90:13}}};
+          assert.equal(sameBenchmarkResults(result,structuredClone(result),methods),true);
+          const changed=structuredClone(result);
+          changed.back.stats.mean=12;
+          assert.equal(sameBenchmarkResults(result,changed,methods),false);
+          NODE
+
+      - name: Build standalone candidate and validate syntax
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html=Path('simulations/group-aware-boarding/dist/simulator.html').read_text(encoding='utf-8')
+          match=re.search(r'<script>\s*(.*?)\s*</script>',html,re.S)
+          if not match:
+              raise SystemExit('Bundled script not found')
+          Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1),encoding='utf-8')
+          assert 'unreleased candidate' not in html
+          assert 'Boarding Rush candidate' not in html
+          assert 'scenarios · shareable seeds · deterministic races' in html
+          assert 'exact rerun; deterministic results unchanged' in html
+          PY
+          node --check /tmp/boarding-rush-bundle.js
+
+      - name: Verify protected release files remain unchanged
+        shell: bash
+        run: |
+          git fetch origin main
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke test
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/src/?static=1' >/tmp/source.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/dist.html
+
+          python - <<'PY'
+          from pathlib import Path
+          css=Path('simulations/group-aware-boarding/src/styles.css').read_text(encoding='utf-8')
+          assert '.seed-control{grid-column:span 2;min-width:300px}' in css
+          assert '.seed-entry input{min-width:14ch' in css
+          for path in ['/tmp/source.html','/tmp/dist.html']:
+              html=Path(path).read_text(encoding='utf-8')
+              assert '<h1>Boarding Rush</h1>' in html
+              assert html.count('class="scenario-card') == 9
+              assert html.count('class="card sim-card"') == 6
+              assert 'id="seed"' in html
+              assert 'unreleased candidate' not in html
+              assert 'Boarding Rush candidate' not in html
+          PY
+
+      - name: Commit validated changes and remove temporary tooling
+        shell: bash
+        run: |
+          rm .github/scripts/apply_boarding_rush_polish.py
+          rm .github/workflows/boarding-rush-page-polish.yml
+          rm .github/workflows/run-boarding-rush-page-polish-pr.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Polish Boarding Rush page and benchmark feedback"
+          git push origin HEAD:${{ github.head_ref }}
