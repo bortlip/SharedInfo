@@ -1,35 +1,32 @@
 # TASK-004: Race Presentation, Replay, and Turning Points
 
-**Status:** Ready
+**Status:** In progress
 
 ## Goal
 
 Make six simultaneous simulations entertaining to watch and easy to understand as a competitive race.
 
-## Recommended first visual slice
+## First visual slice — done in candidate
 
-Build the race HUD before full replay:
+The first race-presentation slice now includes:
 
-- one live leaderboard above the aircraft cards
-- current rank, seated percentage, and gap to the leader for every visible method
-- animated lead-change and finish-order moments
-- short event callouts for a long bag stow, a seat-conflict cluster, and a heavily blocked aisle
-- clicking a leaderboard row briefly emphasizes that aircraft panel
-- no simulation-rule changes and no replay storage in this first slice
+- a live leaderboard above the aircraft cards
+- current rank, seated percentage, and seated-passenger gap for every visible method
+- deterministic tie breakers using passengers entered and active aisle progress
+- animated lead-change moments
+- finish-position ribbons and finish events
+- callouts for unusually long bag stows, double seat conflicts, and three-or-more simultaneous blockers
+- click-to-emphasize behavior from leaderboard rows and event chips
+- no changes to simulation rules or numerical results
 
-This produces an immediate visual payoff while establishing event data that replay and post-race turning-point analysis can reuse.
+The exact ranking and callout rules are documented in `MODEL.md` and the generated model guide.
 
-## Race presentation
+## Remaining race presentation
 
-- live rank badges for all methods
-- progress bars and time gaps
-- lead changes
-- animated finish order
-- current bottleneck badge
-- event ticker per method
-- compact overview and optional head-to-head view
-
-A live rank should be based on a documented progress estimate, not only elapsed time. Until a defensible estimate exists, rank can use seated count with deterministic tie breakers and be labeled provisional.
+- richer current-bottleneck explanations
+- optional full-field overview separate from the aircraft cards
+- more deliberate finish ceremony and final standings
+- configurable event density or quiet mode
 
 ## Replay
 

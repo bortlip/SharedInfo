@@ -64,6 +64,27 @@ Selecting or deselecting a method changes only which panels are rendered and whi
 
 "Finish instantly" completes all six animated method simulations. The completion message ranks only the methods currently visible.
 
+### Live race HUD and visual event callouts
+
+The live race HUD ranks only the currently visible methods. Before every visible method has finished, ranking uses these deterministic comparisons in order:
+
+1. more seated passengers
+2. more passengers released through the aircraft door
+3. greater summed fractional aisle progress among active passengers
+4. the fixed method-list order as a final tie breaker
+
+After methods finish, completed methods rank by their final completion time. The displayed progress percentage is simply seated passengers divided by total passengers. A gap such as "3 passengers back" is a difference in seated counts, not a prediction of how many seconds remain.
+
+The HUD also derives visual-only race moments from existing state:
+
+- a lead change among the visible methods
+- a carry-on stow lasting at least 11.5 seconds
+- a seating event with two or more already-seated blockers
+- an episode with at least three simultaneous stowing or seating passengers
+- each method's finish position and time
+
+These rankings, pulses, ribbons, and callouts do not alter queue order, timing, random draws, simulation steps, or results. Clicking a HUD row or event only emphasizes and scrolls to the corresponding aircraft panel.
+
 ### Roomy and Compact Fleet display
 
 Roomy and Compact Fleet are rendering choices. They change panel width, canvas display size, headings, and metric layout but do not change canvas coordinates, passenger behavior, time steps, or results.

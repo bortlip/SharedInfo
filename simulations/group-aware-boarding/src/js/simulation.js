@@ -42,6 +42,8 @@ export class BoardingSim{
         penalty += occ.unitId===p.unitId ? 2.2 : 5.4;
       }
     }
+    p.visualBlockers=blockers;
+    p.visualConflictTime=blockers?this.time:null;
     if(blockers){
       this.seatConflicts+=blockers;
       this.conflictSeconds+=penalty;

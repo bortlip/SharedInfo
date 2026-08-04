@@ -40,6 +40,7 @@ MODULE_ORDER = [
     "methods.js",
     "simulation.js",
     "format.js",
+    "race.js",
     "render.js",
     "app.js",
 ]
