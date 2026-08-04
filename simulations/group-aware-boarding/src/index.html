@@ -256,12 +256,14 @@
         <span><i class="dot" style="background:var(--single)"></i>individual</span>
         <span title="Each warm color is a different family"><span class="family-dots"><i class="dot" style="background:hsl(35 82% 60%)"></i><i class="dot" style="background:hsl(22 82% 60%)"></i><i class="dot" style="background:hsl(48 82% 60%)"></i></span>families · <code>F7·4</code> means family 7, four people</span>
         <span><i class="dot" style="background:var(--assist)"></i>assisted party</span>
+        <span title="Carry-ons travel with passengers, animate into their row-side overhead bin, and remain visible there.">🧳 carry-on and overhead-bin placement</span>
       </div>
       <details>
         <summary>Method and model details</summary>
         <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
         <p><strong>Seat conflicts:</strong> when a passenger reaches a seat, the simulator counts each already-seated passenger between the aisle and that seat on the same side of the row. Each same-party blocker adds 2.2 seconds to seating time; a blocker from another party adds 5.4 seconds. Thus a window passenger arriving after both the aisle and middle passengers adds two conflicts.</p>
         <p><strong>Blocked aisle:</strong> cumulative simulated wall-clock time during which at least one passenger is stowing a bag or entering a seat. Multiple simultaneous blockers are counted once for that time interval, and ordinary walking queues do not add to this metric.</p>
+        <p><strong>Visible luggage:</strong> passengers with carry-ons keep a suitcase marker while walking. During stowing it moves into the overhead strip on the correct row side, then remains visible there. This visualizes the existing luggage timing model; bins still have no hard capacity or overflow search.</p>
         <p>This is a comparative discrete-time model, not a calibrated airline forecast. The useful claim is the relative result under stated assumptions; the absolute minutes are scenario output, not revealed scripture.</p>
       </details>
     </aside>

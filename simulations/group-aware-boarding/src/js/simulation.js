@@ -13,6 +13,7 @@ export class BoardingSim{
     this.completed=0;
     this.occupancy=new Map();
     this.binLoad=new Map();
+    this.stowedBags=[];
     this.seatConflicts=0;
     this.conflictSeconds=0;
     this.blockedSeconds=0;
@@ -75,6 +76,16 @@ export class BoardingSim{
         anyBlocking=true;
         p.remaining-=dt;
         if(p.remaining<=0){
+          if(p.hasBag && !p.bagStowed){
+            p.bagStowed=true;
+            this.stowedBags.push({
+              passengerId:p.id,
+              row:p.row,
+              side:p.side,
+              groupType:p.groupType,
+              color:p.partyColor||null
+            });
+          }
           p.state="seating";
           p.remaining=this.computeSeat(p);
         }
@@ -106,7 +117,8 @@ export class BoardingSim{
         if(p.row-p.pos<=.001){
           p.pos=p.row;
           p.state="stowing";
-          p.remaining=this.computeStow(p);
+          p.stowDuration=this.computeStow(p);
+          p.remaining=p.stowDuration;
         }
       }
       leadPos=p.pos;
