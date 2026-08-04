@@ -1,0 +1,176 @@
+name: Add configurable cabin personality
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/scripts/apply_cabin_personality.py
+      - .github/workflows/run-cabin-personality.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply cabin-personality slice
+        run: |
+          sed -i 's/slowed?.42:1/slowed ? .42 : 1/g; s/squeezed?.28:1/squeezed ? .28 : 1/g' .github/scripts/apply_cabin_personality.py
+          python .github/scripts/apply_cabin_personality.py
+
+      - name: Validate incidents, chatter, and shared links
+        shell: bash
+        run: |
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+          git fetch origin main
+          rm -rf /tmp/basejs
+          mkdir -p /tmp/basejs
+          for file in constants.js random.js manifest.js methods.js simulation.js; do
+            git show "origin/main:simulations/group-aware-boarding/src/js/$file" > "/tmp/basejs/$file"
+          done
+
+          node --experimental-default-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { METHODS } from './simulations/group-aware-boarding/src/js/constants.js';
+          import { makeManifest } from './simulations/group-aware-boarding/src/js/manifest.js';
+          import { BoardingSim } from './simulations/group-aware-boarding/src/js/simulation.js';
+          import { tooltipHtml } from './simulations/group-aware-boarding/src/js/interaction.js';
+          import { normalizeScenarioSettings, parseScenarioSearch, serializeScenarioSettings } from './simulations/group-aware-boarding/src/js/scenarios.js';
+          import { makeManifest as MainManifest } from 'file:///tmp/basejs/manifest.js';
+          import { BoardingSim as MainSim } from 'file:///tmp/basejs/simulation.js';
+
+          const settings=normalizeScenarioSettings({disruptivePassengers:3,chatter:'lively',seed:22222});
+          const query=serializeScenarioSettings(settings,'custom');
+          assert.match(query,/dp=3/);
+          assert.match(query,/ct=lively/);
+          const parsed=parseScenarioSearch(`?${query}`);
+          assert.equal(parsed.disruptivePassengers,3);
+          assert.equal(parsed.chatter,'lively');
+
+          const incidentCfg={loadFactor:1,familyShare:.3,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.7,sequenceCompliance:1,priorityPolicy:'assist',seed:22222,characterScenario:'none',disruptivePassengers:3,chatter:'lively'};
+          const first=makeManifest(incidentCfg.seed,incidentCfg);
+          const second=makeManifest(incidentCfg.seed,incidentCfg);
+          const incidents=first.passengers.filter(p=>p.incidentType);
+          assert.equal(incidents.length,3);
+          assert.ok(incidents.some(p=>p.incidentType==='chatty'));
+          assert.ok(incidents.some(p=>p.incidentType==='tipsy'));
+          assert.equal(first.passengers.filter(p=>p.ambientLine).length,12);
+          assert.deepEqual(
+            first.passengers.map(p=>[p.id,p.incidentType,p.walkSpeed,p.incidentStops,p.ambientLine,p.ambientTriggerRow]),
+            second.passengers.map(p=>[p.id,p.incidentType,p.walkSpeed,p.incidentStops,p.ambientLine,p.ambientTriggerRow])
+          );
+
+          for(const method of METHODS){
+            const sim=new BoardingSim(first,method,incidentCfg);
+            sim.runToEnd(.1);
+            assert.equal(sim.completed,sim.queue.length);
+            const simIncidents=sim.queue.filter(p=>p.incidentType);
+            assert.equal(simIncidents.length,3);
+            for(const passenger of simIncidents){
+              assert.equal(passenger.incidentStopIndex,passenger.incidentStops.length);
+              assert.ok(passenger.eventDelaySeconds>0);
+              const html=tooltipHtml({kind:'seat',seatKey:passenger.seatKey,isAssigned:true,occupant:passenger,assigned:passenger},sim);
+              assert.match(html,/Incident stops/);
+              assert.match(html,/Direct event delay/);
+              if(passenger.incidentType==='tipsy') assert.match(html,/Normal walking speed/);
+            }
+          }
+
+          for(const seed of [12345,246813579,987654321]){
+            const quiet={loadFactor:.95,familyShare:.35,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.75,sequenceCompliance:.85,priorityPolicy:'assist',seed,characterScenario:'none',disruptivePassengers:0,chatter:'off'};
+            const lively={...quiet,chatter:'lively'};
+            const beforeManifest=MainManifest(seed,quiet);
+            const quietManifest=makeManifest(seed,quiet);
+            const livelyManifest=makeManifest(seed,lively);
+            assert.equal(livelyManifest.passengers.filter(p=>p.ambientLine).length,12);
+            assert.deepEqual(
+              quietManifest.passengers.map(p=>[p.id,p.seatKey,p.walkSpeed,p.hasBag,p.bagBase,p.seatBase]),
+              beforeManifest.passengers.map(p=>[p.id,p.seatKey,p.walkSpeed,p.hasBag,p.bagBase,p.seatBase])
+            );
+            for(const method of METHODS){
+              const before=new MainSim(beforeManifest,method,quiet);
+              const quietSim=new BoardingSim(quietManifest,method,quiet);
+              const livelySim=new BoardingSim(livelyManifest,method,lively);
+              before.runToEnd(.1);quietSim.runToEnd(.1);livelySim.runToEnd(.1);
+              for(const candidate of [quietSim,livelySim]){
+                assert.equal(candidate.time,before.time);
+                assert.equal(candidate.seatConflicts,before.seatConflicts);
+                assert.equal(candidate.blockedSeconds,before.blockedSeconds);
+                assert.equal(candidate.completed,before.completed);
+              }
+            }
+          }
+          NODE
+
+      - name: Build and inspect candidate
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/one.sha
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/two.sha
+          diff -u /tmp/one.sha /tmp/two.sha
+
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          root=Path('simulations/group-aware-boarding')
+          source=(root/'src/index.html').read_text(encoding='utf-8')
+          dist=(root/'dist/simulator.html').read_text(encoding='utf-8')
+          model=(root/'model.html').read_text(encoding='utf-8').lower()
+          task=(root/'tasks/TASK-003-event-and-character-framework-barbara.md').read_text(encoding='utf-8')
+          for text in ['const APP_VERSION = "3.6.0"','disruptivePassengers','ambientLine','incident-pause','Chatty passenger','Tipsy passenger']:
+              assert text in dist
+          assert 'id="disruptivePassengers"' in source
+          assert 'id="chatter"' in source
+          assert 'configurable cabin incidents and chatter' in model
+          assert 'Configurable disruptive passengers' in task
+          match=re.search(r'<script>\s*(.*?)\s*</script>',dist,re.S)
+          assert match
+          Path('/tmp/bundle.js').write_text(match.group(1),encoding='utf-8')
+          PY
+          node --check /tmp/bundle.js
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke test
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/server.log 2>&1 &
+          pid=$!
+          trap 'kill $pid' EXIT
+          sleep 1
+          query='v=1&pr=custom&lf=100&fs=30&pw=22%2C36%2C28%2C14&ap=3&br=70&sc=100&pp=assist&dp=2&ct=lively&sp=16&sd=22222&tr=40&ch=none&static=1&m=random%2Csteffen&view=standard&chart=small'
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/source-incidents --virtual-time-budget=2500 --dump-dom "http://127.0.0.1:8765/src/?$query" > /tmp/source.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/dist-incidents --virtual-time-budget=2500 --dump-dom "http://127.0.0.1:8765/dist/simulator.html?$query" > /tmp/dist.html
+          python - <<'PY'
+          from pathlib import Path
+          for path in ['/tmp/source.html','/tmp/dist.html']:
+              html=Path(path).read_text(encoding='utf-8')
+              assert 'v3.6.0' in html
+              assert 'id="disruptivePassengers"' in html
+              assert 'id="chatter"' in html
+              assert html.count('class="race-row')>=2
+          PY
+
+      - name: Commit cabin-personality slice
+        shell: bash
+        run: |
+          rm .github/scripts/apply_cabin_personality.py
+          rm .github/workflows/run-cabin-personality.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '4189826+github-actions[bot]@users.noreply.github.com'
+          git add simulations/group-aware-boarding .github/scripts/apply_cabin_personality.py .github/workflows/run-cabin-personality.yml
+          git commit -m 'Add configurable cabin incidents and chatter'
+          git push origin HEAD:${{ github.head_ref }}
