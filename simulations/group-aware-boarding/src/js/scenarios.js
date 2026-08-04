@@ -13,9 +13,11 @@ export const DEFAULT_SCENARIO_SETTINGS = {
   trials:40
 };
 
+// Set `included` to false to remove a scenario from the selector without deleting its definition.
 export const SCENARIO_PRESETS = [
   {
     id:"smooth-business",
+    included:true,
     name:"Smooth Business Route",
     emoji:"💼",
     description:"Experienced travelers, lots of carry-ons, and almost everyone follows the plan.",
@@ -23,6 +25,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"family-vacation",
+    included:true,
     name:"Family Vacation",
     emoji:"🏖️",
     description:"A full flight with plenty of families, children, bags, and respectable queue manners.",
@@ -30,6 +33,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"holiday-crush",
+    included:true,
     name:"Holiday Crush",
     emoji:"🎄",
     description:"The cabin is full, the bags are plentiful, and every third person appears to know someone ahead of them.",
@@ -37,6 +41,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"light-hop",
+    included:true,
     name:"Lightly Loaded Hop",
     emoji:"🪽",
     description:"Half the seats are empty, the aisle can breathe, and nobody needs to make this complicated.",
@@ -44,6 +49,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"perfect-lab",
+    included:true,
     name:"Perfect Laboratory Conditions",
     emoji:"🧪",
     description:"A controlled baseline: perfect compliance and no dramatic improvisation from the passengers.",
@@ -51,6 +57,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"assisted-heavy",
+    included:true,
     name:"Assisted-Heavy Flight",
     emoji:"🫶",
     description:"More travelers need extra time and companions, so priority policy matters much more.",
@@ -58,6 +65,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"maximum-carryons",
+    included:true,
     name:"Maximum Carry-ons",
     emoji:"🧳",
     description:"Everyone brought a bag. The overhead bins have entered the chat.",
@@ -65,6 +73,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"low-compliance-chaos",
+    included:true,
     name:"Low-Compliance Chaos",
     emoji:"🌪️",
     description:"The boarding order is more of a gentle suggestion than an enforceable policy.",
@@ -72,6 +81,7 @@ export const SCENARIO_PRESETS = [
   },
   {
     id:"barbara",
+    included:true,
     name:"Barbara Mode",
     emoji:"🍷",
     description:"She is late. Her bag is heavy. She has made several decisions.",
@@ -131,7 +141,7 @@ export function settingsEqual(left,right){
 }
 
 export function matchingPreset(settings){
-  return SCENARIO_PRESETS.find(preset=>!preset.disabled && settingsEqual(settings,preset.settings))||null;
+  return SCENARIO_PRESETS.find(preset=>preset.included!==false && !preset.disabled && settingsEqual(settings,preset.settings))||null;
 }
 
 export function parseScenarioSearch(search){

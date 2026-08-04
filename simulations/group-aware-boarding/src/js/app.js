@@ -3,7 +3,7 @@ import { clamp } from "./random.js";
 import { makeManifest } from "./manifest.js";
 import { BoardingSim } from "./simulation.js";
 import { drawSim } from "./render.js";
-import { formatTime, stats } from "./format.js";
+import { benchmarkSignature, formatTime, sameBenchmarkResults, stats } from "./format.js";
 import {
   SCENARIO_PRESETS,
   DEFAULT_SCENARIO_SETTINGS,
@@ -112,7 +112,7 @@ function currentScenarioName(){
 
 function setActivePreset(presetId){
   activePresetId=presetId||"custom";
-  const selected=SCENARIO_PRESETS.find(preset=>preset.id===activePresetId && !preset.disabled);
+  const selected=SCENARIO_PRESETS.find(preset=>preset.id===activePresetId && preset.included!==false && !preset.disabled);
   $("activeScenarioLabel").textContent=selected?.name||"Custom scenario";
   $("activeScenarioLabel").dataset.scenarioId=selected?.id||"custom";
   document.querySelectorAll(".scenario-card").forEach(card=>{
@@ -138,7 +138,7 @@ function scenarioPreview(settings){
 function renderScenarioCards(){
   const grid=$("scenarioGrid");
   grid.innerHTML="";
-  for(const preset of SCENARIO_PRESETS){
+  for(const preset of SCENARIO_PRESETS.filter(preset=>preset.included!==false)){
     const button=document.createElement("button");
     button.type="button";
     button.className="scenario-card";
@@ -293,7 +293,8 @@ function renderBenchmark(result){
       <td>${result[m].wins}</td>`;
     body.appendChild(row);
   }
-  $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better`;
+  const repeatNote=result.repeated?" · exact rerun; deterministic results unchanged":"";
+  $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better${repeatNote}`;
   const box=$("barBox");
   box.innerHTML="";
   for(const m of METHODS){
@@ -318,6 +319,8 @@ async function benchmark(){
   // current state and continue animating while these fresh trial instances run.
   const cfg=config();
   const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
+  const signature=benchmarkSignature(cfg,trials);
+  const previousResult=benchmarkResult;
   const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
   const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
 
@@ -338,10 +341,19 @@ async function benchmark(){
       // Yield after each trial so the browser can paint and advance a running sim.
       await new Promise(resolve=>setTimeout(resolve,0));
     }
-    benchmarkResult={trials,seed:cfg.seed};
-    for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
+    const nextResult={trials,seed:cfg.seed,signature};
+    for(const method of METHODS) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
+    const exactRepeat=previousResult?.signature===signature;
+    nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,METHODS);
+    benchmarkResult=nextResult;
     renderBenchmark(benchmarkResult);
-    benchStatus.textContent=`Benchmark complete: ${trials} trials from base seed ${cfg.seed.toLocaleString()}.`;
+    if(nextResult.repeated){
+      benchStatus.textContent=`Exact benchmark rerun: the settings, ${trials} trials, and base seed ${cfg.seed.toLocaleString()} are unchanged, so the deterministic results are unchanged.`;
+    }else if(exactRepeat){
+      benchStatus.textContent=`This exact benchmark unexpectedly changed. The deterministic model should be investigated.`;
+    }else{
+      benchStatus.textContent=`Benchmark complete: ${trials} trials from base seed ${cfg.seed.toLocaleString()}.`;
+    }
   }finally{
     benchmarking=false;
     button.disabled=false;
