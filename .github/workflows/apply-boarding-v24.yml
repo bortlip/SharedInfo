@@ -1,0 +1,303 @@
+name: Apply boarding simulator v2.4 patch
+
+on:
+  push:
+    branches:
+      - fix/boarding-benchmark-controls
+    paths:
+      - .github/workflows/apply-boarding-v24.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/boarding-benchmark-controls
+          fetch-depth: 0
+      - name: Apply validated simulator patch
+        shell: bash
+        run: |
+          cat > /tmp/boarding-v24.patch <<'PATCH'
+--- a/simulations/group-aware-boarding/simulator.html
++++ b/simulations/group-aware-boarding/simulator.html
+@@ -5,7 +5,7 @@
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta name="description" content="Interactive aircraft boarding simulator comparing six boarding methods with families, party-size distributions, load factor, and sequence compliance.">
+ <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/simulator.html">
+-<title>Group-Aware Aircraft Boarding Simulator v2.3</title>
++<title>Group-Aware Aircraft Boarding Simulator v2.4</title>
+ <style>
+   :root{
+     color-scheme: dark;
+@@ -118,13 +118,56 @@
+   }
+   .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+   .metric{background:#081625;border:1px solid #243d5a;border-radius:10px;padding:8px;min-width:0}
+-  .metric span{display:block;color:var(--muted);font-size:.67rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
++  .metric>span{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:.67rem;white-space:nowrap}
+   .metric strong{display:block;margin-top:2px;font-size:.87rem;font-variant-numeric:tabular-nums}
++  .info-tip{
++    position:relative;
++    display:inline-grid;
++    flex:0 0 14px;
++    width:14px;
++    height:14px;
++    place-items:center;
++    border:1px solid #54708f;
++    border-radius:50%;
++    color:#c6e9ff;
++    font-size:9px;
++    font-weight:800;
++    line-height:1;
++    cursor:help;
++    outline:none;
++  }
++  .info-tip::after{
++    content:attr(data-tip);
++    position:absolute;
++    z-index:20;
++    left:50%;
++    bottom:calc(100% + 8px);
++    width:230px;
++    padding:8px 9px;
++    border:1px solid #4b6788;
++    border-radius:9px;
++    background:#061321;
++    color:#e9f6ff;
++    box-shadow:0 10px 30px rgba(0,0,0,.35);
++    font-size:.72rem;
++    font-weight:500;
++    line-height:1.38;
++    white-space:normal;
++    opacity:0;
++    pointer-events:none;
++    transform:translate(-50%,4px);
++    transition:opacity .12s ease,transform .12s ease;
++  }
++  .info-tip:hover::after,.info-tip:focus::after{opacity:1;transform:translate(-50%,0)}
+   .lower{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr);gap:16px;margin-top:16px}
+   .benchmark,.notes{padding:16px}
+-  .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
++  .section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+   .section-head h2{font-size:1.05rem;margin:0}
+   .section-head p{font-size:.78rem;color:var(--muted);margin:0}
++  .benchmark-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:9px;margin:0 0 12px}
++  .benchmark-toolbar label{width:112px}
++  .benchmark-toolbar input{padding:8px 9px}
++  .benchmark-toolbar .bench-status{flex:1 1 220px;align-self:center;margin:0;color:var(--muted);font-size:.78rem}
+   table{width:100%;border-collapse:collapse;font-size:.85rem}
+   th,td{text-align:right;border-bottom:1px solid #243d5a;padding:9px 7px;font-variant-numeric:tabular-nums}
+   th:first-child,td:first-child{text-align:left}
+@@ -156,6 +199,8 @@
+     .party-size-control{grid-column:1 / -1}
+     .metrics{grid-template-columns:repeat(2,1fr)}
+     .status{width:100%;margin-left:0}
++    .benchmark-toolbar label{width:100px}
++    .benchmark-toolbar .bench-status{flex-basis:100%}
+   }
+ </style>
+ </head>
+@@ -166,7 +211,7 @@
+       <h1>Group-aware boarding simulator</h1>
+       <p>Six boarding methods face the same A320 manifest: random, strict rear-first, strict front-first, airline zones, WilMA, and a group-safe Steffen variant. Families remain together, and the model includes children, companions, reduced mobility, carry-ons, aisle blocking, seat interference, partial loads, and imperfect sequence compliance.</p>
+     </div>
+-    <div class="badge">v2.3 · labeled families · normalized weights</div>
++    <div class="badge">v2.4 · independent benchmarking · metric help</div>
+   </header>
+ 
+   <section class="card controls">
+@@ -223,17 +268,12 @@
+         Seed
+         <input id="seed" type="number" min="1" max="2147483646" step="1" value="12345">
+       </label>
+-      <label>
+-        Benchmark trials
+-        <input id="trials" type="number" min="5" max="200" step="5" value="40">
+-      </label>
+     </div>
+     <div class="buttons">
+       <button class="primary" id="runBtn">▶ Run comparison</button>
+       <button id="pauseBtn">Pause</button>
+       <button id="finishBtn">Finish instantly</button>
+       <button id="resetBtn" class="ghost">Reset</button>
+-      <button id="benchBtn">Run benchmark</button>
+       <span class="status" id="status">Ready.</span>
+     </div>
+   </section>
+@@ -247,8 +287,8 @@
+       <canvas id="randomCanvas" width="430" height="650"></canvas>
+       <div class="metrics">
+         <div class="metric"><span>Seated</span><strong id="randomDone">0 / 186</strong></div>
+-        <div class="metric"><span>Seat conflicts</span><strong id="randomConflicts">0</strong></div>
+-        <div class="metric"><span>Blocked aisle</span><strong id="randomBlocked">0 s</strong></div>
++        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="randomConflicts">0</strong></div>
++        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="randomBlocked">0 s</strong></div>
+         <div class="metric"><span>Queue</span><strong id="randomQueue">186</strong></div>
+       </div>
+     </article>
+@@ -261,8 +301,8 @@
+       <canvas id="backCanvas" width="430" height="650"></canvas>
+       <div class="metrics">
+         <div class="metric"><span>Seated</span><strong id="backDone">0 / 186</strong></div>
+-        <div class="metric"><span>Seat conflicts</span><strong id="backConflicts">0</strong></div>
+-        <div class="metric"><span>Blocked aisle</span><strong id="backBlocked">0 s</strong></div>
++        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="backConflicts">0</strong></div>
++        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="backBlocked">0 s</strong></div>
+         <div class="metric"><span>Queue</span><strong id="backQueue">186</strong></div>
+       </div>
+     </article>
+@@ -275,8 +315,8 @@
+       <canvas id="frontCanvas" width="430" height="650"></canvas>
+       <div class="metrics">
+         <div class="metric"><span>Seated</span><strong id="frontDone">0 / 186</strong></div>
+-        <div class="metric"><span>Seat conflicts</span><strong id="frontConflicts">0</strong></div>
+-        <div class="metric"><span>Blocked aisle</span><strong id="frontBlocked">0 s</strong></div>
++        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="frontConflicts">0</strong></div>
++        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="frontBlocked">0 s</strong></div>
+         <div class="metric"><span>Queue</span><strong id="frontQueue">186</strong></div>
+       </div>
+     </article>
+@@ -289,8 +329,8 @@
+       <canvas id="zonesCanvas" width="430" height="650"></canvas>
+       <div class="metrics">
+         <div class="metric"><span>Seated</span><strong id="zonesDone">0 / 186</strong></div>
+-        <div class="metric"><span>Seat conflicts</span><strong id="zonesConflicts">0</strong></div>
+-        <div class="metric"><span>Blocked aisle</span><strong id="zonesBlocked">0 s</strong></div>
++        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="zonesConflicts">0</strong></div>
++        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="zonesBlocked">0 s</strong></div>
+         <div class="metric"><span>Queue</span><strong id="zonesQueue">186</strong></div>
+       </div>
+     </article>
+@@ -303,8 +343,8 @@
+       <canvas id="wilmaCanvas" width="430" height="650"></canvas>
+       <div class="metrics">
+         <div class="metric"><span>Seated</span><strong id="wilmaDone">0 / 186</strong></div>
+-        <div class="metric"><span>Seat conflicts</span><strong id="wilmaConflicts">0</strong></div>
+-        <div class="metric"><span>Blocked aisle</span><strong id="wilmaBlocked">0 s</strong></div>
++        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="wilmaConflicts">0</strong></div>
++        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="wilmaBlocked">0 s</strong></div>
+         <div class="metric"><span>Queue</span><strong id="wilmaQueue">186</strong></div>
+       </div>
+     </article>
+@@ -317,8 +357,8 @@
+       <canvas id="steffenCanvas" width="430" height="650"></canvas>
+       <div class="metrics">
+         <div class="metric"><span>Seated</span><strong id="steffenDone">0 / 186</strong></div>
+-        <div class="metric"><span>Seat conflicts</span><strong id="steffenConflicts">0</strong></div>
+-        <div class="metric"><span>Blocked aisle</span><strong id="steffenBlocked">0 s</strong></div>
++        <div class="metric"><span>Seat conflicts <i class="info-tip" tabindex="0" role="note" aria-label="Seat conflicts: already-seated passengers on the same side and row who must move for a deeper-seat passenger." data-tip="Counts already-seated passengers who must move so someone can reach a deeper seat in the same row. An occupied aisle and middle seat can add two conflicts.">?</i></span><strong id="steffenConflicts">0</strong></div>
++        <div class="metric"><span>Blocked aisle <i class="info-tip" tabindex="0" role="note" aria-label="Blocked aisle: simulated seconds with at least one passenger stowing a bag or entering a seat." data-tip="Cumulative simulated seconds when at least one passenger is stowing a bag or entering a seat. Simultaneous blockers count once per second.">?</i></span><strong id="steffenBlocked">0 s</strong></div>
+         <div class="metric"><span>Queue</span><strong id="steffenQueue">186</strong></div>
+       </div>
+     </article>
+@@ -329,6 +369,14 @@
+       <div class="section-head">
+         <div><h2>Monte Carlo comparison</h2><p id="benchSubtitle">Run a benchmark to average over different manifests and delays.</p></div>
+       </div>
++      <div class="benchmark-toolbar">
++        <label>
++          Trials
++          <input id="trials" type="number" min="5" max="200" step="5" value="40">
++        </label>
++        <button id="benchBtn">Run benchmark</button>
++        <p class="bench-status" id="benchStatus" aria-live="polite">Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.</p>
++      </div>
+       <table>
+         <thead><tr><th>Method</th><th>Mean</th><th>Median</th><th>P90</th><th>Wins</th></tr></thead>
+         <tbody id="benchBody"><tr><td colspan="5" class="empty">No benchmark results yet.</td></tr></tbody>
+@@ -355,6 +403,8 @@
+       <details>
+         <summary>Method and model details</summary>
+         <p><strong>Random:</strong> shuffles boarding units. <strong>Strict back/front:</strong> orders rows exactly, randomizing only within a row. <strong>Airline zones:</strong> uses six-row rear-first blocks. <strong>WilMA:</strong> boards window, then middle, then aisle priorities. <strong>Group-safe Steffen:</strong> ranks window seats first and alternates row parity and side. For WilMA and Steffen, each party enters at its earliest member's rank.</p>
++        <p><strong>Seat conflicts:</strong> when a passenger reaches a seat, the simulator counts each already-seated passenger between the aisle and that seat on the same side of the row. Each same-party blocker adds 2.2 seconds to seating time; a blocker from another party adds 5.4 seconds. Thus a window passenger arriving after both the aisle and middle passengers adds two conflicts.</p>
++        <p><strong>Blocked aisle:</strong> cumulative simulated wall-clock time during which at least one passenger is stowing a bag or entering a seat. Multiple simultaneous blockers are counted once for that time interval, and ordinary walking queues do not add to this metric.</p>
+         <p>This is a comparative discrete-time model, not a calibrated airline forecast. The useful claim is the relative result under stated assumptions; the absolute minutes are scenario output, not revealed scripture.</p>
+       </details>
+     </aside>
+@@ -1124,36 +1174,44 @@
+   async function benchmark(){
+     if(benchmarking) return;
+     benchmarking=true;
+-    running=false;
+     const button=$("benchBtn");
++    const benchStatus=$("benchStatus");
+     button.disabled=true;
++    button.textContent="Benchmarking…";
++
++    // Capture an independent scenario snapshot. The visible simulations keep their
++    // current state and continue animating while these fresh trial instances run.
+     const cfg=config();
+     const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
+     const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
+     const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
+ 
+-    for(let t=0;t<trials;t++){
+-      const trialCfg={...cfg,seed:cfg.seed+t*7919};
+-      const man=makeManifest(trialCfg.seed,trialCfg);
+-      const trialTimes={};
+-      for(const method of METHODS){
+-        const sim=new BoardingSim(man,method,trialCfg);
+-        trialTimes[method]=sim.runToEnd(.20);
+-        times[method].push(trialTimes[method]);
+-      }
+-      const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
+-      wins[win]++;
+-      if(t%4===0){
+-        $("status").textContent=`Benchmarking ${t+1}/${trials}…`;
++    try{
++      for(let t=0;t<trials;t++){
++        const trialCfg={...cfg,seed:cfg.seed+t*7919};
++        const man=makeManifest(trialCfg.seed,trialCfg);
++        const trialTimes={};
++        for(const method of METHODS){
++          const sim=new BoardingSim(man,method,trialCfg);
++          trialTimes[method]=sim.runToEnd(.20);
++          times[method].push(trialTimes[method]);
++        }
++        const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
++        wins[win]++;
++        benchStatus.textContent=`Benchmarking ${t+1}/${trials}… The animation remains independent.`;
++
++        // Yield after each trial so the browser can paint and advance a running sim.
+         await new Promise(resolve=>setTimeout(resolve,0));
+       }
++      benchmarkResult={trials};
++      for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
++      renderBenchmark(benchmarkResult);
++      benchStatus.textContent=`Benchmark complete: ${trials} trials using the settings captured at start.`;
++    }finally{
++      benchmarking=false;
++      button.disabled=false;
++      button.textContent="Run benchmark";
+     }
+-    benchmarkResult={trials};
+-    for(const method of METHODS) benchmarkResult[method]={stats:stats(times[method]),wins:wins[method]};
+-    renderBenchmark(benchmarkResult);
+-    $("status").textContent=`Benchmark complete: ${trials} trials.`;
+-    benchmarking=false;
+-    button.disabled=false;
+   }
+ 
+   controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
+@@ -1181,7 +1239,7 @@
+   $("resetBtn").addEventListener("click",reset);
+   $("benchBtn").addEventListener("click",benchmark);
+   Object.values(controls).forEach(el=>el.addEventListener("change",()=>{
+-    if(!benchmarking && el!==controls.speed && el!==controls.trials) reset();
++    if(el!==controls.speed && el!==controls.trials) reset();
+   }));
+ 
+   window.addEventListener("resize",renderAll);
+PATCH
+          git apply --check /tmp/boarding-v24.patch
+          git apply /tmp/boarding-v24.patch
+          rm .github/workflows/apply-boarding-v24.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simulations/group-aware-boarding/simulator.html .github/workflows/apply-boarding-v24.yml
+          git commit -m "Improve benchmark controls and metric help"
+          git push origin HEAD:fix/boarding-benchmark-controls
