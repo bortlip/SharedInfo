@@ -1,0 +1,198 @@
+name: Build live race chart v2
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/run-race-chart-pr-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply race chart changes
+        run: python .github/scripts/apply_race_chart.py
+
+      - name: Validate JavaScript and race helpers
+        shell: bash
+        run: |
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+          node --experimental-default-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { rankRace } from './simulations/group-aware-boarding/src/js/race.js';
+          import { META } from './simulations/group-aware-boarding/src/js/constants.js';
+
+          const passenger=(state,pos=0,row=10)=>({state,pos,row});
+          const sims={
+            random:{done:false,time:10,completed:25,pending:40,queue:{length:100},active:[passenger('walking',5,10)]},
+            back:{done:false,time:10,completed:27,pending:37,queue:{length:100},active:[passenger('stowing')]},
+            steffen:{done:false,time:10,completed:27,pending:42,queue:{length:100},active:[passenger('walking',2,10)]}
+          };
+          assert.deepEqual(rankRace(['random','back','steffen'],sims).map(row=>row.method),['steffen','back','random']);
+          assert.equal(META.back.shortLabel,'Back → Front');
+          assert.equal(META.front.shortLabel,'Front → Back');
+          assert.ok(Object.values(META).every(item=>item.chartColor && item.shortLabel));
+          NODE
+
+      - name: Verify presentation changes preserve model results
+        shell: bash
+        run: |
+          git fetch origin main
+          rm -rf /tmp/basejs
+          mkdir -p /tmp/basejs
+          for file in constants.js random.js manifest.js methods.js simulation.js; do
+            git show "origin/main:simulations/group-aware-boarding/src/js/$file" > "/tmp/basejs/$file"
+          done
+
+          node --experimental-default-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { METHODS } from './simulations/group-aware-boarding/src/js/constants.js';
+          import { makeManifest } from './simulations/group-aware-boarding/src/js/manifest.js';
+          import { BoardingSim as CandidateSim } from './simulations/group-aware-boarding/src/js/simulation.js';
+          import { BoardingSim as MainSim } from 'file:///tmp/basejs/simulation.js';
+
+          for(const seed of [12345,246813579,987654321]){
+            const cfg={loadFactor:.95,familyShare:.35,partyWeights:[22,36,28,14],assistedParties:3,bagRate:.75,sequenceCompliance:.85,priorityPolicy:'assist',seed};
+            const manifest=makeManifest(seed,cfg);
+            for(const method of METHODS){
+              const before=new MainSim(manifest,method,cfg);
+              const after=new CandidateSim(manifest,method,cfg);
+              before.runToEnd(.1);
+              after.runToEnd(.1);
+              assert.equal(after.time,before.time,`${method} time changed for seed ${seed}`);
+              assert.equal(after.seatConflicts,before.seatConflicts,`${method} conflicts changed for seed ${seed}`);
+              assert.equal(after.blockedSeconds,before.blockedSeconds,`${method} blocked time changed for seed ${seed}`);
+              assert.equal(after.completed,before.completed,`${method} completion changed for seed ${seed}`);
+            }
+          }
+          NODE
+
+      - name: Build simulator and model guide reproducibly
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-one.sha
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          sha256sum simulations/group-aware-boarding/dist/simulator.html simulations/group-aware-boarding/model.html > /tmp/build-two.sha
+          diff -u /tmp/build-one.sha /tmp/build-two.sha
+
+      - name: Validate generated content
+        shell: bash
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          root=Path('simulations/group-aware-boarding')
+          source=(root/'src/index.html').read_text(encoding='utf-8')
+          dist=(root/'dist/simulator.html').read_text(encoding='utf-8')
+          model=(root/'model.html').read_text(encoding='utf-8')
+          task=(root/'tasks/TASK-004-race-presentation-replay-and-turning-points.md').read_text(encoding='utf-8')
+
+          for text in (source,dist):
+              assert 'id="raceChart"' in text
+              assert 'id="raceChartLegend"' in text
+              assert 'data-chart-size="small"' in text
+              assert 'Race moments' not in text
+              assert 'id="raceEvents"' not in text
+          assert 'const APP_VERSION = "3.2.0"' in dist
+          assert 'Back → Front' in dist
+          assert 'Front → Back' in dist
+          assert 'function drawRaceChart' in dist
+          assert 'function recordRaceHistory' in dist
+          assert 'Live race HUD and race graph' in model
+          assert 'Race Moments ticker was removed' in task
+
+          match=re.search(r'<script>\s*(.*?)\s*</script>',dist,re.S)
+          assert match
+          Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1),encoding='utf-8')
+          PY
+          node --check /tmp/boarding-rush-bundle.js
+
+      - name: Verify protected release files remain unchanged
+        shell: bash
+        run: |
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke tests
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/source-chart-profile-v2 --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/src/?static=1&m=random,back,front&view=standard&chart=small' > /tmp/source.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/dist-chart-profile-v2 --virtual-time-budget=2500 --dump-dom 'http://127.0.0.1:8765/dist/simulator.html?static=1&m=random,steffen&view=compact&chart=large' > /tmp/dist.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --user-data-dir=/tmp/model-chart-profile-v2 --virtual-time-budget=1200 --dump-dom 'http://127.0.0.1:8765/model.html' > /tmp/model.html
+
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          source=Path('/tmp/source.html').read_text(encoding='utf-8')
+          dist=Path('/tmp/dist.html').read_text(encoding='utf-8')
+          model=Path('/tmp/model.html').read_text(encoding='utf-8')
+          valid={'random','back','front','zones','wilma','steffen'}
+          def rendered_rows(html):
+              found=re.findall(r'<button[^>]+class="race-row[^"]*"[^>]+data-method="([^"]+)"',html)
+              return [method for method in found if method in valid]
+
+          assert rendered_rows(source)==['random','back','front'], rendered_rows(source)
+          assert 'Back → Front' in source and 'Front → Back' in source
+          assert 'data-chart-size="small"' in source
+          assert 'Race moments' not in source
+
+          assert rendered_rows(dist)==['random','steffen'], rendered_rows(dist)
+          assert '>Random</span>' in dist and '>Steffen</span>' in dist
+          assert 'data-chart-size="large"' in dist
+          assert 'v3.2.0' in dist
+          canvas=re.search(r'<canvas[^>]+id="raceChart"[^>]+width="(\d+)"[^>]+height="(\d+)"',dist)
+          assert canvas, 'race chart canvas not rendered'
+          assert int(canvas.group(1))>100 and int(canvas.group(2))>100
+          visible=[method for method,attrs in re.findall(r'<article class="card sim-card" data-method="([^"]+)"([^>]*)>',dist) if 'hidden' not in attrs]
+          assert visible==['random','steffen'], visible
+
+          assert 'Live race HUD and race graph' in model
+          assert 'v3.2.0' in model
+          PY
+
+      - name: Commit validated changes and remove temporary tooling
+        shell: bash
+        run: |
+          rm .github/scripts/apply_race_chart.py
+          rm .github/workflows/run-race-chart-pr.yml
+          rm .github/workflows/run-race-chart-pr-v2.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '4189826+github-actions[bot]@users.noreply.github.com'
+          git add simulations/group-aware-boarding/MODEL.md \
+                  simulations/group-aware-boarding/model.html \
+                  simulations/group-aware-boarding/dist/simulator.html \
+                  simulations/group-aware-boarding/src/index.html \
+                  simulations/group-aware-boarding/src/styles.css \
+                  simulations/group-aware-boarding/src/js/app.js \
+                  simulations/group-aware-boarding/src/js/constants.js \
+                  simulations/group-aware-boarding/src/js/race.js \
+                  simulations/group-aware-boarding/src/js/simulation.js \
+                  simulations/group-aware-boarding/src/js/version.js \
+                  simulations/group-aware-boarding/tasks/TASK-004-race-presentation-replay-and-turning-points.md \
+                  .github/scripts/apply_race_chart.py \
+                  .github/workflows/run-race-chart-pr.yml \
+                  .github/workflows/run-race-chart-pr-v2.yml
+          git commit -m 'Replace race moments with live race graph'
+          git push origin HEAD:${{ github.head_ref }}
