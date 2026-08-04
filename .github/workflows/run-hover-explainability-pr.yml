@@ -39,7 +39,7 @@ jobs:
           const passenger={
             id:7,row:12,col:'A',seatKey:'12A',side:'L',state:'seating',pos:12,
             remaining:10,seatingDuration:10,isChild:false,isReduced:false,groupType:'single',
-            unitId:'S7',partyLabel:'S7',partySize:1,queueIndex:4,walkSpeed:1.25,
+            unitId:'S7',partyLabel:'S7',partySize:1,queueIndex:0,walkSpeed:1.25,
             hasBag:true,bagStowed:true,bagBase:7.2,seatBase:3.1,
             displayName:'Barbara',characterRole:'named passenger',characterStatus:'late',eventState:'heading to seat'
           };
@@ -70,7 +70,7 @@ jobs:
           const seatHit=hitTestSim(sim,canvas,target.cx,target.cy);
           assert.equal(seatHit.kind,'seat');
           assert.equal(seatHit.seatKey,'12A');
-          assert.match(tooltipHtml(seatHit,sim),/assigned/);
+          assert.match(tooltipHtml(seatHit,sim),/passenger entering row/);
 
           const emptyTarget=seatRect(geometry,12,'B');
           const emptyHit=hitTestSim(sim,canvas,emptyTarget.cx,emptyTarget.cy);
