@@ -39,6 +39,104 @@ let benchmarking = false;
 let benchmarkResult = null;
 let activePresetId = "custom";
 let toastTimer = null;
+let selectedMethods = new Set(METHODS);
+let raceLayout = "standard";
+
+function activeMethods(){
+  return METHODS.filter(method=>selectedMethods.has(method));
+}
+
+function parseRaceView(search){
+  const params=new URLSearchParams(search||"");
+  const requested=(params.get("m")||"").split(",").filter(method=>METHODS.includes(method));
+  const methods=[...new Set(requested)];
+  return {
+    methods:methods.length?methods:[...METHODS],
+    layout:params.get("view")==="compact"?"compact":"standard"
+  };
+}
+
+function updateRaceView(){
+  const methods=activeMethods();
+  document.querySelectorAll(".sim-card[data-method]").forEach(card=>{
+    card.hidden=!selectedMethods.has(card.dataset.method);
+  });
+  document.querySelectorAll(".method-option input").forEach(input=>{
+    input.checked=selectedMethods.has(input.value);
+  });
+  const grid=$("simGrid");
+  grid.classList.toggle("compact-view",raceLayout==="compact");
+  grid.dataset.layout=raceLayout;
+  for(const button of document.querySelectorAll("[data-layout]")){
+    const active=button.dataset.layout===raceLayout;
+    button.classList.toggle("active",active);
+    button.setAttribute("aria-pressed",String(active));
+  }
+  $("methodSelectionStatus").textContent=`${methods.length} method${methods.length===1?"":"s"} selected · ${raceLayout==="compact"?"Compact fleet":"Roomy"} view`;
+}
+
+function clearBenchmark(){
+  benchmarkResult=null;
+  $("benchBody").innerHTML='<tr><td colspan="5" class="empty">No benchmark results yet.</td></tr>';
+  $("barBox").innerHTML="";
+  $("benchSubtitle").textContent="Run a benchmark to average over different manifests and delays.";
+  $("benchStatus").textContent="Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.";
+}
+
+function applyMethodSelection(methods,{resetRace=false}={}){
+  const valid=[...new Set(methods)].filter(method=>METHODS.includes(method));
+  if(!valid.length) return false;
+  selectedMethods=new Set(valid);
+  updateRaceView();
+  if(resetRace){
+    clearBenchmark();
+    reset();
+  }
+  return true;
+}
+
+function setRaceLayout(layout){
+  raceLayout=layout==="compact"?"compact":"standard";
+  updateRaceView();
+  renderAll();
+}
+
+function setMethodControlsDisabled(disabled){
+  document.querySelectorAll(".method-option input").forEach(input=>input.disabled=disabled);
+  $("selectAllMethodsBtn").disabled=disabled;
+}
+
+function renderMethodPicker(){
+  const picker=$("methodPicker");
+  picker.innerHTML="";
+  for(const method of METHODS){
+    const label=document.createElement("label");
+    label.className="method-option";
+    const input=document.createElement("input");
+    input.type="checkbox";
+    input.value=method;
+    input.checked=true;
+    const text=document.createElement("span");
+    text.textContent=META[method].label;
+    label.append(input,text);
+    input.addEventListener("change",()=>{
+      const next=new Set(selectedMethods);
+      if(input.checked) next.add(method);
+      else next.delete(method);
+      if(!next.size){
+        input.checked=true;
+        $("methodSelectionStatus").textContent="At least one boarding method must remain selected.";
+        return;
+      }
+      applyMethodSelection([...next],{resetRace:true});
+    });
+    picker.appendChild(label);
+  }
+  $("selectAllMethodsBtn").addEventListener("click",()=>applyMethodSelection(METHODS,{resetRace:true}));
+  $("standardLayoutBtn").addEventListener("click",()=>setRaceLayout("standard"));
+  $("compactLayoutBtn").addEventListener("click",()=>setRaceLayout("compact"));
+  updateRaceView();
+}
 
 function normalizedPartyWeights(){
   const raw=[controls.party2,controls.party3,controls.party4,controls.party5].map(el=>{
@@ -187,7 +285,7 @@ function reset(){
   const cfg=config();
   manifest=makeManifest(cfg.seed,cfg);
   sims={};
-  for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
+  for(const method of activeMethods()) sims[method]=new BoardingSim(manifest,method,cfg);
   running=false;
   accumulator=0;
   $("pauseBtn").textContent="Pause";
@@ -215,8 +313,9 @@ function panelElements(method){
 }
 
 function renderAll(){
-  let allDone=true;
-  for(const method of METHODS){
+  const methods=activeMethods();
+  let allDone=methods.length>0;
+  for(const method of methods){
     const sim=sims[method];
     if(!sim) continue;
     allDone=allDone&&sim.done;
@@ -230,8 +329,10 @@ function renderAll(){
   }
   if(allDone && running){
     running=false;
-    const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-    $("status").textContent=`Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
+    const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+    $("status").textContent=methods.length===1
+      ? `Complete. ${META[winner].label} finished ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`
+      : `Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
   }
 }
 
@@ -242,7 +343,7 @@ function animate(now){
     accumulator += elapsed * (+controls.speed.value);
     let guard=0;
     while(accumulator>=FIXED_DT && guard<5000){
-      for(const method of METHODS) sims[method].step(FIXED_DT);
+      for(const method of activeMethods()) sims[method].step(FIXED_DT);
       accumulator-=FIXED_DT;
       guard++;
     }
@@ -252,14 +353,15 @@ function animate(now){
 }
 
 function run(){
-  if(!manifest || METHODS.some(m=>sims[m].done)) reset();
+  const methods=activeMethods();
+  if(!manifest || methods.some(method=>sims[method]?.done)) reset();
   running=true;
   $("pauseBtn").textContent="Pause";
-  $("status").textContent=`Running ${currentScenarioName()} through all six boarding methods…`;
+  $("status").textContent=`Running ${currentScenarioName()} through ${methods.length} selected method${methods.length===1?"":"s"}…`;
 }
 
 function pause(){
-  if(!running && METHODS.every(m=>sims[m].time===0)){
+  if(!running && activeMethods().every(method=>sims[method]?.time===0)){
     $("status").textContent="Nothing is running yet.";
     return;
   }
@@ -271,18 +373,22 @@ function pause(){
 function finish(){
   running=false;
   $("pauseBtn").textContent="Pause";
-  for(const method of METHODS) sims[method].runToEnd(.15);
+  const methods=activeMethods();
+  for(const method of methods) sims[method].runToEnd(.15);
   renderAll();
-  const winner=METHODS.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
-  $("status").textContent=`Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
+  const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
+  $("status").textContent=methods.length===1
+    ? `Complete. ${META[winner].label} finished ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`
+    : `Complete. ${META[winner].label} won ${currentScenarioName()} at ${formatTime(sims[winner].time)}.`;
 }
 
 function renderBenchmark(result){
   const body=$("benchBody");
   body.innerHTML="";
-  const bestMean=Math.min(...METHODS.map(m=>result[m].stats.mean));
-  const maxMean=Math.max(...METHODS.map(m=>result[m].stats.mean));
-  for(const m of METHODS){
+  const methods=result.methods;
+  const bestMean=Math.min(...methods.map(m=>result[m].stats.mean));
+  const maxMean=Math.max(...methods.map(m=>result[m].stats.mean));
+  for(const m of methods){
     const row=document.createElement("tr");
     const st=result[m].stats;
     row.innerHTML=`
@@ -297,7 +403,7 @@ function renderBenchmark(result){
   $("benchSubtitle").textContent=`${result.trials} trials · base seed ${result.seed.toLocaleString()} · same manifest per trial · lower is better${repeatNote}`;
   const box=$("barBox");
   box.innerHTML="";
-  for(const m of METHODS){
+  for(const m of methods){
     const st=result[m].stats;
     const row=document.createElement("div");
     row.className="barrow";
@@ -314,37 +420,39 @@ async function benchmark(){
   const benchStatus=$("benchStatus");
   button.disabled=true;
   button.textContent="Benchmarking…";
+  setMethodControlsDisabled(true);
 
   // Capture an independent scenario snapshot. The visible simulations keep their
   // current state and continue animating while these fresh trial instances run.
   const cfg=config();
+  const methods=activeMethods();
   const trials=clamp(Math.floor(+controls.trials.value||40),5,200);
-  const signature=benchmarkSignature(cfg,trials);
+  const signature=benchmarkSignature(cfg,trials,methods);
   const previousResult=benchmarkResult;
-  const times=Object.fromEntries(METHODS.map(m=>[m,[]]));
-  const wins=Object.fromEntries(METHODS.map(m=>[m,0]));
+  const times=Object.fromEntries(methods.map(m=>[m,[]]));
+  const wins=Object.fromEntries(methods.map(m=>[m,0]));
 
   try{
     for(let t=0;t<trials;t++){
       const trialCfg={...cfg,seed:cfg.seed+t*7919};
       const man=makeManifest(trialCfg.seed,trialCfg);
       const trialTimes={};
-      for(const method of METHODS){
+        for(const method of methods){
         const sim=new BoardingSim(man,method,trialCfg);
         trialTimes[method]=sim.runToEnd(.20);
         times[method].push(trialTimes[method]);
       }
-      const win=METHODS.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
+      const win=methods.slice().sort((a,b)=>trialTimes[a]-trialTimes[b])[0];
       wins[win]++;
       benchStatus.textContent=`Benchmarking ${t+1}/${trials} from base seed ${cfg.seed.toLocaleString()}… The animation remains independent.`;
 
       // Yield after each trial so the browser can paint and advance a running sim.
       await new Promise(resolve=>setTimeout(resolve,0));
     }
-    const nextResult={trials,seed:cfg.seed,signature};
-    for(const method of METHODS) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
+    const nextResult={trials,seed:cfg.seed,signature,methods:[...methods]};
+    for(const method of methods) nextResult[method]={stats:stats(times[method]),wins:wins[method]};
     const exactRepeat=previousResult?.signature===signature;
-    nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,METHODS);
+    nextResult.repeated=exactRepeat && sameBenchmarkResults(previousResult,nextResult,methods);
     benchmarkResult=nextResult;
     renderBenchmark(benchmarkResult);
     if(nextResult.repeated){
@@ -358,6 +466,7 @@ async function benchmark(){
     benchmarking=false;
     button.disabled=false;
     button.textContent="Run benchmark";
+    setMethodControlsDisabled(false);
   }
 }
 
@@ -429,6 +538,8 @@ async function copyScenarioLink(){
   const preset=matchingPreset(settings);
   const url=new URL(location.href);
   url.search=serializeScenarioSettings(settings,preset?.id||"custom");
+  url.searchParams.set("m",activeMethods().join(","));
+  url.searchParams.set("view",raceLayout);
   url.hash="";
   let copied=false;
   try{
@@ -438,7 +549,7 @@ async function copyScenarioLink(){
     copied=fallbackCopy(url.toString());
   }
   showToast(copied
-    ? `Scenario link copied — seed ${settings.seed.toLocaleString()} included.`
+    ? `Scenario link copied — seed and race view included.`
     : "Could not copy automatically. The scenario URL is now in the address bar.");
   if(!copied) history.replaceState(null,"",url);
 }
@@ -452,8 +563,12 @@ function handleManualControlChange(control){
 
 function initialize(){
   renderScenarioCards();
+  renderMethodPicker();
   const fromUrl=parseScenarioSearch(location.search);
+  const raceView=parseRaceView(location.search);
   writeScenarioSettings(fromUrl||DEFAULT_SCENARIO_SETTINGS);
+  applyMethodSelection(raceView.methods);
+  setRaceLayout(raceView.layout);
   detectActivePreset();
 
   controls.loadFactor.addEventListener("input",()=>{$("loadOut").textContent=`${controls.loadFactor.value}%`;});
