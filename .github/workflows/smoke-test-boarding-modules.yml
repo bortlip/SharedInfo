@@ -1,0 +1,68 @@
+name: Smoke test modular boarding candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/smoke-test-boarding-modules.yml
+      - simulations/group-aware-boarding/src/**
+      - simulations/group-aware-boarding/dist/simulator.html
+      - simulations/group-aware-boarding/tools/build_simulator.py
+
+permissions:
+  contents: write
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Verify protected release files
+        shell: bash
+        run: |
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Verify reproducible candidate build
+        shell: bash
+        run: |
+          before=$(sha256sum simulations/group-aware-boarding/dist/simulator.html | cut -d' ' -f1)
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          after=$(sha256sum simulations/group-aware-boarding/dist/simulator.html | cut -d' ' -f1)
+          test "$before" = "$after"
+
+      - name: Browser smoke test source and standalone candidate
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3000 --dump-dom \
+            'http://127.0.0.1:8765/src/?static=1' >/tmp/source-dom.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3000 --dump-dom \
+            'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/candidate-dom.html
+
+          for dom in /tmp/source-dom.html /tmp/candidate-dom.html; do
+            grep -q 'Ready: 186/186 seats occupied' "$dom"
+            test "$(grep -o 'class="sim-card"' "$dom" | wc -l)" -eq 6
+            grep -q 'id="benchBtn"' "$dom"
+          done
+
+      - name: Remove temporary workflow after successful validation
+        shell: bash
+        run: |
+          rm .github/workflows/smoke-test-boarding-modules.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Validate modular boarding source and candidate"
+          git push origin HEAD:${{ github.head_ref }}
