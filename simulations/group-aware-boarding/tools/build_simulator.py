@@ -27,6 +27,7 @@ JS = SRC / "js"
 DIST = ROOT / "dist" / "simulator.html"
 RELEASED = ROOT / "simulator.html"
 INDEX = ROOT / "index.html"
+INDEX_REPO_PATH = "simulations/group-aware-boarding/index.html"
 
 MODULE_ORDER = [
     "constants.js",
@@ -217,7 +218,7 @@ The source preview is public on GitHub Pages after merge, but it is not the rele
     # The public redirect is part of the frozen release surface. Restore the exact
     # version from main rather than manufacturing a replacement.
     original_index = subprocess.check_output(
-        ["git", "show", f"origin/main:{INDEX.as_posix()}"], text=True
+        ["git", "show", f"origin/main:{INDEX_REPO_PATH}"], text=True
     )
     INDEX.write_text(original_index, encoding="utf-8")
 
