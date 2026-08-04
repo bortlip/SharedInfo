@@ -1,0 +1,172 @@
+name: Build and validate Boarding Rush TASK-001
+
+on:
+  push:
+    branches:
+      - feature/boarding-rush-scenarios
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/boarding-rush-scenarios
+          fetch-depth: 0
+
+      - name: Add scenario module to standalone build order
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('simulations/group-aware-boarding/tools/build_simulator.py')
+          text = path.read_text(encoding='utf-8')
+          needle = '    "random.js",\n'
+          addition = needle + '    "scenarios.js",\n'
+          if '    "scenarios.js",\n' not in text:
+              if needle not in text:
+                  raise SystemExit('Could not locate module order insertion point')
+              text = text.replace(needle, addition, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate modules and scenario URL behavior
+        shell: bash
+        run: |
+          for file in simulations/group-aware-boarding/src/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
+
+          cp simulations/group-aware-boarding/src/js/scenarios.js /tmp/scenarios.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {
+            DEFAULT_SCENARIO_SETTINGS,
+            normalizeScenarioSettings,
+            parseScenarioSearch,
+            serializeScenarioSettings,
+            settingsEqual
+          } from 'file:///tmp/scenarios.mjs';
+
+          const largeWeights = normalizeScenarioSettings({
+            ...DEFAULT_SCENARIO_SETTINGS,
+            partyWeights:[1,50,5000,1000000000]
+          });
+          assert.deepEqual(largeWeights.partyWeights,[1,50,5000,1000000000]);
+
+          const zeroWeights = normalizeScenarioSettings({
+            ...DEFAULT_SCENARIO_SETTINGS,
+            partyWeights:[0,0,0,0]
+          });
+          assert.deepEqual(zeroWeights.partyWeights,[0,0,0,0]);
+
+          const custom = normalizeScenarioSettings({
+            loadFactor:55,
+            familyShare:15,
+            partyWeights:[4,3,2,1],
+            assistedParties:1,
+            bagRate:45,
+            sequenceCompliance:95,
+            priorityPolicy:'none',
+            speed:64,
+            seed:777,
+            trials:25
+          });
+          const roundTrip = parseScenarioSearch('?' + serializeScenarioSettings(custom,'custom'));
+          assert.ok(settingsEqual(custom,roundTrip));
+
+          const partial = parseScenarioSearch('?v=1&sd=777');
+          assert.equal(partial.seed,777);
+          assert.equal(partial.loadFactor,DEFAULT_SCENARIO_SETTINGS.loadFactor);
+          assert.deepEqual(partial.partyWeights,DEFAULT_SCENARIO_SETTINGS.partyWeights);
+
+          const invalid = parseScenarioSearch('?v=1&lf=nope&pw=1,2,nope,4');
+          assert.equal(invalid.loadFactor,DEFAULT_SCENARIO_SETTINGS.loadFactor);
+          assert.deepEqual(invalid.partyWeights,[1,2,28,4]);
+          assert.equal(parseScenarioSearch('?v=99&sd=777'),null);
+          NODE
+
+      - name: Build standalone candidate and validate syntax
+        shell: bash
+        run: |
+          python simulations/group-aware-boarding/tools/build_simulator.py
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path('simulations/group-aware-boarding/dist/simulator.html').read_text(encoding='utf-8')
+          match = re.search(r'<script>\s*(.*?)\s*</script>', html, re.S)
+          if not match:
+              raise SystemExit('Bundled script not found')
+          Path('/tmp/boarding-rush-bundle.js').write_text(match.group(1), encoding='utf-8')
+          PY
+          node --check /tmp/boarding-rush-bundle.js
+
+      - name: Verify protected release files remain unchanged
+        shell: bash
+        run: |
+          git fetch origin main
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/index.html
+          git diff --exit-code origin/main -- simulations/group-aware-boarding/simulator.html
+
+      - name: Browser smoke test source and standalone candidate
+        shell: bash
+        run: |
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 -m http.server 8765 --directory simulations/group-aware-boarding >/tmp/boarding-rush-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom \
+            'http://127.0.0.1:8765/src/?static=1' >/tmp/source-default.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom \
+            'http://127.0.0.1:8765/dist/simulator.html?static=1' >/tmp/dist-default.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom \
+            'http://127.0.0.1:8765/src/?v=1&lf=55&fs=15&pw=40,35,18,7&ap=1&br=45&sc=95&pp=none&sp=16&sd=5517&tr=40&static=1' >/tmp/source-preset.html
+          "$browser" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=3500 --dump-dom \
+            'http://127.0.0.1:8765/dist/simulator.html?v=1&sd=777&static=1' >/tmp/dist-partial.html
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def check_default(path):
+              html = Path(path).read_text(encoding='utf-8')
+              assert '<title>Boarding Rush — Aircraft Boarding Simulator</title>' in html
+              assert html.count('class="scenario-card') == 9
+              assert html.count('class="card sim-card"') == 6
+              assert 'data-scenario-id="family-vacation"' in html
+              assert '>Family Vacation</strong>' in html
+              assert 'id="benchSeedValue">12,345</strong>' in html
+              assert 'Family Vacation · seed 12,345' in html
+
+          check_default('/tmp/source-default.html')
+          check_default('/tmp/dist-default.html')
+
+          preset = Path('/tmp/source-preset.html').read_text(encoding='utf-8')
+          assert 'data-scenario-id="light-hop"' in preset
+          assert '>Lightly Loaded Hop</strong>' in preset
+          assert 'id="benchSeedValue">5,517</strong>' in preset
+          assert 'Shared lightly loaded hop loaded from the URL with seed 5,517.' in preset
+
+          partial = Path('/tmp/dist-partial.html').read_text(encoding='utf-8')
+          assert 'data-scenario-id="custom"' in partial
+          assert '>Custom scenario</strong>' in partial
+          assert 'id="benchSeedValue">777</strong>' in partial
+          assert 'Shared custom scenario loaded from the URL with seed 777.' in partial
+          PY
+
+      - name: Commit validated candidate and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/boarding-rush-task001.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simulations/group-aware-boarding/tools/build_simulator.py \
+                  simulations/group-aware-boarding/dist/simulator.html \
+                  .github/workflows/boarding-rush-task001.yml
+          git commit -m "Build and validate Boarding Rush scenario candidate"
+          git push origin HEAD:feature/boarding-rush-scenarios
