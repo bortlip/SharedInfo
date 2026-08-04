@@ -1,5 +1,5 @@
 import { ROWS, COLS, TOTAL, familyColor } from "./constants.js";
-import { mulberry32, shuffle } from "./random.js";
+import { mulberry32, shuffle, clamp } from "./random.js";
 
 function weightedSize(rng,weights){
   const total=weights.reduce((a,b)=>a+b,0);
