@@ -25,6 +25,7 @@ Normal feature work targets `src/` and regenerates the unreleased `dist/simulato
 17. [TASK-017: Export, Sharing, and Reproducibility](TASK-017-export-sharing-and-reproducibility.md)
 18. [TASK-018: Automated Tests and Release Guards](TASK-018-automated-tests-and-release-guards.md)
 19. [TASK-019: Method Selection and Race Layouts](TASK-019-method-selection-and-race-layouts.md)
+20. [TASK-020: Visible Luggage and Overhead Bins](TASK-020-visible-luggage-and-overhead-bins.md)
 
 ## Status vocabulary
 

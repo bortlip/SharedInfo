@@ -83,14 +83,19 @@ function clearBenchmark(){
   $("benchStatus").textContent="Ready. Benchmarking uses a snapshot of the current settings and runs independently of the animation.";
 }
 
-function applyMethodSelection(methods,{resetRace=false}={}){
+function applyMethodSelection(methods,{announce=false}={}){
   const valid=[...new Set(methods)].filter(method=>METHODS.includes(method));
   if(!valid.length) return false;
   selectedMethods=new Set(valid);
   updateRaceView();
-  if(resetRace){
-    clearBenchmark();
-    reset();
+  clearBenchmark();
+  renderAll();
+  if(announce){
+    const count=valid.length;
+    const continuation=running
+      ? " All six simulations are still running in sync."
+      : " All six simulations remain synchronized behind the view.";
+    $("status").textContent=`Showing ${count} boarding method${count===1?"":"s"}.${continuation}`;
   }
   return true;
 }
@@ -128,11 +133,11 @@ function renderMethodPicker(){
         $("methodSelectionStatus").textContent="At least one boarding method must remain selected.";
         return;
       }
-      applyMethodSelection([...next],{resetRace:true});
+      applyMethodSelection([...next],{announce:true});
     });
     picker.appendChild(label);
   }
-  $("selectAllMethodsBtn").addEventListener("click",()=>applyMethodSelection(METHODS,{resetRace:true}));
+  $("selectAllMethodsBtn").addEventListener("click",()=>applyMethodSelection(METHODS,{announce:true}));
   $("standardLayoutBtn").addEventListener("click",()=>setRaceLayout("standard"));
   $("compactLayoutBtn").addEventListener("click",()=>setRaceLayout("compact"));
   updateRaceView();
@@ -285,7 +290,7 @@ function reset(){
   const cfg=config();
   manifest=makeManifest(cfg.seed,cfg);
   sims={};
-  for(const method of activeMethods()) sims[method]=new BoardingSim(manifest,method,cfg);
+  for(const method of METHODS) sims[method]=new BoardingSim(manifest,method,cfg);
   running=false;
   accumulator=0;
   $("pauseBtn").textContent="Pause";
@@ -314,11 +319,10 @@ function panelElements(method){
 
 function renderAll(){
   const methods=activeMethods();
-  let allDone=methods.length>0;
+  const allDone=METHODS.every(method=>sims[method]?.done);
   for(const method of methods){
     const sim=sims[method];
     if(!sim) continue;
-    allDone=allDone&&sim.done;
     drawSim(sim,$(META[method].canvas));
     const el=panelElements(method);
     el.time.textContent=formatTime(sim.time);
@@ -343,7 +347,7 @@ function animate(now){
     accumulator += elapsed * (+controls.speed.value);
     let guard=0;
     while(accumulator>=FIXED_DT && guard<5000){
-      for(const method of activeMethods()) sims[method].step(FIXED_DT);
+      for(const method of METHODS) sims[method].step(FIXED_DT);
       accumulator-=FIXED_DT;
       guard++;
     }
@@ -354,14 +358,14 @@ function animate(now){
 
 function run(){
   const methods=activeMethods();
-  if(!manifest || methods.some(method=>sims[method]?.done)) reset();
+  if(!manifest || METHODS.every(method=>sims[method]?.done)) reset();
   running=true;
   $("pauseBtn").textContent="Pause";
-  $("status").textContent=`Running ${currentScenarioName()} through ${methods.length} selected method${methods.length===1?"":"s"}…`;
+  $("status").textContent=`Showing ${methods.length} selected method${methods.length===1?"":"s"} while all six simulations run in sync…`;
 }
 
 function pause(){
-  if(!running && activeMethods().every(method=>sims[method]?.time===0)){
+  if(!running && METHODS.every(method=>sims[method]?.time===0)){
     $("status").textContent="Nothing is running yet.";
     return;
   }
@@ -374,7 +378,7 @@ function finish(){
   running=false;
   $("pauseBtn").textContent="Pause";
   const methods=activeMethods();
-  for(const method of methods) sims[method].runToEnd(.15);
+  for(const method of METHODS) sims[method].runToEnd(.15);
   renderAll();
   const winner=methods.slice().sort((a,b)=>sims[a].time-sims[b].time)[0];
   $("status").textContent=methods.length===1
