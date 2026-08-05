@@ -1,0 +1,507 @@
+(() => {
+  'use strict';
+
+  const WORLD_W = 1280;
+  const WORLD_H = 720;
+  const TRACK_WIDTH = 92;
+  const CAR_LENGTH = 19;
+  const CAR_WIDTH = 10;
+  const WHEELBASE = 13.5;
+  const FIXED_DT = 1 / 120;
+  const MAX_STEPS_PER_FRAME = 120;
+  const PIT_S = 44;
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('raceCanvas');
+  const ctx = canvas.getContext('2d');
+  const traceCanvas = $('traceCanvas');
+  const tctx = traceCanvas.getContext('2d');
+  const staticCanvas = document.createElement('canvas');
+  staticCanvas.width = WORLD_W;
+  staticCanvas.height = WORLD_H;
+  const sctx = staticCanvas.getContext('2d');
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smoothstep = (a, b, x) => {
+    const t = clamp((x - a) / Math.max(1e-9, b - a), 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+  const mod = (n, m) => ((n % m) + m) % m;
+  const normalizeAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  const dist2 = (ax, ay, bx, by) => (ax - bx) ** 2 + (ay - by) ** 2;
+  const dot = (ax, ay, bx, by) => ax * bx + ay * by;
+  const hypot = Math.hypot;
+  const ordinal = (n) => {
+    if (!Number.isFinite(n)) return '—';
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  const formatTime = (seconds) => {
+    if (!Number.isFinite(seconds)) return '—';
+    const m = Math.floor(seconds / 60);
+    const s = seconds - m * 60;
+    return `${m}:${s.toFixed(3).padStart(6, '0')}`;
+  };
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  const TRACKS = {
+    garden: {
+      name: 'Apex Garden',
+      points: [
+        [238, 190], [485, 114], [790, 126], [1050, 238], [1112, 420], [955, 580],
+        [694, 610], [510, 535], [352, 610], [160, 520], [140, 345]
+      ]
+    },
+    switchback: {
+      name: 'Switchback Hollow',
+      points: [
+        [170, 198], [430, 112], [720, 128], [1038, 174], [1110, 324], [892, 375],
+        [1050, 550], [770, 612], [565, 508], [358, 610], [146, 490], [330, 382], [132, 310]
+      ]
+    },
+    ribbon: {
+      name: 'Ribbon Run',
+      points: [
+        [224, 156], [540, 104], [872, 130], [1108, 278], [1030, 505], [774, 592],
+        [620, 442], [472, 592], [184, 544], [122, 352], [326, 298]
+      ]
+    }
+  };
+
+  const STYLES = [
+    {
+      key: 'smooth', name: 'Silk Line', color: '#72ddf7',
+      description: 'Early, tidy braking and patient passes. Consistency beats heroics.',
+      maxSpeed: 222, accel: 78, brake: 166, grip: 218, risk: .95,
+      steerGain: 1.00, steerResponse: 8.0, lookAhead: 9, aggression: .32, passGap: 39, lineBias: 0
+    },
+    {
+      key: 'late', name: 'Last Ditch', color: '#ff6b6b',
+      description: 'Brakes late, attacks gaps, occasionally discovers geography.',
+      maxSpeed: 234, accel: 84, brake: 181, grip: 207, risk: 1.07,
+      steerGain: 1.08, steerResponse: 9.8, lookAhead: -5, aggression: .92, passGap: 27, lineBias: -1
+    },
+    {
+      key: 'momentum', name: 'Flow State', color: '#ffd166',
+      description: 'Protects speed with wide, flowing arcs and gentle inputs.',
+      maxSpeed: 228, accel: 75, brake: 153, grip: 220, risk: 1.01,
+      steerGain: .94, steerResponse: 7.1, lookAhead: 18, aggression: .50, passGap: 34, lineBias: 1
+    },
+    {
+      key: 'opportunist', name: 'Gap Goblin', color: '#c77dff',
+      description: 'Constantly searches for clean air and changes line without shame.',
+      maxSpeed: 232, accel: 81, brake: 174, grip: 210, risk: 1.04,
+      steerGain: 1.12, steerResponse: 10.4, lookAhead: 1, aggression: .79, passGap: 29, lineBias: 0
+    }
+  ];
+
+  const NAMES = [
+    'Mina Vale', 'Theo Rush', 'Juno Park', 'Cass Bell', 'Rafi Knox', 'Nora Flint', 'Milo Vega', 'Iris Hart',
+    'Beck Rowan', 'Aya Moss', 'Finn Pike', 'Lena Cross', 'Omar Lane', 'Zoe March', 'Kai Ember', 'Esme Ward',
+    'Nico Reed', 'Tess Quinn', 'Leo Banks', 'Maya Frost', 'Remy Shaw', 'Arlo Wynn', 'Gia Stone', 'Sam Voss'
+  ];
+  const CAR_COLORS = [
+    '#ff5d73', '#55c2ff', '#ffd166', '#9cff57', '#c77dff', '#ff9f43', '#5eead4', '#f472b6',
+    '#a3e635', '#60a5fa', '#f87171', '#fbbf24', '#34d399', '#818cf8', '#fb7185', '#2dd4bf',
+    '#e879f9', '#38bdf8', '#facc15', '#4ade80', '#f97316', '#a78bfa', '#22d3ee', '#ef4444'
+  ];
+
+  const sim = {
+    running: false,
+    finished: false,
+    speedMultiplier: 1,
+    accumulator: 0,
+    lastRealTime: performance.now(),
+    raceTime: 0,
+    countdown: 3.2,
+    trackKey: 'garden',
+    track: null,
+    cars: [],
+    laps: 5,
+    fieldSize: 16,
+    seed: 7319,
+    rng: mulberry32(7319),
+    selectedId: null,
+    hoveredId: null,
+    showTrails: true,
+    showLine: false,
+    showNames: false,
+    trace: [],
+    traceTimer: 0,
+    uiTimer: 0,
+    finishOrder: [],
+    scenery: [],
+    birds: [],
+    slicks: [],
+    skidMarks: [],
+    particles: [],
+    rings: [],
+    debris: [],
+    tow: null,
+    drama: 'hazards',
+    nextIncidentAt: Infinity,
+    cameraShake: 0,
+    impactCount: 0,
+    mouse: { x: 0, y: 0, inside: false },
+    audio: {
+      ctx: null,
+      master: null,
+      compressor: null,
+      voices: new Map(),
+      tireGain: null,
+      tireSource: null,
+      enabled: false,
+      volume: .45,
+      status: 'Sound off'
+    }
+  };
+
+  function catmullRom(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return {
+      x: 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2 + (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3),
+      y: 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2 + (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3)
+    };
+  }
+
+  function circularAverage(values, index, radius) {
+    let sum = 0;
+    let weight = 0;
+    for (let o = -radius; o <= radius; o++) {
+      const w = radius + 1 - Math.abs(o);
+      sum += values[mod(index + o, values.length)] * w;
+      weight += w;
+    }
+    return sum / Math.max(1, weight);
+  }
+
+  function buildTrack(def) {
+    const control = def.points;
+    const rough = [];
+    const perSegment = 70;
+    for (let i = 0; i < control.length; i++) {
+      const p0 = control[mod(i - 1, control.length)];
+      const p1 = control[i];
+      const p2 = control[(i + 1) % control.length];
+      const p3 = control[(i + 2) % control.length];
+      for (let j = 0; j < perSegment; j++) rough.push(catmullRom(p0, p1, p2, p3, j / perSegment));
+    }
+
+    let roughLength = 0;
+    for (let i = 0; i < rough.length; i++) {
+      const next = rough[(i + 1) % rough.length];
+      roughLength += hypot(next.x - rough[i].x, next.y - rough[i].y);
+    }
+
+    const sampleCount = 960;
+    const targetStep = roughLength / sampleCount;
+    const samples = [];
+    let seg = 0;
+    let cur = { ...rough[0] };
+    let remain = 0;
+    let cumulative = 0;
+    samples.push({ x: cur.x, y: cur.y, s: 0 });
+    let guard = 0;
+    while (samples.length < sampleCount && guard++ < rough.length * 20) {
+      const next = rough[(seg + 1) % rough.length];
+      const dx = next.x - cur.x;
+      const dy = next.y - cur.y;
+      const len = hypot(dx, dy);
+      if (len + remain >= targetStep && len > 1e-8) {
+        const need = targetStep - remain;
+        const f = need / len;
+        cur = { x: cur.x + dx * f, y: cur.y + dy * f };
+        cumulative += targetStep;
+        samples.push({ x: cur.x, y: cur.y, s: cumulative });
+        remain = 0;
+      } else {
+        remain += len;
+        cur = { ...next };
+        seg = (seg + 1) % rough.length;
+      }
+    }
+
+    const exactTotal = cumulative + hypot(samples[0].x - samples[samples.length - 1].x, samples[0].y - samples[samples.length - 1].y);
+    const rawCurvature = new Array(samples.length).fill(0);
+    for (let i = 0; i < samples.length; i++) {
+      const prev = samples[mod(i - 2, samples.length)];
+      const next = samples[(i + 2) % samples.length];
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      const tangentLen = hypot(dx, dy) || 1;
+      samples[i].tx = dx / tangentLen;
+      samples[i].ty = dy / tangentLen;
+      samples[i].nx = -samples[i].ty;
+      samples[i].ny = samples[i].tx;
+
+      const a = samples[mod(i - 4, samples.length)];
+      const b = samples[i];
+      const c = samples[(i + 4) % samples.length];
+      const abx = b.x - a.x, aby = b.y - a.y;
+      const bcx = c.x - b.x, bcy = c.y - b.y;
+      const cross = abx * bcy - aby * bcx;
+      const denom = Math.max(1, hypot(abx, aby) * hypot(bcx, bcy) * hypot(c.x - a.x, c.y - a.y));
+      rawCurvature[i] = (2 * cross) / denom;
+    }
+
+    const smoothCurvature = rawCurvature.map((_, i) => circularAverage(rawCurvature, i, 7));
+    const rawOffsets = smoothCurvature.map((kNow, i) => {
+      const kAhead = circularAverage(smoothCurvature, i + 28, 8);
+      const kFar = circularAverage(smoothCurvature, i + 48, 8);
+      const kBehind = circularAverage(smoothCurvature, i - 24, 8);
+      const now = Math.tanh(kNow * 720);
+      const ahead = Math.tanh(kAhead * 720);
+      const far = Math.tanh(kFar * 680);
+      const behind = Math.tanh(kBehind * 680);
+      // Positive curvature turns left and positive normal is the inside of that turn.
+      // The future/past terms put the car outside before and after the apex.
+      return clamp(23.5 * (1.08 * now - .44 * ahead - .22 * far - .34 * behind), -26, 26);
+    });
+    let offsets = rawOffsets;
+    for (let pass = 0; pass < 7; pass++) offsets = offsets.map((_, i) => circularAverage(offsets, i, 9));
+
+    for (let i = 0; i < samples.length; i++) {
+      samples[i].curvature = smoothCurvature[i];
+      samples[i].raceOffset = clamp(offsets[i], -26, 26);
+      samples[i].idx = i;
+    }
+    // Curvature of the actual target path, not merely the centerline. This is what the speed planner must respect.
+    const lineCurvature = new Array(samples.length).fill(0);
+    for (let i = 0; i < samples.length; i++) {
+      const a = samples[mod(i - 4, samples.length)];
+      const b = samples[i];
+      const c = samples[(i + 4) % samples.length];
+      const ax = a.x + a.nx * a.raceOffset, ay = a.y + a.ny * a.raceOffset;
+      const bx = b.x + b.nx * b.raceOffset, by = b.y + b.ny * b.raceOffset;
+      const cx = c.x + c.nx * c.raceOffset, cy = c.y + c.ny * c.raceOffset;
+      const abx = bx - ax, aby = by - ay;
+      const bcx = cx - bx, bcy = cy - by;
+      const cross = abx * bcy - aby * bcx;
+      const denom = Math.max(1, hypot(abx, aby) * hypot(bcx, bcy) * hypot(cx - ax, cy - ay));
+      lineCurvature[i] = (2 * cross) / denom;
+    }
+    const smoothLineCurvature = lineCurvature.map((_, i) => circularAverage(lineCurvature, i, 6));
+    for (let i = 0; i < samples.length; i++) samples[i].lineCurvature = smoothLineCurvature[i];
+    return { name: def.name, samples, length: exactTotal, step: exactTotal / samples.length };
+  }
+
+  function sampleAtS(s) {
+    const track = sim.track;
+    const wrapped = mod(s, track.length);
+    const idxFloat = wrapped / track.step;
+    const i = Math.floor(idxFloat) % track.samples.length;
+    const t = idxFloat - Math.floor(idxFloat);
+    const a = track.samples[i];
+    const b = track.samples[(i + 1) % track.samples.length];
+    const tx = lerp(a.tx, b.tx, t), ty = lerp(a.ty, b.ty, t);
+    const tl = hypot(tx, ty) || 1;
+    const nx = lerp(a.nx, b.nx, t), ny = lerp(a.ny, b.ny, t);
+    const nl = hypot(nx, ny) || 1;
+    return {
+      x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t),
+      tx: tx / tl, ty: ty / tl,
+      nx: nx / nl, ny: ny / nl,
+      curvature: lerp(a.curvature, b.curvature, t),
+      lineCurvature: lerp(a.lineCurvature, b.lineCurvature, t),
+      raceOffset: lerp(a.raceOffset, b.raceOffset, t),
+      idx: i, s: wrapped
+    };
+  }
+
+  function nearestTrackInfo(car) {
+    const samples = sim.track.samples;
+    let bestIdx = car.trackIdx ?? 0;
+    let bestD = Infinity;
+    const radius = car.recovering || car.disabled ? 105 : 45;
+    for (let o = -radius; o <= radius; o++) {
+      const idx = mod(bestIdx + o, samples.length);
+      const p = samples[idx];
+      const d = dist2(car.x, car.y, p.x, p.y);
+      if (d < bestD) { bestD = d; bestIdx = idx; }
+    }
+    const p = samples[bestIdx];
+    const dx = car.x - p.x, dy = car.y - p.y;
+    return { idx: bestIdx, sample: p, lateral: dx * p.nx + dy * p.ny, distance: Math.sqrt(bestD) };
+  }
+
+  function createCars() {
+    const rng = sim.rng;
+    const cars = [];
+    const gridStartS = -18;
+    for (let i = 0; i < sim.fieldSize; i++) {
+      const style = STYLES[i % STYLES.length];
+      const row = Math.floor(i / 2);
+      const side = i % 2 === 0 ? -1 : 1;
+      const s = gridStartS - row * 27;
+      const p = sampleAtS(s);
+      const lat = side * 15.5;
+      const skillJitter = (rng() - .5) * .075;
+      const heading = Math.atan2(p.ty, p.tx);
+      const car = {
+        id: i,
+        name: NAMES[i % NAMES.length],
+        color: CAR_COLORS[i % CAR_COLORS.length],
+        style,
+        skill: 1 + skillJitter,
+        x: p.x + p.nx * lat,
+        y: p.y + p.ny * lat,
+        prevX: p.x + p.nx * lat,
+        prevY: p.y + p.ny * lat,
+        heading,
+        angularVel: 0,
+        vx: 0,
+        vy: 0,
+        speed: 0,
+        forwardSpeed: 0,
+        lateralSpeed: 0,
+        slipAngle: 0,
+        gripRatio: 1,
+        steer: 0,
+        throttle: 0,
+        brake: 0,
+        trackIdx: p.idx,
+        lap: 0,
+        progress: p.s,
+        totalProgress: s,
+        hasStarted: false,
+        nextLapMark: sim.track.length,
+        lateral: lat,
+        gridOffset: lat,
+        targetLateral: lat,
+        passTarget: null,
+        passTimer: 0,
+        stuckTimer: 0,
+        status: 'On grid',
+        finished: false,
+        finishAge: 0,
+        parked: false,
+        finishTime: Infinity,
+        finishPosition: null,
+        lapStart: 0,
+        lastLap: Infinity,
+        bestLap: Infinity,
+        collisions: 0,
+        offTracks: 0,
+        overtakes: 0,
+        collisionCooldown: 0,
+        offTrackNow: false,
+        recovering: false,
+        disabled: false,
+        retired: false,
+        removed: false,
+        towed: false,
+        damage: 0,
+        disableAge: 0,
+        fireDelay: Infinity,
+        burning: false,
+        slickTimer: 0,
+        incidentTimer: 0,
+        incidentKick: 0,
+        trail: [],
+        trailTimer: 0,
+        skidTimer: 0,
+        lastRearLeft: null,
+        lastRearRight: null,
+        rank: i + 1,
+        priorRank: i + 1,
+        currentCurvature: 0,
+        targetSpeed: 0,
+        rng: mulberry32(sim.seed * 101 + i * 977 + 17),
+        reaction: rng() * .15,
+        wobblePhase: rng() * Math.PI * 2,
+        mass: 1 + (rng() - .5) * .08
+      };
+      cars.push(car);
+    }
+    return cars;
+  }
+
+  function distanceToTrackApprox(x, y) {
+    let best = Infinity;
+    const samples = sim.track.samples;
+    for (let i = 0; i < samples.length; i += 10) best = Math.min(best, dist2(x, y, samples[i].x, samples[i].y));
+    return Math.sqrt(best);
+  }
+
+  function makeScenery() {
+    const rng = mulberry32(sim.seed ^ 0x9E3779B9);
+    const scenery = [];
+    for (let attempts = 0; attempts < 620 && scenery.length < 120; attempts++) {
+      const x = 38 + rng() * (WORLD_W - 76);
+      const y = 38 + rng() * (WORLD_H - 76);
+      if (distanceToTrackApprox(x, y) < TRACK_WIDTH * .68 + 34) continue;
+      const r = rng();
+      scenery.push({ x, y, type: r < .66 ? 'tree' : r < .83 ? 'bush' : 'tent', size: 7 + rng() * 10, phase: rng() * Math.PI * 2 });
+    }
+    sim.scenery = scenery;
+
+    sim.birds = [];
+    for (let i = 0; i < 7; i++) {
+      let x = 0, y = 0;
+      for (let tries = 0; tries < 50; tries++) {
+        x = 80 + rng() * (WORLD_W - 160);
+        y = 75 + rng() * (WORLD_H - 150);
+        if (distanceToTrackApprox(x, y) > TRACK_WIDTH * .58 + 20) break;
+      }
+      sim.birds.push({ x, y, vx: 0, vy: 0, flying: false, phase: rng() * 10, rest: 2 + rng() * 6, homeX: x, homeY: y });
+    }
+  }
+
+  function makeHazards() {
+    sim.slicks = [];
+    const rng = mulberry32(sim.seed ^ 0xA5A5BEEF);
+    const count = sim.drama === 'clean' ? 0 : sim.drama === 'hazards' ? 2 : 4;
+    for (let i = 0; i < count; i++) {
+      const s = sim.track.length * (.17 + rng() * .72);
+      const p = sampleAtS(s);
+      const offset = (rng() - .5) * 38;
+      sim.slicks.push({
+        s, x: p.x + p.nx * offset, y: p.y + p.ny * offset,
+        offset, radius: 15 + rng() * 8, phase: rng() * Math.PI * 2
+      });
+    }
+    sim.nextIncidentAt = sim.drama === 'chaos' ? 13 + rng() * 8 : Infinity;
+  }
+
+  function resetSimulation(keepPaused = false) {
+    sim.running = false;
+    sim.finished = false;
+    sim.accumulator = 0;
+    sim.raceTime = 0;
+    sim.countdown = 3.2;
+    sim.trace = [];
+    sim.traceTimer = 0;
+    sim.finishOrder = [];
+    sim.selectedId = null;
+    sim.hoveredId = null;
+    sim.skidMarks = [];
+    sim.particles = [];
+    sim.rings = [];
+    sim.debris = [];
+    sim.tow = null;
+    sim.cameraShake = 0;
+    sim.impactCount = 0;
+    sim.trackKey = $('trackSelect').value;
+    sim.fieldSize = clamp(parseInt($('carsInput').value, 10) || 16, 8, 24);
+    sim.laps = clamp(parseInt($('lapsInput').value, 10) || 5, 2, 12);
+    sim.seed = clamp(parseInt($('seedInput').value, 10) || 7319, 1, 999999);
+    sim.drama = $('dramaSelect')?.value || 'hazards';
+    $('carsInput').value = sim.fieldSize;
+    $('lapsInput').value = sim.laps;
+    $('seedInput').value = sim.seed;
+    sim.rng = mulberry32(sim.seed);
+    sim.track = buildTrack(TRACKS[sim.trackKey]);
+    sim.cars = createCars();
