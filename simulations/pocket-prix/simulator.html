@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Pocket Prix is a self-contained autonomous racing terrarium with driver personalities, physical grip and damage, overtaking, collisions, recovery vehicles, sound, and optional chaos events." />
+<link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/pocket-prix/simulator.html" />
+<title>Pocket Prix — Autonomous Racing Terrarium</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brandmark">P</div>
+      <div>
+        <h1>Pocket Prix</h1>
+        <p>Autonomous racers. Tiny egos. Questionable braking decisions.</p>
+      </div>
+    </div>
+    <div class="top-status">
+      <span class="chip live" id="simStatusChip">Race ready</span>
+      <span class="chip">Track <strong id="topTrackName">Apex Garden</strong></span>
+      <span class="chip">Seed <strong id="topSeed">7319</strong></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main class="main-column">
+      <section class="card race-card">
+        <div class="race-header">
+          <div class="race-badges">
+            <div class="glass">Lap <strong id="lapBadge">1 / 5</strong></div>
+            <div class="glass">Leader <strong id="leaderBadge">—</strong></div>
+          </div>
+          <div class="glass">Race time <strong id="timeBadge">0:00.000</strong></div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="raceCanvas" width="1280" height="720" aria-label="Autonomous racing simulation"></canvas>
+          <div class="canvas-help">Click a car to inspect · hover for live state</div>
+          <div class="finish-panel" id="finishPanel">
+            <div class="finish-kicker">Chequered flag</div>
+            <h2 id="finishTitle">Photo finish</h2>
+            <p id="finishSubtitle">The tiny stewards have reviewed absolutely nothing.</p>
+            <div class="podium" id="podium"></div>
+            <button class="primary-btn" id="raceAgainBtn">Race again</button>
+            <button class="secondary-btn" id="dismissFinishBtn">Inspect results</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card controls-card">
+        <div class="controls-row">
+          <button class="primary-btn" id="playBtn">▶ Start race</button>
+          <button class="secondary-btn danger" id="resetBtn">↺ Reset</button>
+          <div class="speed-group" aria-label="Simulation speed">
+            <button class="speed-btn active" data-speed="1">1×</button>
+            <button class="speed-btn" data-speed="2">2×</button>
+            <button class="speed-btn" data-speed="4">4×</button>
+            <button class="speed-btn" data-speed="8">8×</button>
+          </div>
+          <div class="spacer"></div>
+          <label class="toggle"><input type="checkbox" id="trailsToggle" checked /> trails</label>
+          <label class="toggle"><input type="checkbox" id="lineToggle" /> racing line</label>
+          <label class="toggle"><input type="checkbox" id="namesToggle" /> names</label>
+        </div>
+        <div class="audio-strip">
+          <strong>Race audio</strong>
+          <button class="secondary-btn" id="soundBtn">🔊 Enable sound</button>
+          <button class="secondary-btn" id="testSoundBtn">🏎 Test rev</button>
+          <span class="audio-status" id="audioStatus">Sound off</span>
+          <label class="volume-wrap">Volume <input id="volumeInput" type="range" min="0" max="0.9" step="0.01" value="0.45" /><span id="volumeValue">45%</span></label>
+          <label class="toggle"><input type="checkbox" id="autoSoundToggle" checked /> enable when race starts</label>
+        </div>
+        <div class="scenario-grid">
+          <div class="field">
+            <label for="trackSelect">Circuit</label>
+            <select id="trackSelect">
+              <option value="garden">Apex Garden</option>
+              <option value="switchback">Switchback Hollow</option>
+              <option value="ribbon">Ribbon Run</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="carsInput">Cars</label>
+            <input id="carsInput" type="number" min="8" max="24" value="16" />
+          </div>
+          <div class="field">
+            <label for="lapsInput">Laps</label>
+            <input id="lapsInput" type="number" min="2" max="12" value="5" />
+          </div>
+          <div class="field">
+            <label for="seedInput">Seed</label>
+            <input id="seedInput" type="number" min="1" max="999999" value="7319" />
+          </div>
+          <div class="field">
+            <label for="dramaSelect">Drama</label>
+            <select id="dramaSelect">
+              <option value="clean">Clean race</option>
+              <option value="hazards" selected>Slick spots</option>
+              <option value="chaos">Full chaos</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <div class="insights">
+        <section class="card section">
+          <div class="section-head">
+            <div>
+              <h2>Race trace</h2>
+              <p>Top runners by completed track distance</p>
+            </div>
+            <span class="chip" id="traceStatus">waiting for lights</span>
+          </div>
+          <canvas id="traceCanvas" width="760" height="180"></canvas>
+        </section>
+        <section class="card section">
+          <div class="section-head">
+            <div>
+              <h2>Controller matchup</h2>
+              <p>Average running position by driving philosophy</p>
+            </div>
+          </div>
+          <div class="style-grid" id="styleGrid"></div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="sidebar">
+      <section class="card side-card">
+        <div class="section-head">
+          <div>
+            <h2>Live standings</h2>
+            <p id="fieldSummary">16 cars · 5 laps</p>
+          </div>
+          <span class="chip" id="finishCount">0 finished</span>
+        </div>
+        <div class="standings" id="standings"></div>
+      </section>
+
+      <section class="card side-card">
+        <div class="section-head">
+          <div>
+            <h2>Driver telemetry</h2>
+            <p>Click any racer on track or in the standings</p>
+          </div>
+        </div>
+        <div class="telemetry">
+          <div class="metric"><label>Speed</label><strong id="metricSpeed">0</strong></div>
+          <div class="metric"><label>Position</label><strong id="metricPosition">—</strong></div>
+          <div class="metric"><label>Best lap</label><strong id="metricLap">—</strong></div>
+          <div class="metric"><label>Incidents</label><strong id="metricIncidents">0</strong></div>
+          <div class="metric"><label>Damage</label><strong id="metricDamage">0%</strong></div>
+          <div class="metric"><label>Available grip</label><strong id="metricGrip">100%</strong></div>
+        </div>
+        <div class="driver-profile">
+          <div class="profile-head">
+            <div class="profile-car" id="profileCar"></div>
+            <div class="profile-title"><strong id="profileName">No driver selected</strong><span id="profileStyle">Choose a tiny menace</span></div>
+          </div>
+          <div class="profile-copy" id="profileCopy">Each controller makes its own steering, throttle, braking, passing, and defensive decisions from local track conditions.</div>
+        </div>
+        <div class="tiny-note">Cars use a continuous racing corridor rather than fixed lanes. The green overlay shows the actual outside–apex–outside target. Slick spots are visible; Full chaos also schedules occasional loss-of-grip incidents. Black tire marks persist until reset.</div>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script src="app-loader.js"></script>
+</body>
+</html>
