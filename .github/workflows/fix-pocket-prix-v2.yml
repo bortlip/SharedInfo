@@ -1,0 +1,123 @@
+name: Complete Pocket Prix startup repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-pocket-prix-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply repair
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path("simulations/pocket-prix")
+
+          render_path = root / "src/js/render.js"
+          render = render_path.read_text()
+          typo_count = render.count(".fil()")
+          if typo_count < 1:
+              raise SystemExit("Expected at least one Canvas fill regression")
+          render_path.write_text(render.replace(".fil()", ".fill()"))
+          print(f"Repaired {typo_count} Canvas fill calls")
+
+          version_path = root / "src/js/version.js"
+          version_path.write_text('''// Single source of truth for the visible Pocket Prix release version.\n'use strict';\n\nconst APP_VERSION = "1.0.0";\nfor (const element of document.querySelectorAll("[data-app-version]")) {\n  element.textContent = `v${APP_VERSION}`;\n}\n''')
+
+          def patch_html(path: Path, script_prefix: str) -> None:
+              html = path.read_text()
+              status_needle = '''    <div class="top-status">\n      <span class="chip live" id="simStatusChip">Race ready</span>'''
+              status_replacement = '''    <div class="top-status">\n      <a class="chip version-chip" href="https://github.com/bortlip/SharedInfo/tree/main/simulations/pocket-prix" title="View Pocket Prix source"><strong data-app-version>v—</strong></a>\n      <span class="chip live" id="simStatusChip">Race ready</span>'''
+              if "version-chip" not in html:
+                  if status_needle not in html:
+                      raise SystemExit(f"Top-status insertion point missing in {path}")
+                  html = html.replace(status_needle, status_replacement, 1)
+
+              footer_needle = '''  </div>\n</div>\n<div class="tooltip" id="tooltip"></div>'''
+              footer_replacement = '''  </div>\n  <footer class="site-footer">Pocket Prix <span data-app-version>v—</span> · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/pocket-prix">source on GitHub</a></footer>\n</div>\n<div class="tooltip" id="tooltip"></div>'''
+              if "site-footer" not in html:
+                  if footer_needle not in html:
+                      raise SystemExit(f"Footer insertion point missing in {path}")
+                  html = html.replace(footer_needle, footer_replacement, 1)
+
+              version_tag = f'<script src="{script_prefix}version.js"></script>'
+              constants_tag = f'<script src="{script_prefix}constants.js"></script>'
+              if version_tag not in html:
+                  if constants_tag not in html:
+                      raise SystemExit(f"Script insertion point missing in {path}")
+                  html = html.replace(constants_tag, version_tag + "\n" + constants_tag, 1)
+              path.write_text(html)
+
+          patch_html(root / "simulator.html", "src/js/")
+          patch_html(root / "src/index.html", "js/")
+
+          styles_path = root / "src/styles.css"
+          styles = styles_path.read_text()
+          if ".site-footer" not in styles:
+              marker = "  .tooltip {\n"
+              if marker not in styles:
+                  raise SystemExit("CSS insertion point missing")
+              addition = '''  .boot-error {\n    position: fixed; inset: 18px; z-index: 1000; display: grid; place-items: center;\n    background: rgba(3,10,7,.92); border: 1px solid rgba(255,107,107,.42); border-radius: 18px;\n    color: var(--ink); text-align: center; padding: 24px; backdrop-filter: blur(12px);\n  }\n  .boot-error > div { max-width: 560px; }\n  .boot-error strong { display: block; color: #ff9d9d; font-size: 22px; }\n  .boot-error span { display: block; margin-top: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }\n  .boot-error small { display: block; margin-top: 12px; color: var(--muted); line-height: 1.5; }\n\n  .version-chip { text-decoration: none; color: var(--ink); }\n  .version-chip:hover { border-color: rgba(140,255,191,.42); background: rgba(140,255,191,.08); }\n  .site-footer { text-align: center; color: var(--muted); font-size: 11px; line-height: 1.6; padding: 20px 0 6px; }\n  .site-footer a { color: #a9e8c4; text-decoration: none; font-weight: 750; }\n  .site-footer a:hover { text-decoration: underline; }\n\n'''
+              styles_path.write_text(styles.replace(marker, addition + marker, 1))
+
+          app_path = root / "src/js/app.js"
+          app = app_path.read_text()
+          old_tail = '''window.__pocketPrix = sim;\nresetSimulation(true);\nrequestAnimationFrame(animationLoop);\n'''
+          new_tail = '''function showBootFailure(error) {\n  console.error('Pocket Prix failed to start.', error);\n  const notice = document.createElement('div');\n  notice.className = 'boot-error';\n  notice.innerHTML = `<div><strong>Pocket Prix could not start</strong><span>${String(error?.message || error)}</span><small>Refresh the page. If this persists, the source link in the footer points to the current files.</small></div>`;\n  document.body.appendChild(notice);\n}\n\nwindow.__pocketPrix = sim;\ntry {\n  resetSimulation(true);\n  render();\n  requestAnimationFrame(animationLoop);\n} catch (error) {\n  showBootFailure(error);\n}\n'''
+          if "function showBootFailure" not in app:
+              if old_tail not in app:
+                  raise SystemExit("Application bootstrap insertion point missing")
+              app_path.write_text(app.replace(old_tail, new_tail, 1))
+
+          (root / "README.md").write_text('''# Pocket Prix\n\nA dependency-free autonomous racing terrarium. Tiny drivers choose racing lines, attack gaps, manage grip, collide, take damage, leave skid marks, and occasionally require a tow truck.\n\nCurrent release: **v1.0.0**\n\n- [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/pocket-prix/)\n- [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/pocket-prix/src/)\n\n## Folder structure\n\n```text\nindex.html          Stable redirect to the released simulator.\nsimulator.html      Released application shell.\nsrc/index.html      Direct modular-source preview.\nsrc/styles.css      Application styling.\nsrc/js/             JavaScript organized by responsibility.\n```\n\n## JavaScript modules\n\n```text\nversion.js          Single source of truth for the visible release version.\nconstants.js        Simulation dimensions and physical constants.\nutils.js            Math, formatting, and deterministic random helpers.\ncatalog.js          Tracks, driver styles, names, and colors.\nstate.js            DOM handles and mutable simulation state.\ntrack.js            Spline construction, sampling, and track geometry.\nworld.js            Cars, scenery, hazards, and reset/setup.\nracecraft.js        Driver perception, racing lines, passing, and control.\nphysics.js          Vehicle motion, grip, collisions, damage, and skid marks.\neffects.js          Particles, birds, chaos events, and recovery vehicles.\nsimulation.js       Fixed-step race loop, ranking, and classification.\nrender.js           Canvas scene construction and rendering.\nui.js               Standings, telemetry, charts, and result panels.\naudio.js            Engines, tire noise, impact sounds, and audio controls.\napp.js              Input wiring, guarded bootstrap, and animation loop.\n```\n\nThe files are ordinary browser scripts loaded in dependency order. No framework, package manager, bundler, runtime source concatenation, or build step is required.\n''')
+
+          (root / "src/README.md").write_text('''# Pocket Prix modular source\n\nThis directory contains the directly runnable source version of Pocket Prix.\n\nOpen `index.html` through a web server. The HTML loads `styles.css` and the responsibility-based scripts in `js/` in dependency order. `js/version.js` is the single source of truth for the displayed release number.\n\nThere are no numbered source fragments and no runtime source concatenation. The root `simulator.html` uses these same files, so the released page and readable source cannot silently drift apart.\n''')
+          PY
+
+          rm -f simulations/pocket-prix/README.tmp
+          rm -f .github/workflows/fix-pocket-prix.yml
+          rm -f .github/workflows/fix-pocket-prix-v2.yml
+
+      - name: Validate repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R "\.fil()" simulations/pocket-prix/src/js
+          grep -q 'const APP_VERSION = "1.0.0"' simulations/pocket-prix/src/js/version.js
+          grep -q 'site-footer' simulations/pocket-prix/simulator.html
+          grep -q 'site-footer' simulations/pocket-prix/src/index.html
+          grep -q 'function showBootFailure' simulations/pocket-prix/src/js/app.js
+          test ! -e simulations/pocket-prix/README.tmp
+          for file in simulations/pocket-prix/src/js/*.js; do node --check "$file"; done
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path('simulations/pocket-prix')
+          for html_path, base in [(root/'simulator.html', root), (root/'src/index.html', root/'src')]:
+              html = html_path.read_text()
+              for src in re.findall(r'<script src="([^"]+)"', html):
+                  assert (base / src).exists(), f'{html_path}: missing {src}'
+              assert html.count('data-app-version') == 2
+          PY
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix Pocket Prix startup and add v1.0.0 footer"
+          git push
