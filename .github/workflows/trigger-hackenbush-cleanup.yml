@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - simulations/green-hackenbush/.cleanup-trigger
+      - simulations/green-hackenbush/cleanup-trigger.txt
 
 permissions:
   contents: write
@@ -30,7 +30,7 @@ jobs:
           exec(compile(code, str(source_path), 'exec'), {})
 
           Path('.github/workflows/trigger-hackenbush-cleanup.yml').unlink()
-          Path('simulations/green-hackenbush/.cleanup-trigger').unlink()
+          Path('simulations/green-hackenbush/cleanup-trigger.txt').unlink()
 
       - name: Commit the completed cleanup
         run: |
