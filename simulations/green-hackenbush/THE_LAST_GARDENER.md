@@ -1,9 +1,6 @@
 # The Last Gardener: a complete Sprague–Grundy solution
 
-*A detailed walkthrough of the Integral Cup 2026 puzzle, with a practical solution first and a deeper theory appendix afterward.*
-
-> **Answer.** The unique number of pebbles that gives the second player a winning position is **6**.  
-> The shrub with Grundy value **0** is the **Window**.
+*The puzzle is presented first without spoilers. A clearly marked boundary separates it from the complete solution and deeper theory appendix.*
 
 ## 1. The puzzle
 
@@ -23,6 +20,14 @@ This is a finite, impartial, normal-play game:
 - **Normal play:** the player making the final move wins.
 
 Those three properties are exactly the setting in which Sprague–Grundy theory applies.
+
+> **Try it before reading on.** Find the unique value of \(n\) and identify the decorative shrub. The [interactive simulator](simulator.html) lets you experiment with the supplied position without showing the walkthrough first.
+
+---
+
+> **⚠️ Spoiler warning.** Everything below explains the solving method and eventually reveals both requested answers. Stop here if you want to work the puzzle out yourself.
+
+---
 
 ## 2. Turn the picture into independent games
 
