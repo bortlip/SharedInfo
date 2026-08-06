@@ -166,6 +166,22 @@
   .profile-copy { color: var(--muted); font-size: 11px; line-height: 1.45; margin-top: 8px; }
   .tiny-note { color: var(--muted); font-size: 10px; line-height: 1.5; margin-top: 10px; }
 
+  .boot-error {
+    position: fixed; inset: 18px; z-index: 1000; display: grid; place-items: center;
+    background: rgba(3,10,7,.92); border: 1px solid rgba(255,107,107,.42); border-radius: 18px;
+    color: var(--ink); text-align: center; padding: 24px; backdrop-filter: blur(12px);
+  }
+  .boot-error > div { max-width: 560px; }
+  .boot-error strong { display: block; color: #ff9d9d; font-size: 22px; }
+  .boot-error span { display: block; margin-top: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .boot-error small { display: block; margin-top: 12px; color: var(--muted); line-height: 1.5; }
+
+  .version-chip { text-decoration: none; color: var(--ink); }
+  .version-chip:hover { border-color: rgba(140,255,191,.42); background: rgba(140,255,191,.08); }
+  .site-footer { text-align: center; color: var(--muted); font-size: 11px; line-height: 1.6; padding: 20px 0 6px; }
+  .site-footer a { color: #a9e8c4; text-decoration: none; font-weight: 750; }
+  .site-footer a:hover { text-decoration: underline; }
+
   .tooltip {
     position: fixed; z-index: 50; pointer-events: none; opacity: 0; transform: translate(10px, 10px);
     background: rgba(4,11,8,.92); border: 1px solid rgba(255,255,255,.18); border-radius: 11px; padding: 9px 10px;

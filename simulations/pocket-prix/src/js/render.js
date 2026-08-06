@@ -64,11 +64,11 @@ function drawSceneryItem(g, item) {
   if (type === 'tree') {
     g.fillStyle = 'rgba(0,0,0,.20)'; g.beginPath(); g.ellipse(x + 3, y + 5, size * .9, size * .55, .3, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#183923'; g.beginPath(); g.arc(x, y, size, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#2f6a38'; g.beginPath(); g.arc(x - size * .25, y - size * .25, size * .62, 0, Math.PI * 2); g.fil();
-    g.fillStyle = '#4d8b4d'; g.beginPath(); g.arc(x + size * .25, y - size * .15, size * .42, 0, Math.PI * 2); g.fil();
+    g.fillStyle = '#2f6a38'; g.beginPath(); g.arc(x - size * .25, y - size * .25, size * .62, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#4d8b4d'; g.beginPath(); g.arc(x + size * .25, y - size * .15, size * .42, 0, Math.PI * 2); g.fill();
   } else if (type === 'bush') {
-    g.fillStyle = '#255b33'; g.beginPath(); g.arc(x, y, size * .65, 0, Math.PI * 2); g.fil();
-    g.fillStyle = '#4d8b4d'; g.beginPath(); g.arc(x - 2, y - 2, size * .35, 0, Math.PI * 2); g.fil();
+    g.fillStyle = '#255b33'; g.beginPath(); g.arc(x, y, size * .65, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#4d8b4d'; g.beginPath(); g.arc(x - 2, y - 2, size * .35, 0, Math.PI * 2); g.fill();
   } else {
     g.save(); g.translate(x, y); g.rotate(-.18);
     g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(-size * .8 + 3, -size * .45 + 4, size * 1.6, size * .9);

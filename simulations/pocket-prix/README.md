@@ -2,6 +2,8 @@
 
 A dependency-free autonomous racing terrarium. Tiny drivers choose racing lines, attack gaps, manage grip, collide, take damage, leave skid marks, and occasionally require a tow truck.
 
+Current release: **v1.0.0**
+
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/pocket-prix/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/pocket-prix/src/)
 
@@ -18,6 +20,7 @@ src/js/             JavaScript organized by responsibility.
 ## JavaScript modules
 
 ```text
+version.js          Single source of truth for the visible release version.
 constants.js        Simulation dimensions and physical constants.
 utils.js            Math, formatting, and deterministic random helpers.
 catalog.js          Tracks, driver styles, names, and colors.
@@ -28,10 +31,10 @@ racecraft.js        Driver perception, racing lines, passing, and control.
 physics.js          Vehicle motion, grip, collisions, damage, and skid marks.
 effects.js          Particles, birds, chaos events, and recovery vehicles.
 simulation.js       Fixed-step race loop, ranking, and classification.
-render.js           Canvas rendering.
+render.js           Canvas scene construction and rendering.
 ui.js               Standings, telemetry, charts, and result panels.
 audio.js            Engines, tire noise, impact sounds, and audio controls.
-app.js              Input wiring, animation loop, and bootstrap.
+app.js              Input wiring, guarded bootstrap, and animation loop.
 ```
 
-The files are ordinary browser scripts loaded in dependency order. No framework, package manager, bundler, or build step is required.
+The files are ordinary browser scripts loaded in dependency order. No framework, package manager, bundler, runtime source concatenation, or build step is required.

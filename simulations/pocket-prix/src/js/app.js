@@ -83,6 +83,19 @@ $('volumeInput')?.addEventListener('input', e => {
   $('volumeValue').textContent = `${Math.round(sim.audio.volume * 100)}%`;
 });
 
+function showBootFailure(error) {
+  console.error('Pocket Prix failed to start.', error);
+  const notice = document.createElement('div');
+  notice.className = 'boot-error';
+  notice.innerHTML = `<div><strong>Pocket Prix could not start</strong><span>${String(error?.message || error)}</span><small>Refresh the page. If this persists, the source link in the footer points to the current files.</small></div>`;
+  document.body.appendChild(notice);
+}
+
 window.__pocketPrix = sim;
-resetSimulation(true);
-requestAnimationFrame(animationLoop);
+try {
+  resetSimulation(true);
+  render();
+  requestAnimationFrame(animationLoop);
+} catch (error) {
+  showBootFailure(error);
+}
