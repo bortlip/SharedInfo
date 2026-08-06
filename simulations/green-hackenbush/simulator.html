@@ -21,7 +21,6 @@
         <a class="site-link" href="https://github.com/bortlip/SharedInfo/tree/main/simulations/green-hackenbush">GitHub</a>
       </nav>
       <span class="site-version">App v1.2.0</span>
-      <button type="button" class="site-spoiler" id="spoiler-toggle" aria-pressed="false">Strategy info: hidden</button>
       <label class="site-theme"><span>Theme</span><select id="theme-select" aria-label="Color theme"><option id="system-option" value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
     </div>
   </header>
@@ -50,10 +49,13 @@
         <h1>Green Hackenbush Simulator</h1>
         <p>Choose the bowl values, play the game, and reveal strategy information only when you are ready.</p>
       </div>
-      <nav class="tabs" aria-label="Simulator mode">
-        <button type="button" class="tab active" data-view="play">Play</button>
-        <button type="button" class="tab" data-view="explain">Analyze</button>
-      </nav>
+      <div class="app-header-controls">
+        <button type="button" class="site-spoiler" id="spoiler-toggle" aria-pressed="false">Strategy info: hidden</button>
+        <nav class="tabs" aria-label="Simulator mode">
+          <button type="button" class="tab active" data-view="play">Play</button>
+          <button type="button" class="tab" data-view="explain">Analyze</button>
+        </nav>
+      </div>
     </header>
 
     <details class="panel setup-panel" id="setup-panel">
