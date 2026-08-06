@@ -15,6 +15,8 @@ function renderExplain() {
 
   const namedValues = components.map((component) => `${escapeHtml(component.name)} = ${componentValue(component)}`).join(', ');
 
+  // A single adjustable Nim heap can always balance the rest of the game.
+  // Its required size is the XOR of every other component.
   const adjustableBowlIndex = components.findIndex((component) => component.type === 'heap');
   let bowlBalanceText;
 
@@ -271,6 +273,6 @@ $('#player-mode').addEventListener('change', () => {
 
 applyTheme(loadStoredTheme());
 $('#definition').value = originalDefinition;
-components = parseDefinition(originalDefinition);
+components = [];
 updateSpeedLabel();
 renderAll();
