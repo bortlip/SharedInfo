@@ -1,16 +1,15 @@
 name: Trigger Hackenbush site cleanup
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - simulations/green-hackenbush/cleanup-trigger.txt
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   run-cleanup:
+    if: github.event.issue.title == 'Run Hackenbush site cleanup'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +29,9 @@ jobs:
           exec(compile(code, str(source_path), 'exec'), {})
 
           Path('.github/workflows/trigger-hackenbush-cleanup.yml').unlink()
-          Path('simulations/green-hackenbush/cleanup-trigger.txt').unlink()
+          marker_path = Path('simulations/green-hackenbush/cleanup-trigger.txt')
+          if marker_path.exists():
+              marker_path.unlink()
 
       - name: Commit the completed cleanup
         run: |
