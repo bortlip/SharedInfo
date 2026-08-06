@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const THEME_STORAGE_KEY = 'green-hackenbush-theme';
 const root = document.body;
 const $ = (selector) => root.querySelector(selector);
@@ -43,7 +43,7 @@ shrub Oak: G-A, A-B, B-C, A-D
 shrub Arch: G-A, A-B, B-G
 shrub Window: G-A, A-B, B-C, C-G
 shrub Tower: G-A, A-B, B-G, B-C, C-D
-heap Bowl: 6`;
+heap Bowl: ?`;
 
 const originalLayouts = {
   Oak:   { A: [0, -58], B: [-30, -99], C: [-38, -145], D: [42, -100] },

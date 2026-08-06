@@ -7,9 +7,10 @@
   <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/green-hackenbush/simulator.html">
   <title>Green Hackenbush Garden — Game Simulator</title>
   <link rel="stylesheet" href="simulator.css">
+  <link rel="stylesheet" href="simulator-spoiler-safe.css">
   <script>(()=>{const k='green-hackenbush-theme',a=['system','light','dark'];let m='system';try{const s=localStorage.getItem(k);if(a.includes(s))m=s}catch{}const r=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m;document.documentElement.dataset.theme=r;document.documentElement.dataset.themeMode=m})()</script>
 </head>
-<body>
+<body class="setup-locked spoilers-hidden">
   <header class="site-header">
     <div class="site-bar">
       <a class="site-brand" href="the-last-gardener.html"><span class="site-mark">♜</span><span>Green Hackenbush Garden</span></a>
@@ -19,26 +20,48 @@
         <a class="site-link" href="THE_LAST_GARDENER.md">Markdown</a>
         <a class="site-link" href="https://github.com/bortlip/SharedInfo/tree/main/simulations/green-hackenbush">GitHub</a>
       </nav>
-      <span class="site-version">App v1.1.0</span>
+      <span class="site-version">App v1.2.0</span>
       <label class="site-theme"><span>Theme</span><select id="theme-select" aria-label="Color theme"><option id="system-option" value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
     </div>
   </header>
+
+  <dialog class="bowl-setup-dialog" id="bowl-setup-dialog" aria-labelledby="bowl-setup-title">
+    <form method="dialog" class="bowl-setup-form" id="bowl-setup-form">
+      <h2 id="bowl-setup-title">Choose the starting bowl size</h2>
+      <p id="bowl-setup-copy">The puzzle leaves this value unknown. Enter your choice, then start the game.</p>
+      <div class="bowl-setup-fields" id="bowl-setup-fields">
+        <label class="bowl-field">
+          <span>Bowl</span>
+          <input type="number" min="0" step="1" inputmode="numeric" placeholder="Choose a nonnegative integer" required>
+        </label>
+      </div>
+      <p class="bowl-setup-error" id="bowl-setup-error" aria-live="polite"></p>
+      <div class="bowl-setup-actions">
+        <a href="the-last-gardener.html">Return to the puzzle guide</a>
+        <button type="submit" class="button primary">Start game</button>
+      </div>
+    </form>
+  </dialog>
+
   <main class="app" id="app">
     <header class="app-header">
       <div>
         <h1>Green Hackenbush Simulator</h1>
-        <p>Play the puzzle, watch perfect moves, or analyze any position you create.</p>
+        <p>Choose the bowl values, play the game, and reveal strategy information only when you are ready.</p>
       </div>
-      <nav class="tabs" aria-label="Simulator mode">
-        <button type="button" class="tab active" data-view="play">Play</button>
-        <button type="button" class="tab" data-view="explain">Analyze</button>
-      </nav>
+      <div class="app-header-controls">
+        <button type="button" class="site-spoiler" id="spoiler-toggle" aria-pressed="false">Strategy info: hidden</button>
+        <nav class="tabs" aria-label="Simulator mode">
+          <button type="button" class="tab active" data-view="play">Play</button>
+          <button type="button" class="tab" data-view="explain">Analyze</button>
+        </nav>
+      </div>
     </header>
 
     <details class="panel setup-panel" id="setup-panel">
       <summary>
         <span>Game setup and generator</span>
-        <span class="status-note" id="setup-summary">Original puzzle loaded</span>
+        <span class="status-note" id="setup-summary">Waiting for bowl size</span>
       </summary>
       <div class="setup-body">
         <div class="setup-grid">
@@ -47,10 +70,10 @@
             <textarea id="definition" spellcheck="false" aria-label="Game definition"></textarea>
             <div class="button-row" style="margin-top:10px">
               <button type="button" class="button" id="load-preset">Restore original puzzle</button>
-              <button type="button" class="button primary" id="load-definition">Load and restart</button>
+              <button type="button" class="button primary" id="load-definition">Choose bowls and load</button>
               <span class="status-note" id="parse-message" aria-live="polite"></span>
             </div>
-            <p class="help">Format: <code>shrub Name: G-A, A-B</code> or <code>heap Name: 6</code>. Every edge touching <code>G</code> gets its own vertical connection to the ground.</p>
+            <p class="help">Format: <code>shrub Name: G-A, A-B</code> and <code>heap Name: ?</code> or <code>heap Name: 6</code>. Before a game starts, every bowl gets its own confirmation field.</p>
           </section>
 
           <section>
@@ -64,7 +87,7 @@
             </div>
             <div class="button-row">
               <button type="button" class="button" id="generate-random">Generate into editor</button>
-              <button type="button" class="button primary" id="generate-load">Generate and play</button>
+              <button type="button" class="button primary" id="generate-load">Generate, choose bowls, and play</button>
             </div>
             <p class="help">Exact solving is exponential. Twelve edges per shrub is a sensible ceiling unless you enjoy watching combinatorics chew the upholstery.</p>
           </section>
@@ -138,11 +161,10 @@
       <section class="panel analysis-card" style="margin-bottom:12px" id="xor-analysis"></section>
       <section class="panel theory" id="theory-section"></section>
     </section>
-
   </main>
 
   <footer class="site-footer">
-    <span>Green Hackenbush Garden · App v1.1.0</span>
+    <span>Green Hackenbush Garden · App v1.2.0</span>
     <nav aria-label="Footer links">
       <a href="the-last-gardener.html">Puzzle &amp; guide</a>
       <a href="simulator.html">Simulator</a>
@@ -155,5 +177,6 @@
   <script defer src="simulator-core-2.js"></script>
   <script defer src="simulator-core-3.js"></script>
   <script defer src="simulator-ui.js"></script>
+  <script defer src="simulator-spoiler-safe.js"></script>
 </body>
 </html>
