@@ -1,8 +1,8 @@
 # POV RL Racing Lab
 
-A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, perceive the world through their own rendered 32×20 grayscale camera image, and learn steering plus throttle/brake behavior from reward using PPO-style backpropagation.
+A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, perceive the world through their own rendered POV camera stream, and learn steering plus throttle/brake behavior from reward using PPO-style backpropagation.
 
-Current release: **v0.1.0**
+Current release: **v0.2.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
@@ -11,40 +11,48 @@ Current release: **v0.1.0**
 
 ## What it demonstrates
 
-- Four simultaneous drivers using one shared neural policy but gathering different experience.
-- Real per-car Three.js POV renders, supersampled at 64×40 and averaged into the 32×20 grayscale neural input.
-- A 642 → 48 shared representation with a 15-action policy head and value head.
-- Actor-critic / clipped PPO-style updates using discounted returns and generalized advantage estimates.
-- Continuous learning: backpropagation updates no longer force a full-grid reset.
+- Four simultaneous drivers using one shared neural policy while gathering different experience.
+- Real per-car Three.js POV renders, supersampled at 64×40 and averaged into a 32×20 grayscale frame.
+- Temporal visual perception: the network receives the current frame plus a frame-difference motion channel, followed by normalized speed and damage.
+- A 1282 → 48 shared representation with independent 5-way steering and 3-way throttle/brake policy heads plus a value head.
+- Actor-critic / clipped PPO-style updates using generalized advantage estimates and entropy regularization.
+- Continuous learning: policy updates do not force a full-grid reset; only failed cars respawn.
 - 1×, 2×, 4×, 8×, 20×, and 50× requested simulation speeds with measured achieved speed.
-- Fast-training mode that stops the expensive spectator render while preserving the four neural camera renders.
-- Multiple circuits: Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and a long Grand Prix course.
-- Random multi-track training that periodically rotates circuits to encourage visual generalization.
+- Fast-training mode that suppresses the expensive spectator render while preserving the four neural-camera renders.
+- Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, Grand Prix, and random multi-track training.
 - Separate deterministic 1-, 3-, or 5-lap evaluation races with learning frozen.
-- Checkpoint save/load for learned weights and training metadata.
+- Versioned checkpoint save/load; v0.1/v1 checkpoints can be approximately migrated into the v0.2 temporal/split-policy architecture.
 - Velocity-based vehicle physics with finite lateral grip, visible slip angle, grass grip loss, damage-limited performance, and automatic gears.
-- Collision damage for both cars but reward punishment apportioned by approximate collision responsibility.
-- Small position/overtake learning incentives while forward track progress and lap completion remain the main reward.
+- Collision damage for both cars while the learning penalty is apportioned by approximate collision responsibility.
+- Learning telemetry based on reward per experience, forward meters per experience, off-road percentage, reset rate, lap count, collision count, action mix, and a reward-history chart.
 
-## Learning versus evaluation
+## Why v0.2 changed the learner
 
-**Learning mode** samples actions stochastically, accumulates 512 combined experiences, pauses briefly for backpropagation, and continues driving with the updated policy. Individual badly damaged, off-track, or stuck cars respawn.
+The v0.1 physics allowed the vehicle velocity direction to differ from the body heading, but the policy still saw only a single image. Two visually similar frames could therefore require very different actions if one car was stable and another was sliding sideways. v0.2 adds an image-derived motion channel so the policy can infer visual movement without receiving hidden track-relative velocity data.
 
-**Evaluation race** resets to a clean grid and freezes the current network for the entire event. Actions are deterministic, no PPO experience is gathered, and drivers can finish P1–P4 or DNF. This makes race results a clean benchmark of one fixed policy version.
+The old 15-way combined action head also forced the learner to rediscover the usefulness of throttle separately for every steering choice. v0.2 factors the policy into independent steering and longitudinal-control heads while retaining one shared visual representation.
 
-## Tracks and distribution shift
-
-`Counterflow` runs the same general course in the opposite direction, making it useful for testing whether a policy learned visual road-following or merely memorized a dominant turn direction. Random multi-track mode rotates among all included circuits every few policy updates.
-
-The Figure Eight uses different road elevations at the crossover so the crossing functions as an overpass. The long Grand Prix circuit is intended as the strongest racing/evaluation environment.
+Entropy regularization and a higher exploration floor reduce premature policy collapse.
 
 ## Reward philosophy
 
-The dominant positive signal is forward progress. Lap completion adds a bonus. Backward movement, grass, becoming stuck, and causing collisions reduce reward.
+Dense forward movement aligned with the local track direction is the primary positive signal. Forward motion receives full credit on the road and only tiny credit off-road. Backward movement, grass, becoming stuck, and causing collisions reduce reward. The terminal failure penalty is intentionally modest so useful partial trajectories are not overwhelmed by one large final punishment.
 
-Collision **damage** is physical and applies to both cars. The collision **learning penalty** is different: it is divided using the cars' velocity components into the contact, so a car that is rear-ended can be damaged without being taught that merely being hit was its behavioral mistake.
+Damage remains a physical consequence for both cars. Collision **learning penalty** is separate and is divided according to how strongly each car's velocity carried it into the contact.
 
-Position gains receive only a small bonus. This is deliberate: racecraft should emerge on top of competent driving rather than replacing it with reward hacking.
+Moment-to-moment position changes are now **telemetry only**. Earlier asymmetric overtake shaping could be farmed by repeatedly swapping positions. A small race-position bonus is instead paid at lap completion, where it represents meaningful race progress and cannot be collected by oscillating passes.
+
+## Tracks and vertical behavior
+
+The normal circuits are flat because the current vehicle simulation is intentionally 2D in its physical state. This avoids rendering off-track cars at an arbitrary elevated road height.
+
+The Figure Eight is the exception: its crossover uses one ground-level branch and one elevated branch so it functions as an overpass. Cars follow that road height only while they remain close to the figure-eight surface; an off-track car renders on the ground.
+
+## Learning versus evaluation
+
+**Learning mode** samples steering and throttle actions stochastically, accumulates 512 combined experiences, pauses briefly for backpropagation, and continues driving with the updated policy. Individual badly damaged, off-track, or stuck cars respawn.
+
+**Evaluation race** resets to a clean grid and freezes the current network for the entire event. Actions are deterministic, no PPO experience is gathered, and drivers can finish P1–P4 or DNF.
 
 ## Folder structure
 
@@ -53,21 +61,21 @@ index.html          Stable redirect to the released simulator.
 simulator.html      Released application shell.
 src/index.html      Direct source preview.
 src/styles.css      UI and simulator styling.
-src/js/version.js    Visible release version.
-src/js/app.js        Three.js loader, sequential module bootstrap, and startup error boundary.
-src/js/state.js      Constants, utilities, action table, and mutable simulator state.
-src/js/scene.js      Renderer, cameras, lighting, and base environment.
-src/js/tracks.js     Circuit definitions, geometry construction, and track switching.
-src/js/cars.js       Car meshes, driver state, starting grid, and respawning.
-src/js/model.js      Shared actor-critic network and action sampling.
-src/js/perception.js Per-car POV renders and image-to-observation conversion.
+src/js/version.js   Visible release version.
+src/js/app.js       Three.js loader, sequential module bootstrap, and startup error boundary.
+src/js/state.js     Constants, utilities, action spaces, metrics, and mutable simulator state.
+src/js/scene.js     Renderer, cameras, lighting, and base environment.
+src/js/tracks.js    Circuit definitions, geometry construction, and track switching.
+src/js/cars.js      Car meshes, driver state, surface height, starting grid, and respawning.
+src/js/model.js     Shared actor-critic network with separate steering/throttle heads.
+src/js/perception.js Per-car POV renders and temporal image-to-observation conversion.
 src/js/simulation.js Policy decisions and experience transition collection.
-src/js/physics.js    Vehicle dynamics, collisions, responsibility, and reward signals.
-src/js/training.js   PPO batch construction, backpropagation, and policy updates.
-src/js/race.js       Evaluation races, track modes, and checkpoint save/load.
-src/js/ui.js         Spectator camera, telemetry, driver cards, and UI rendering.
-src/js/runtime.js    Animation loop, controls, event wiring, and application startup.
-DESIGN.md           Design rationale and learning loop.
+src/js/physics.js   Vehicle dynamics, dense rewards, collisions, and race-position telemetry.
+src/js/training.js  PPO batch construction, entropy-regularized backprop, and learning metrics.
+src/js/race.js      Evaluation races, track modes, and versioned checkpoint save/load/migration.
+src/js/ui.js        Spectator camera, learning chart, telemetry, driver cards, and UI rendering.
+src/js/runtime.js   Animation loop, controls, event wiring, and application startup.
+DESIGN.md            Design rationale and learning loop.
 ```
 
-Three.js is loaded as an exact-version browser ESM dependency from jsDelivr. Neural-network training and all learned state otherwise remain local to the browser.
+Three.js is loaded as an exact-version browser ESM dependency from jsDelivr. Neural-network training and learned state otherwise remain local to the browser.

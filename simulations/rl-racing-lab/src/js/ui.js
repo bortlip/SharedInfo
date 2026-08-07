@@ -1,42 +1,64 @@
-// Spectator camera, telemetry, driver cards, and UI rendering.
+// Spectator camera, learning telemetry, driver cards, and UI rendering.
 function updateMainCamera(){
-  const car=drivers[sim.selected],f=new THREE.Vector3(Math.cos(car.heading),0,Math.sin(car.heading));
+  const car=drivers[sim.selected],f=new THREE.Vector3(Math.cos(car.heading),0,Math.sin(car.heading)),roadY=surfaceHeightForCar(car);
   if(sim.cameraMode==='chase'){
-    const roadY=track[car.trackIndex]?.y||0,desired=new THREE.Vector3(car.x-f.x*7,roadY+3.7,car.z-f.z*7);mainCamera.position.lerp(desired,.10);mainCamera.lookAt(car.x+f.x*5,roadY+.65,car.z+f.z*5);
+    const desired=new THREE.Vector3(car.x-f.x*7,roadY+3.7,car.z-f.z*7);mainCamera.position.lerp(desired,.10);mainCamera.lookAt(car.x+f.x*5,roadY+.65,car.z+f.z*5);
   }else{
-    const roadY=track[car.trackIndex]?.y||0;mainCamera.position.set(car.x+f.x*.25,roadY+1.25,car.z+f.z*.25);mainCamera.lookAt(car.x+f.x*14,roadY+.65,car.z+f.z*14);
+    mainCamera.position.set(car.x+f.x*.25,roadY+1.25,car.z+f.z*.25);mainCamera.lookAt(car.x+f.x*14,roadY+.65,car.z+f.z*14);
   }
 }
 function resize(){const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);mainCamera.aspect=w/h;mainCamera.updateProjectionMatrix()}
 window.addEventListener('resize',resize);resize();
-function log(text){const el=$('log'),line=document.createElement('div');line.textContent=text;el.prepend(line);while(el.children.length>18)el.lastChild.remove()}
+function log(text){const el=$('log'),line=document.createElement('div');line.textContent=text;el.prepend(line);while(el.children.length>24)el.lastChild.remove()}
 function pctProgress(car){return mod(car.trackIndex-finishIndex,TRACK_N)/TRACK_N}
 function updateDriversUI(){
   const wrap=$('drivers');wrap.innerHTML='';
   drivers.forEach((c,i)=>{
     const d=document.createElement('div');d.className='driver'+(i===sim.selected?' active':'');
     const status=sim.mode==='race'?(c.finishPlace!=null?`P${c.finishPlace} · ${c.finishTime.toFixed(1)}s`:c.raceStatus==='dnf'?'DNF':`lap ${Math.min(c.lap+1,sim.raceLaps)}/${sim.raceLaps}`):`${c.lap} lap${c.lap===1?'':'s'}`;
-    d.innerHTML=`<div class="driver-head"><strong>Driver ${i+1}</strong><span>${status}</span></div><canvas class="driver-pov" width="32" height="20" aria-label="Driver ${i+1} neural camera input"></canvas><div class="mini"><span>speed <b>${c.speed.toFixed(1)}</b></span><span>reward <b>${c.totalReward.toFixed(1)}</b></span><span>progress <b>${Math.round(pctProgress(c)*100)}%</b></span><span>hits <b>${c.collisions}</b></span><span>passes <b>${c.overtakes}</b></span><span>slip <b>${c.slip.toFixed(0)}°</b></span></div><div class="damage"><div style="width:${c.damage}%"></div></div>`;
-    d.addEventListener('click',()=>{sim.selected=i;if(!sim.learning)chooseAction(drivers[i]);updateUI()});wrap.appendChild(d);
-    drawPreview(d.querySelector('.driver-pov'),c.latestRGBA);
+    d.innerHTML=`<div class="driver-head"><strong>Driver ${i+1}</strong><span>${status}</span></div><canvas class="driver-pov" width="32" height="20" aria-label="Driver ${i+1} neural camera input"></canvas><div class="mini"><span>speed <b>${c.speed.toFixed(1)}</b></span><span>ep reward <b>${c.episodeReward.toFixed(1)}</b></span><span>ep distance <b>${c.episodeProgress.toFixed(0)}m</b></span><span>hits <b>${c.collisions}</b></span><span>passes <b>${c.overtakes}</b></span><span>slip <b>${c.slip.toFixed(0)}°</b></span></div><div class="damage"><div style="width:${c.damage}%"></div></div>`;
+    d.addEventListener('click',()=>{sim.selected=i;updateUI()});wrap.appendChild(d);drawPreview(d.querySelector('.driver-pov'),c.latestRGBA);
   });
 }
 function actionName(car){
-  const a=actionTable[car.lastAction]||{steer:0,throttle:0};
-  return{steer:a.steer<-.75?'HARD LEFT':a.steer<-.1?'LEFT':a.steer>.75?'HARD RIGHT':a.steer>.1?'RIGHT':'STRAIGHT',throttle:a.throttle>0?'THROTTLE':a.throttle<0?'BRAKE':'COAST'};
+  return{steer:car.actionSteer<-.75?'HARD LEFT':car.actionSteer<-.1?'LEFT':car.actionSteer>.75?'HARD RIGHT':car.actionSteer>.1?'RIGHT':'STRAIGHT',throttle:car.actionThrottle>0?'THROTTLE':car.actionThrottle<0?'BRAKE':'COAST'};
+}
+function currentMetrics(){
+  if(sim.lastMetrics)return sim.lastMetrics;
+  return{
+    rewardPerExp:sim.batchReward/Math.max(1,sim.experience),forwardPerExp:sim.batchForwardMeters/Math.max(1,sim.experience),
+    offRoadPct:sim.batchOffRoadSeconds/Math.max(.001,sim.batchDriverSeconds)*100,
+    avgFailDistance:sim.batchEpisodes?sim.batchEpisodeDistance/sim.batchEpisodes:drivers.reduce((sum,c)=>sum+c.episodeProgress,0)/DRIVER_COUNT,
+    resets:sim.batchResets,laps:sim.batchLaps,collisions:sim.collisions,steer:sim.batchSteerCounts,throttle:sim.batchThrottleCounts
+  };
+}
+function drawLearningChart(){
+  const canvas=$('learningChart');if(!canvas)return;
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,pad=8;ctx.clearRect(0,0,w,h);ctx.fillStyle='#08131d';ctx.fillRect(0,0,w,h);
+  const history=sim.history.slice(-60);if(history.length<2){ctx.fillStyle='#718493';ctx.font='10px system-ui';ctx.fillText('Reward / experience history appears after learning updates.',10,h/2);return}
+  let lo=Math.min(0,...history.map(x=>x.rewardPerExp)),hi=Math.max(0,...history.map(x=>x.rewardPerExp));if(Math.abs(hi-lo)<1e-4){hi+=.1;lo-=.1}
+  const y=v=>pad+(hi-v)/(hi-lo)*(h-pad*2),x=i=>pad+i/(history.length-1)*(w-pad*2);
+  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,y(0));ctx.lineTo(w-pad,y(0));ctx.stroke();
+  ctx.strokeStyle='#55dbea';ctx.lineWidth=2;ctx.beginPath();history.forEach((m,i)=>i?ctx.lineTo(x(i),y(m.rewardPerExp)):ctx.moveTo(x(i),y(m.rewardPerExp)));ctx.stroke();
+  const last=history.at(-1);ctx.fillStyle='#a5f6ff';ctx.font='10px system-ui';ctx.fillText(`last ${last.rewardPerExp.toFixed(3)} · range ${lo.toFixed(2)} to ${hi.toFixed(2)}`,10,13);
+}
+function actionMixText(metrics){
+  const steerTotal=metrics.steer.reduce((a,b)=>a+b,0)||1,driveTotal=metrics.throttle.reduce((a,b)=>a+b,0)||1,pct=(n,t)=>Math.round(n/t*100);
+  return `Steer: L ${pct(metrics.steer[0]+metrics.steer[1],steerTotal)}% · straight ${pct(metrics.steer[2],steerTotal)}% · R ${pct(metrics.steer[3]+metrics.steer[4],steerTotal)}%  |  Drive: brake ${pct(metrics.throttle[0],driveTotal)}% · coast ${pct(metrics.throttle[1],driveTotal)}% · throttle ${pct(metrics.throttle[2],driveTotal)}%`;
 }
 function updateUI(){
   $('phaseText').textContent=sim.learning?'BACKPROP':sim.running?(sim.mode==='race'?'EVAL RACE':'LEARNING'):'PAUSED';
   $('updateText').textContent=sim.update;$('experienceText').textContent=sim.mode==='race'?'frozen':`${sim.experience} / ${BATCH_TARGET}`;
   $('selectedText').textContent=`Driver ${sim.selected+1}`;$('trackText').textContent=TRACK_DEFS[activeTrackId]?.name||activeTrackId;$('actualSpeed').textContent=`${sim.achievedSpeed.toFixed(1)}×`;
-  $('expLabel').textContent=sim.mode==='race'?'frozen':`${sim.experience} / ${BATCH_TARGET}`;
-  $('expBar').style.width=sim.mode==='race'?'0%':`${Math.min(100,sim.experience/BATCH_TARGET*100)}%`;
-  $('batchReward').textContent=sim.mode==='race'?'—':sim.batchReward.toFixed(1);$('collisionCount').textContent=sim.collisions;
-  const avg=drivers.reduce((sum,c)=>sum+pctProgress(c),0)/DRIVER_COUNT;$('avgProgress').textContent=`${Math.round(avg*100)}%`;
-  const car=drivers[sim.selected],names=actionName(car);$('steerOut').textContent=names.steer;$('throttleOut').textContent=names.throttle;$('confidenceOut').textContent=car.lastProb?`${Math.round(car.lastProb*100)}%`:'—';
+  $('expLabel').textContent=sim.mode==='race'?'frozen':`${sim.experience} / ${BATCH_TARGET}`;$('expBar').style.width=sim.mode==='race'?'0%':`${Math.min(100,sim.experience/BATCH_TARGET*100)}%`;
+  const metrics=currentMetrics();
+  $('rewardPerExp').textContent=sim.mode==='race'?'—':metrics.rewardPerExp.toFixed(3);$('forwardPerExp').textContent=sim.mode==='race'?'—':`${metrics.forwardPerExp.toFixed(2)}m`;
+  $('offRoadPct').textContent=sim.mode==='race'?'—':`${metrics.offRoadPct.toFixed(0)}%`;$('avgFailDistance').textContent=sim.mode==='race'?'—':`${metrics.avgFailDistance.toFixed(0)}m`;
+  $('resetCount').textContent=sim.mode==='race'?'—':metrics.resets;$('lapHitCount').textContent=sim.mode==='race'?'—':`${metrics.laps} / ${metrics.collisions}`;$('actionMix').textContent=actionMixText(metrics);
+  const car=drivers[sim.selected],names=actionName(car);$('steerOut').textContent=names.steer;$('throttleOut').textContent=names.throttle;
+  $('confidenceOut').textContent=car.lastSteerProb?`S ${Math.round(car.lastSteerProb*100)}% · T ${Math.round(car.lastThrottleProb*100)}%`:'—';$('slipOut').textContent=`${car.slip.toFixed(0)}° · G${car.gear}`;
   $('runBtn').textContent=sim.mode==='race'?(sim.running?'Ⅱ Pause race':'▶ Resume race'):(sim.running?'Ⅱ Pause learning':'▶ Start learning');
-  $('learnBtn').classList.toggle('primary',sim.mode==='learn');
-  $('raceBtn').classList.toggle('primary',sim.mode==='race'&&!sim.raceFinished);$('fastBtn').classList.toggle('primary',sim.fastMode);$('fastBtn').textContent=sim.fastMode?'⚡ Fast training ON':'⚡ Fast training';$('slipOut').textContent=`${car.slip.toFixed(0)}° · G${car.gear}`;
+  $('learnBtn').classList.toggle('primary',sim.mode==='learn');$('raceBtn').classList.toggle('primary',sim.mode==='race'&&!sim.raceFinished);$('fastBtn').classList.toggle('primary',sim.fastMode);$('fastBtn').textContent=sim.fastMode?'⚡ Fast training ON':'⚡ Fast training';
   if(sim.mode==='race'&&!sim.raceFinished)$('raceResult').innerHTML=`<strong>Race:</strong> ${sim.raceLaps} laps · ${sim.raceTime.toFixed(1)} s · ${raceResultsText()}`;
-  updateDriversUI();updatePOV();
+  updateDriversUI();updatePOV();drawLearningChart();
 }
