@@ -53,8 +53,20 @@ index.html          Stable redirect to the released simulator.
 simulator.html      Released application shell.
 src/index.html      Direct source preview.
 src/styles.css      UI and simulator styling.
-src/js/version.js   Visible release version.
-src/js/app.js       Three.js world, tracks, cameras, physics, RL, race modes, checkpoints, and UI.
+src/js/version.js    Visible release version.
+src/js/app.js        Three.js loader, sequential module bootstrap, and startup error boundary.
+src/js/state.js      Constants, utilities, action table, and mutable simulator state.
+src/js/scene.js      Renderer, cameras, lighting, and base environment.
+src/js/tracks.js     Circuit definitions, geometry construction, and track switching.
+src/js/cars.js       Car meshes, driver state, starting grid, and respawning.
+src/js/model.js      Shared actor-critic network and action sampling.
+src/js/perception.js Per-car POV renders and image-to-observation conversion.
+src/js/simulation.js Policy decisions and experience transition collection.
+src/js/physics.js    Vehicle dynamics, collisions, responsibility, and reward signals.
+src/js/training.js   PPO batch construction, backpropagation, and policy updates.
+src/js/race.js       Evaluation races, track modes, and checkpoint save/load.
+src/js/ui.js         Spectator camera, telemetry, driver cards, and UI rendering.
+src/js/runtime.js    Animation loop, controls, event wiring, and application startup.
 DESIGN.md           Design rationale and learning loop.
 ```
 
