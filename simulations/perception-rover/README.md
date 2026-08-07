@@ -7,6 +7,7 @@ Current release: **v0.1.0**
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/perception-rover/src/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+- [Related lab: POV RL Racing Lab](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 
 ## What it demonstrates
 
