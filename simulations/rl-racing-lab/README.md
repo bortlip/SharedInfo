@@ -40,7 +40,7 @@ The old 15-way combined action head also forced the learner to rediscover the us
 
 Entropy regularization and a higher exploration floor reduce premature policy collapse.
 
-## Reward philosophy
+Moment-to-moment position changes are now **telemetry only**. Earlier asymmetric overtake shaping could be farmed by repeatedly swapping positions. A small race-position bonus is instead paid at lap completion, where it represents meaningful race progress and cannot be collected by oscillating passes.
 
 Dense forward movement aligned with the local track direction is the primary positive signal. Forward motion receives full credit on the road and only tiny credit off-road. Backward movement, grass, becoming stuck, and causing collisions reduce reward. The terminal failure penalty is intentionally modest so useful partial trajectories are not overwhelmed by one large final punishment.
 
