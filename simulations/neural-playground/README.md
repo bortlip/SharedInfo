@@ -2,7 +2,7 @@
 
 A dependency-free interactive learning lab for watching tiny machine-learning models learn. Draw or load 2D classification problems, animate training, inspect the decision field, and trace a sample through the network as weights and activations change.
 
-Current release: **v0.1.0**
+Current release: **v0.1.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/neural-playground/src/)
