@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Neural Playground is an interactive browser lab for watching a perceptron and tiny neural network learn 2D classification problems, including XOR." />
+<link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/neural-playground/simulator.html" />
+<link rel="stylesheet" href="styles.css" />
+<title>Neural Playground — Watch a Model Learn</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brandmark">N</div>
+      <div>
+        <h1>Neural Playground</h1>
+        <p>Draw a problem. Watch a model think. Break it on purpose.</p>
+      </div>
+    </div>
+    <div class="top-status">
+      <a class="chip version-chip" href="https://github.com/bortlip/SharedInfo/tree/main/simulations/neural-playground" title="View Neural Playground source"><strong data-app-version>v—</strong></a>
+      <span class="chip live" id="statusChip">Ready to learn</span>
+      <span class="chip">Model <strong id="topModel">Single perceptron</strong></span>
+      <span class="chip">Dataset <strong id="topDataset">Easy split</strong></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main class="main-column">
+      <section class="card field-card">
+        <div class="field-overlay">
+          <div class="glass">Epoch <strong id="epochValue">0</strong></div>
+          <div class="glass">Accuracy <strong id="accuracyValue">0%</strong></div>
+          <div class="glass">Loss <strong id="lossValue">—</strong></div>
+          <div class="glass">Examples <strong id="pointCountValue">0</strong></div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="fieldCanvas" width="1000" height="620" aria-label="Interactive two-dimensional classification field"></canvas>
+          <div class="canvas-help">Inspect a point, or switch tools below to add and erase training examples.</div>
+          <div class="legend" aria-hidden="true">
+            <span class="legend-item"><span class="legend-shape circle"></span> class A</span>
+            <span class="legend-item"><span class="legend-shape diamond"></span> class B</span>
+            <span>white = decision boundary · gold arc = wrong</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card controls-card">
+        <div class="controls-row">
+          <button class="primary-btn" id="playBtn">▶ Start training</button>
+          <button class="secondary-btn" id="stepEpochBtn">+ 1 epoch</button>
+          <button class="secondary-btn" id="resetWeightsBtn">↺ New weights</button>
+          <div class="speed-group" aria-label="Training speed">
+            <button class="speed-btn" data-speed-index="0">slow</button>
+            <button class="speed-btn active" data-speed-index="1">1×</button>
+            <button class="speed-btn" data-speed-index="2">5×</button>
+            <button class="speed-btn" data-speed-index="3">warp</button>
+          </div>
+          <div class="spacer"></div>
+          <div class="tool-group" aria-label="Data editing tool">
+            <button class="tool-btn active" data-tool="inspect">inspect</button>
+            <button class="tool-btn" data-tool="class-a">＋ A</button>
+            <button class="tool-btn" data-tool="class-b">＋ B</button>
+            <button class="tool-btn" data-tool="erase">erase</button>
+          </div>
+          <button class="secondary-btn" id="clearPointsBtn">Clear data</button>
+        </div>
+
+        <div class="config-grid">
+          <div class="field">
+            <label for="datasetSelect">Dataset</label>
+            <select id="datasetSelect">
+              <option value="linear">Easy split</option>
+              <option value="noisy">Noisy split</option>
+              <option value="xor">XOR — break the perceptron</option>
+              <option value="circles">Inner / outer circles</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modelSelect">Model</label>
+            <select id="modelSelect">
+              <option value="perceptron">Single perceptron</option>
+              <option value="network">1 hidden layer</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="learningRateInput">Learning rate <span id="learningRateValue">0.12</span></label>
+            <input id="learningRateInput" type="range" min="0.01" max="0.45" step="0.01" value="0.12" />
+          </div>
+          <div class="field disabled" id="hiddenUnitsField">
+            <label for="hiddenUnitsInput">Hidden units <span id="hiddenUnitsValue">4</span></label>
+            <input id="hiddenUnitsInput" type="range" min="2" max="8" step="1" value="4" disabled />
+          </div>
+        </div>
+        <div class="controls-row">
+          <div class="dataset-blurb" id="datasetBlurb">Two clouds separated by a line.</div>
+          <div class="spacer"></div>
+          <button class="secondary-btn" id="regenerateBtn">🎲 Regenerate dataset</button>
+        </div>
+      </section>
+
+      <div class="insights">
+        <section class="card section">
+          <div class="section-head">
+            <div>
+              <h2>Learning trace</h2>
+              <p>Green is accuracy. Gold is loss. A model can improve quickly, stall, or keep thrashing.</p>
+            </div>
+          </div>
+          <canvas id="historyCanvas" width="760" height="190" aria-label="Training accuracy and loss history"></canvas>
+        </section>
+        <section class="card section">
+          <div class="lesson">
+            <div class="lesson-kicker" id="lessonKicker">What to watch</div>
+            <h2>What is the model actually learning?</h2>
+            <p id="lessonText"><strong>Training changes the weights, and the weights move the decision boundary.</strong> The field shows what the model currently believes everywhere, not just at the training points.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="sidebar">
+      <section class="card side-card">
+        <div class="section-head">
+          <div>
+            <h2>Signal flow</h2>
+            <p>The selected training example travels left → right through the current weights.</p>
+          </div>
+        </div>
+        <canvas id="networkCanvas" width="560" height="430" aria-label="Animated neural network signal flow"></canvas>
+        <div class="network-note"><span class="positive">green connections</span> have positive weights · <span class="negative">pink connections</span> have negative weights · thicker means larger magnitude. The moving lights are activations, not tiny electrical hamsters.</div>
+      </section>
+
+      <section class="card side-card">
+        <div class="section-head">
+          <div>
+            <h2>Sample inspector</h2>
+            <p>Hover or inspect a point to follow one prediction end-to-end.</p>
+          </div>
+        </div>
+        <div class="inspector-head">
+          <strong id="inspectTitle">No point selected</strong>
+          <span id="inspectSubtitle">Hover or inspect a training point.</span>
+        </div>
+        <div class="telemetry">
+          <div class="metric"><label>Target</label><strong id="inspectTarget">—</strong></div>
+          <div class="metric"><label>Prediction</label><strong id="inspectPrediction">—</strong></div>
+          <div class="metric"><label>Confidence</label><strong id="inspectConfidence">—</strong></div>
+          <div class="metric"><label>Coordinates</label><strong id="inspectCoords">—</strong></div>
+        </div>
+        <div class="signal-readout" id="signalReadout">Choose a point to trace its values through the network.</div>
+        <div class="challenge"><strong>Try this first</strong>Train “Easy split” with the single perceptron. Then switch to XOR without changing models. When it refuses to reach 100%, that is not stubbornness — it is geometry. Switch to the hidden-layer network and watch what changes.</div>
+      </section>
+    </aside>
+  </div>
+
+  <footer class="site-footer">Neural Playground <span data-app-version>v—</span> · models trained from scratch in your browser · no external ML libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/neural-playground">source on GitHub</a></footer>
+</div>
+
+<script src="js/version.js"></script>
+<script src="js/constants.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/state.js"></script>
+<script src="js/datasets.js"></script>
+<script src="js/model.js"></script>
+<script src="js/simulation.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
