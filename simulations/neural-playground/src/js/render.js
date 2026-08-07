@@ -191,45 +191,64 @@ function nodePositions(count, x, top = 74, bottom = NETWORK_H - 55) {
   return Array.from({ length: count }, (_, i) => ({ x, y: lerp(top, bottom, i / (count - 1)) }));
 }
 
+function hiddenNodeRadius(count) {
+  if (count <= 4) return 28;
+  if (count <= 6) return 22;
+  return 17;
+}
+
 function drawConnection(g, a, b, weight, activeAmount = 0, pulseT = null) {
   const positive = weight >= 0;
   const magnitude = clamp(Math.abs(weight), 0, 2.4);
   g.save();
-  g.strokeStyle = positive ? `rgba(82,225,191,${0.18 + magnitude * .22})` : `rgba(255,112,139,${0.18 + magnitude * .22})`;
-  g.lineWidth = 1 + magnitude * 2.1;
+  g.strokeStyle = positive ? `rgba(82,225,191,${0.30 + magnitude * .25})` : `rgba(255,112,139,${0.30 + magnitude * .25})`;
+  g.lineWidth = 1.8 + magnitude * 2.5;
   g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
   if (pulseT !== null && activeAmount > .03) {
     const t = clamp(pulseT, 0, 1);
     const x = lerp(a.x, b.x, t), y = lerp(a.y, b.y, t);
-    g.globalAlpha = clamp(.25 + activeAmount * .75, .25, 1);
-    g.fillStyle = positive ? '#a8ffe3' : '#ffb2c0';
+    g.globalAlpha = clamp(.45 + activeAmount * .55, .45, 1);
+    g.fillStyle = positive ? '#b8ffea' : '#ffc0cb';
     g.shadowColor = g.fillStyle;
-    g.shadowBlur = 16;
-    g.beginPath(); g.arc(x, y, 3.5 + activeAmount * 2.2, 0, Math.PI * 2); g.fill();
+    g.shadowBlur = 22;
+    g.beginPath(); g.arc(x, y, 5 + activeAmount * 3, 0, Math.PI * 2); g.fill();
   }
   g.restore();
 }
 
-function drawNode(g, p, label, value, kind = 'hidden') {
+function drawNode(g, p, label, value, kind = 'hidden', radius = 32) {
   const v = clamp(Number.isFinite(value) ? value : 0, -1, 1);
   const abs = Math.abs(v);
   const fill = kind === 'output'
-    ? (value >= .5 ? `rgba(255,116,128,${.18 + value * .60})` : `rgba(56,205,222,${.18 + (1 - value) * .60})`)
-    : (v >= 0 ? `rgba(82,225,191,${.10 + abs * .58})` : `rgba(255,112,139,${.10 + abs * .58})`);
+    ? (value >= .5 ? `rgba(255,116,128,${.40 + value * .50})` : `rgba(56,205,222,${.40 + (1 - value) * .50})`)
+    : (v >= 0 ? `rgba(82,225,191,${.30 + abs * .58})` : `rgba(255,112,139,${.30 + abs * .58})`);
+  const halo = kind === 'output'
+    ? (value >= .5 ? 'rgba(255,116,128,.34)' : 'rgba(56,205,222,.34)')
+    : (v >= 0 ? 'rgba(82,225,191,.30)' : 'rgba(255,112,139,.30)');
+  const labelSize = radius >= 28 ? 15 : radius >= 23 ? 13 : 11;
+  const valueSize = radius >= 28 ? 13 : radius >= 23 ? 11 : 9;
+
   g.save();
+  g.strokeStyle = halo;
+  g.lineWidth = 7;
+  g.beginPath(); g.arc(p.x, p.y, radius + 4, 0, Math.PI * 2); g.stroke();
+
   g.fillStyle = fill;
-  g.strokeStyle = 'rgba(255,255,255,.62)';
-  g.lineWidth = 1.5;
-  g.shadowColor = 'rgba(255,255,255,.12)'; g.shadowBlur = 10;
-  g.beginPath(); g.arc(p.x, p.y, 24, 0, Math.PI * 2); g.fill(); g.stroke();
-  g.shadowBlur = 0;
-  g.fillStyle = '#f4f7fb';
-  g.font = '800 11px system-ui, sans-serif';
+  g.strokeStyle = 'rgba(255,255,255,.92)';
+  g.lineWidth = 2.5;
+  g.shadowColor = 'rgba(255,255,255,.30)';
+  g.shadowBlur = 20;
+  g.beginPath(); g.arc(p.x, p.y, radius, 0, Math.PI * 2); g.fill(); g.stroke();
+
+  g.shadowBlur = 6;
+  g.shadowColor = 'rgba(0,0,0,.8)';
+  g.fillStyle = '#ffffff';
+  g.font = `900 ${labelSize}px system-ui, sans-serif`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(label, p.x, p.y - 5);
-  g.fillStyle = 'rgba(235,242,247,.75)';
-  g.font = '10px ui-monospace, SFMono-Regular, Consolas, monospace';
-  g.fillText(Number.isFinite(value) ? fmt(value, 2) : '—', p.x, p.y + 9);
+  g.fillText(label, p.x, p.y - radius * .20);
+  g.fillStyle = 'rgba(255,255,255,.94)';
+  g.font = `800 ${valueSize}px ui-monospace, SFMono-Regular, Consolas, monospace`;
+  g.fillText(Number.isFinite(value) ? fmt(value, 2) : '—', p.x, p.y + radius * .28);
   g.restore();
 }
 
@@ -237,8 +256,8 @@ function drawNetwork() {
   const g = networkCtx;
   g.clearRect(0, 0, NETWORK_W, NETWORK_H);
   const gradient = g.createLinearGradient(0, 0, NETWORK_W, NETWORK_H);
-  gradient.addColorStop(0, '#0c1622');
-  gradient.addColorStop(1, '#101522');
+  gradient.addColorStop(0, '#0b1724');
+  gradient.addColorStop(1, '#111827');
   g.fillStyle = gradient;
   g.fillRect(0, 0, NETWORK_W, NETWORK_H);
 
@@ -247,11 +266,11 @@ function drawNetwork() {
     return point && sim.model ? { point, detail: predictDetailed(sim.model, point.x, point.y) } : null;
   })();
   const detail = signal?.detail;
-  const inputPos = nodePositions(2, 78, 132, 298);
-  const outputPos = nodePositions(1, NETWORK_W - 72, 120, 310)[0];
+  const inputPos = nodePositions(2, 86, 130, 290);
+  const outputPos = nodePositions(1, NETWORK_W - 82, 118, 302)[0];
 
-  g.fillStyle = 'rgba(229,237,245,.55)';
-  g.font = '800 10px system-ui, sans-serif';
+  g.fillStyle = 'rgba(235,242,248,.78)';
+  g.font = '900 14px system-ui, sans-serif';
   g.textAlign = 'center';
   g.fillText('INPUTS', inputPos[0].x, 42);
   g.fillText('OUTPUT', outputPos.x, 42);
@@ -262,13 +281,14 @@ function drawNetwork() {
     for (let i = 0; i < 2; i++) {
       drawConnection(g, inputPos[i], outputPos, weights[i], Math.abs(detail?.inputs?.[i] || 0), phase);
     }
-    drawNode(g, inputPos[0], 'x₁', detail?.inputs?.[0], 'input');
-    drawNode(g, inputPos[1], 'x₂', detail?.inputs?.[1], 'input');
-    drawNode(g, outputPos, 'ŷ', detail?.output, 'output');
-    drawBias(g, NETWORK_W * .51, 347, sim.model.b, 'bias');
+    drawNode(g, inputPos[0], 'x₁', detail?.inputs?.[0], 'input', 34);
+    drawNode(g, inputPos[1], 'x₂', detail?.inputs?.[1], 'input', 34);
+    drawNode(g, outputPos, 'ŷ', detail?.output, 'output', 36);
+    drawBias(g, NETWORK_W * .51, 326, sim.model.b, 'bias');
     drawEquationHint(g, `score = ${fmt(weights[0],2)}x₁ ${weights[1] >= 0 ? '+' : '−'} ${fmt(Math.abs(weights[1]),2)}x₂ ${sim.model.b >= 0 ? '+' : '−'} ${fmt(Math.abs(sim.model.b),2)}`);
   } else if (sim.model) {
-    const hiddenPos = nodePositions(sim.model.hiddenUnits, NETWORK_W * .51, 75, 325);
+    const hiddenRadius = hiddenNodeRadius(sim.model.hiddenUnits);
+    const hiddenPos = nodePositions(sim.model.hiddenUnits, NETWORK_W * .51, 82, 304);
     g.fillText('HIDDEN LAYER', NETWORK_W * .51, 42);
     const phase1 = clamp(sim.flowPhase * 2, 0, 1);
     const phase2 = clamp((sim.flowPhase - .5) * 2, 0, 1);
@@ -280,46 +300,50 @@ function drawNetwork() {
       const pulse = sim.flowPhase >= .5 ? phase2 : null;
       drawConnection(g, hiddenPos[h], outputPos, sim.model.w2[h], Math.abs(detail?.hidden?.[h] || 0), pulse);
     }
-    drawNode(g, inputPos[0], 'x₁', detail?.inputs?.[0], 'input');
-    drawNode(g, inputPos[1], 'x₂', detail?.inputs?.[1], 'input');
-    hiddenPos.forEach((p, i) => drawNode(g, p, `h${i + 1}`, detail?.hidden?.[i], 'hidden'));
-    drawNode(g, outputPos, 'ŷ', detail?.output, 'output');
-    drawBias(g, NETWORK_W * .51, 379, sim.model.b2, 'output bias');
+    drawNode(g, inputPos[0], 'x₁', detail?.inputs?.[0], 'input', 32);
+    drawNode(g, inputPos[1], 'x₂', detail?.inputs?.[1], 'input', 32);
+    hiddenPos.forEach((p, i) => drawNode(g, p, `h${i + 1}`, detail?.hidden?.[i], 'hidden', hiddenRadius));
+    drawNode(g, outputPos, 'ŷ', detail?.output, 'output', 34);
+    drawBias(g, NETWORK_W * .68, 336, sim.model.b2, 'output bias');
     drawEquationHint(g, `${sim.model.hiddenUnits} tanh units combine into one sigmoid output`);
   }
 
   if (signal?.point) {
     const label = signal.point.label === CLASS_A ? 'A' : 'B';
-    g.fillStyle = 'rgba(255,255,255,.72)';
+    g.fillStyle = 'rgba(255,255,255,.84)';
     g.textAlign = 'left';
-    g.font = '11px ui-monospace, SFMono-Regular, Consolas, monospace';
-    g.fillText(`sample ${label}  (${fmt(signal.point.x,2)}, ${fmt(signal.point.y,2)})`, 18, NETWORK_H - 17);
+    g.font = '800 13px ui-monospace, SFMono-Regular, Consolas, monospace';
+    g.fillText(`sample ${label}  (${fmt(signal.point.x,2)}, ${fmt(signal.point.y,2)})`, 18, NETWORK_H - 15);
   }
 }
 
 function drawBias(g, x, y, value, label) {
   g.save();
-  g.fillStyle = 'rgba(255,209,102,.12)';
-  g.strokeStyle = 'rgba(255,209,102,.52)';
-  g.setLineDash([4, 4]);
-  g.beginPath(); g.arc(x, y, 17, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,209,102,.22)';
+  g.strokeStyle = 'rgba(255,209,102,.78)';
+  g.lineWidth = 2;
+  g.setLineDash([5, 4]);
+  g.shadowColor = 'rgba(255,209,102,.22)';
+  g.shadowBlur = 12;
+  g.beginPath(); g.arc(x, y, 21, 0, Math.PI * 2); g.fill(); g.stroke();
   g.setLineDash([]);
-  g.fillStyle = '#ffd166'; g.textAlign = 'center'; g.font = '800 9px system-ui, sans-serif';
-  g.fillText('b', x, y + 3);
-  g.fillStyle = 'rgba(255,224,152,.65)'; g.font = '9px ui-monospace, monospace';
-  g.fillText(`${label} ${fmt(value,2)}`, x, y + 31);
+  g.shadowBlur = 0;
+  g.fillStyle = '#ffe39a'; g.textAlign = 'center'; g.font = '900 12px system-ui, sans-serif';
+  g.fillText('b', x, y + 4);
+  g.fillStyle = 'rgba(255,232,174,.90)'; g.textAlign = 'left'; g.font = '800 11px ui-monospace, monospace';
+  g.fillText(`${label} ${fmt(value,2)}`, x + 29, y + 4);
   g.restore();
 }
 
 function drawEquationHint(g, text) {
   g.save();
-  g.fillStyle = 'rgba(255,255,255,.055)';
-  g.strokeStyle = 'rgba(255,255,255,.10)';
-  g.beginPath(); g.roundRect(118, NETWORK_H - 54, NETWORK_W - 236, 29, 9); g.fill(); g.stroke();
-  g.fillStyle = 'rgba(235,242,247,.68)';
-  g.font = '10px ui-monospace, SFMono-Regular, Consolas, monospace';
+  g.fillStyle = 'rgba(255,255,255,.075)';
+  g.strokeStyle = 'rgba(255,255,255,.15)';
+  g.beginPath(); g.roundRect(96, NETWORK_H - 66, NETWORK_W - 192, 34, 10); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(245,249,252,.86)';
+  g.font = '800 12px ui-monospace, SFMono-Regular, Consolas, monospace';
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, NETWORK_W / 2, NETWORK_H - 39);
+  g.fillText(text, NETWORK_W / 2, NETWORK_H - 49);
   g.restore();
 }
 
