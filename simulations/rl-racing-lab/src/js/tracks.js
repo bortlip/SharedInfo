@@ -3,10 +3,10 @@ const HALF_WIDTH=5.4;
 const TRACK_DEFS={
   mixed:{name:'Balanced Loop',n:320,make:(a)=>new THREE.Vector3(Math.cos(a)*(35+4.2*Math.sin(2*a)+2*Math.cos(3*a)),0,Math.sin(a)*(24+3.2*Math.cos(3*a)-1.5*Math.sin(2*a)))},
   reverse:{name:'Counterflow',n:320,reverse:true,make:(a)=>new THREE.Vector3(Math.cos(a)*(35+4.2*Math.sin(2*a)+2*Math.cos(3*a)),0,Math.sin(a)*(24+3.2*Math.cos(3*a)-1.5*Math.sin(2*a)))},
-  technical:{name:'Technical Circuit',n:360,make:(a)=>new THREE.Vector3(Math.cos(a)*(30+6*Math.sin(3*a)+3*Math.cos(5*a)),.55+.45*Math.sin(3*a),Math.sin(a)*(21+5*Math.cos(4*a)+2*Math.sin(6*a)))},
-  sweepers:{name:'Fast Sweepers',n:360,make:(a)=>new THREE.Vector3(Math.cos(a)*(44+5*Math.cos(2*a)),.4+.3*Math.sin(2*a),Math.sin(a)*(29+4*Math.sin(2*a)))},
-  figure8:{name:'Figure Eight Overpass',n:420,make:(a)=>new THREE.Vector3(35*Math.sin(a),3.2+2.8*Math.cos(a),21*Math.sin(2*a))},
-  grandprix:{name:'Grand Prix',n:520,make:(a)=>new THREE.Vector3(60*Math.cos(a)+12*Math.cos(2*a)+5*Math.sin(5*a),1.7+1.1*Math.sin(2*a)+.45*Math.cos(5*a),38*Math.sin(a)+8*Math.sin(3*a)+5*Math.cos(4*a))}
+  technical:{name:'Technical Circuit',n:360,make:(a)=>new THREE.Vector3(Math.cos(a)*(30+6*Math.sin(3*a)+3*Math.cos(5*a)),0,Math.sin(a)*(21+5*Math.cos(4*a)+2*Math.sin(6*a)))},
+  sweepers:{name:'Fast Sweepers',n:360,make:(a)=>new THREE.Vector3(Math.cos(a)*(44+5*Math.cos(2*a)),0,Math.sin(a)*(29+4*Math.sin(2*a)))},
+  figure8:{name:'Figure Eight Overpass',n:420,make:(a)=>new THREE.Vector3(35*Math.sin(a),2.75*(1+Math.cos(a)),21*Math.sin(2*a))},
+  grandprix:{name:'Grand Prix',n:520,make:(a)=>new THREE.Vector3(60*Math.cos(a)+12*Math.cos(2*a)+5*Math.sin(5*a),0,38*Math.sin(a)+8*Math.sin(3*a)+5*Math.cos(4*a))}
 };
 const TRAINING_TRACKS=['mixed','reverse','technical','sweepers','figure8','grandprix'];
 let track=[],tangents=[],normals=[],segLen=[],trackLength=0,avgSeg=1,TRACK_N=0,finishIndex=2,activeTrackId='mixed',trackGroup=null;
@@ -40,7 +40,7 @@ function buildTrack(id){
   for(let i=0;i<TRACK_N;i+=12){const q=track[i],t=tangents[i],dash=new THREE.Mesh(new THREE.BoxGeometry(.16,.025,1.55),new THREE.MeshBasicMaterial({color:0xffd96c}));dash.position.set(q.x,q.y+.08,q.z);dash.rotation.y=-Math.atan2(t.z,t.x)+Math.PI/2;trackGroup.add(dash)}
   const treeEvery=activeTrackId==='grandprix'?28:22;
   for(let i=0;i<TRACK_N;i+=treeEvery)for(const side of[-1,1]){
-    const q=track[i].clone().addScaledVector(normals[i],side*(HALF_WIDTH+3.2));if(Math.abs(q.y)>1.7)continue;
+    const q=track[i].clone().addScaledVector(normals[i],side*(HALF_WIDTH+3.2));if(activeTrackId==='figure8'&&q.y>1.4)continue;
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,1.5,7),new THREE.MeshStandardMaterial({color:0x5a412f}));trunk.position.set(q.x,q.y+.75,q.z);trunk.castShadow=true;trackGroup.add(trunk);
     const crown=new THREE.Mesh(new THREE.ConeGeometry(1,2.4,8),new THREE.MeshStandardMaterial({color:0x2e6a3c}));crown.position.set(q.x,q.y+2.35,q.z);crown.castShadow=true;trackGroup.add(crown);
   }
@@ -48,4 +48,3 @@ function buildTrack(id){
   line.position.set(q.x,q.y+.09,q.z);line.rotation.y=-Math.atan2(t.z,t.x)+Math.PI/2;trackGroup.add(line);
 }
 buildTrack('mixed');
-
