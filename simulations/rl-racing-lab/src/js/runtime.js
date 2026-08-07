@@ -31,8 +31,8 @@ $('resetBtn').addEventListener('click',()=>{
   if(sim.learning)return;
   sim.running=false;sim.mode='learn';sim.update=0;sim.experience=0;sim.totalExperience=0;sim.temperature=1.25;sim.lastLoss=0;sim.raceFinished=false;sim.history=[];sim.lastMetrics=null;resetBatchTelemetry();
   net=createNetwork();drivers.forEach(c=>{c.rollout=[];c.totalReward=0;c.totalProgress=0;c.lap=0;c.collisions=0;c.overtakes=0;c.lastObs=null;c.prevFrame=null;c.latestRGBA=null;c.mesh.visible=true});
-  resetGrid();$('log').innerHTML='';$('raceResult').textContent='Learning reset. Fresh random temporal brain; evaluation race is idle.';log('Learning reset. Fresh random shared policy.');updateUI();
+  resetGrid();primeObservations();$('log').innerHTML='';$('raceResult').textContent='Learning reset. Fresh random temporal brain; evaluation race is idle.';log('Learning reset. Fresh random shared policy.');updateUI();
 });
-resetBatchTelemetry();resetGrid();mainCamera.position.set(0,12,45);drivers.forEach(c=>syncCarMesh(c));
+resetBatchTelemetry();resetGrid();primeObservations();mainCamera.position.set(0,12,45);drivers.forEach(c=>syncCarMesh(c));
 log('Ready. The policy sees the current POV plus visual motion, then learns steering and throttle with separate heads.');
 updateUI();animate(performance.now());

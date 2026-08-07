@@ -2,7 +2,7 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, perceive the world through their own rendered POV camera stream, and learn steering plus throttle/brake behavior from reward using PPO-style backpropagation.
 
-Current release: **v0.2.0**
+Current release: **v0.2.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
@@ -26,6 +26,12 @@ Current release: **v0.2.0**
 - Collision damage for both cars while the learning penalty is apportioned by approximate collision responsibility.
 - Learning telemetry based on reward per experience, forward meters per experience, off-road percentage, reset rate, lap count, collision count, action mix, and a reward-history chart.
 
+## v0.2.1 runtime fix
+
+- Version-busts the bootstrap, CSS, and every dynamically loaded simulator module so browsers cannot mix incompatible releases from cache.
+- Primes all four POV cameras at startup/reset/track changes/checkpoint load, so paused cars still show their actual neural-camera image and establish a frame-difference baseline.
+- Surfaces uncaught startup/runtime errors in the page instead of silently leaving blank canvases.
+
 ## Why v0.2 changed the learner
 
 The v0.1 physics allowed the vehicle velocity direction to differ from the body heading, but the policy still saw only a single image. Two visually similar frames could therefore require very different actions if one car was stable and another was sliding sideways. v0.2 adds an image-derived motion channel so the policy can infer visual movement without receiving hidden track-relative velocity data.
@@ -34,7 +40,7 @@ The old 15-way combined action head also forced the learner to rediscover the us
 
 Entropy regularization and a higher exploration floor reduce premature policy collapse.
 
-## Reward philosophy
+Moment-to-moment position changes are now **telemetry only**. Earlier asymmetric overtake shaping could be farmed by repeatedly swapping positions. A small race-position bonus is instead paid at lap completion, where it represents meaningful race progress and cannot be collected by oscillating passes.
 
 Dense forward movement aligned with the local track direction is the primary positive signal. Forward motion receives full credit on the road and only tiny credit off-road. Backward movement, grass, becoming stuck, and causing collisions reduce reward. The terminal failure penalty is intentionally modest so useful partial trajectories are not overwhelmed by one large final punishment.
 
