@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Perception Rover Lab is an interactive browser lab for collecting labeled camera data, training a tiny neural network, validating it, and deploying it to drive a simulated rover.">
+<link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/perception-rover/simulator.html">
+<link rel="stylesheet" href="styles.css">
+<title>Perception Rover Lab — Collect, Train, Deploy</title>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="logo">R</div><div><h1>Perception Rover Lab</h1><p>Collect pixels. Create labels. Train a model. Let it drive.</p></div></div>
+  <div class="chips"><a class="chip version-chip" href="https://github.com/bortlip/SharedInfo/tree/main/simulations/perception-rover" title="View Perception Rover source"><strong data-app-version>v—</strong></a><span class="chip">Network <strong>192 → 32 → 3</strong></span><span class="chip">Camera <strong>16×12 grayscale</strong></span></div>
+</header>
+<div class="layout">
+<main class="main">
+<section class="card world-card"><div class="overlay"><div class="glass">Mode <strong id="modeText">Manual</strong></div><div class="glass">Cross-track error <strong id="errorText">0 px</strong></div><div class="glass">Samples <strong id="samplesText">0</strong></div><div class="glass">Validation <strong id="accText">—</strong></div></div><canvas id="world" width="1000" height="560" aria-label="Top-down rover and road simulation"></canvas></section>
+<section class="card controls">
+<div class="row"><button id="recordBtn" class="primary">● Record my driving</button><button id="expertBtn" class="expert">⚙ Generate expert dataset</button><button id="trainBtn" disabled>Train model</button><button id="autoBtn" disabled>Enable autopilot</button><button id="resetBtn">Reset rover</button><button id="clearBtn">Clear dataset</button><div class="spacer"></div><button class="key" id="leftBtn">←</button><button class="key" id="straightBtn">↑</button><button class="key" id="rightBtn">→</button></div>
+<div class="pipeline"><div class="stage done" id="sDrive"><small>1. Drive</small><strong>manual control</strong></div><div class="stage" id="sCollect"><small>2. Collect</small><strong id="stageCollect">0 frames</strong></div><div class="stage" id="sLabel"><small>3. Label</small><strong>steering action</strong></div><div class="stage" id="sTrain"><small>4. Train</small><strong id="stageTrain">not trained</strong></div><div class="stage" id="sDeploy"><small>5. Deploy</small><strong id="stageDeploy">manual</strong></div></div>
+<div class="range"><span>Steering response</span><input id="steerRange" type="range" min="0.65" max="1.8" value="1.05" step=".05"><strong id="steerVal">1.05</strong></div>
+</section></main>
+<aside class="side">
+<section class="card side-card"><h2>Rover camera</h2><p>The neural net sees only this view, reduced to 16×12 grayscale pixels.</p><canvas id="camera" width="320" height="240" aria-label="Simulated forward rover camera"></canvas><div class="prediction"><div class="pred" id="pLeft"><small>Left</small><strong>—</strong></div><div class="pred" id="pStraight"><small>Straight</small><strong>—</strong></div><div class="pred" id="pRight"><small>Right</small><strong>—</strong></div></div></section>
+<section class="card side-card"><h2>Dataset</h2><p>Your manual steering is the label. “Expert dataset” generates balanced recovery examples so you can verify the pipeline.</p><div class="stats"><div class="stat"><small>Frames</small><strong id="totalFrames">0</strong></div><div class="stat"><small>Train acc.</small><strong id="trainAcc">—</strong></div><div class="stat"><small>Validation</small><strong id="valAcc">—</strong></div></div><div class="dist"><div><span>LEFT</span><b id="nLeft">0</b></div><div><span>STRAIGHT</span><b id="nStraight">0</b></div><div><span>RIGHT</span><b id="nRight">0</b></div></div><p style="margin-top:11px">Recent labeled frames</p><div class="gallery" id="gallery"></div></section>
+<section class="card side-card"><h2>Training / experiment</h2><p>The interesting number is validation accuracy, not memorizing the frames it trained on.</p><div class="status" id="status">First try the guaranteed path: click <b>Generate expert dataset</b>, train, reset the rover, then enable autopilot. After that, clear the dataset and try teaching it with your own driving.</div><div class="trainbar"><div id="trainProgress"></div></div><div class="lesson" style="margin-top:10px"><strong>What to investigate</strong>The expert set deliberately includes off-center and misaligned poses. A dataset containing only perfect centered driving often fails because the model never learns how to recover once it makes its first mistake.</div></section>
+</aside></div>
+<footer>Perception Rover Lab <span data-app-version>v—</span> · vanilla JavaScript · no external ML libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/perception-rover">source on GitHub</a> · related lab: <a href="../../neural-playground/">Neural Playground</a></footer>
+</div>
+<script src="js/version.js"></script><script src="js/constants.js"></script><script src="js/utils.js"></script><script src="js/state.js"></script><script src="js/road.js"></script><script src="js/render.js"></script><script src="js/dataset.js"></script><script src="js/model.js"></script><script src="js/training.js"></script><script src="js/ui.js"></script><script src="js/app.js"></script>
+</body>
+</html>
