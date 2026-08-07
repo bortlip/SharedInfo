@@ -2,7 +2,7 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, perceive the world through their own rendered POV camera stream, and learn steering plus throttle/brake behavior from reward using PPO-style backpropagation.
 
-Current release: **v0.2.0**
+Current release: **v0.2.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
@@ -25,6 +25,12 @@ Current release: **v0.2.0**
 - Velocity-based vehicle physics with finite lateral grip, visible slip angle, grass grip loss, damage-limited performance, and automatic gears.
 - Collision damage for both cars while the learning penalty is apportioned by approximate collision responsibility.
 - Learning telemetry based on reward per experience, forward meters per experience, off-road percentage, reset rate, lap count, collision count, action mix, and a reward-history chart.
+
+## v0.2.1 runtime fix
+
+- Version-busts the bootstrap, CSS, and every dynamically loaded simulator module so browsers cannot mix incompatible releases from cache.
+- Primes all four POV cameras at startup/reset/track changes/checkpoint load, so paused cars still show their actual neural-camera image and establish a frame-difference baseline.
+- Surfaces uncaught startup/runtime errors in the page instead of silently leaving blank canvases.
 
 ## Why v0.2 changed the learner
 

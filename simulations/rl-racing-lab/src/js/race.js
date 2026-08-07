@@ -39,14 +39,14 @@ function chooseRandomTrainingTrack(){const choices=TRAINING_TRACKS.filter(id=>id
 function changeTrackMode(value){
   if(sim.learning)return;
   sim.running=false;sim.mode='learn';sim.trackMode=value;discardPartialRollout();
-  const id=value==='random'?chooseRandomTrainingTrack():value;buildTrack(id);resetGrid();
+  const id=value==='random'?chooseRandomTrainingTrack():value;buildTrack(id);resetGrid();primeObservations();
   drivers.forEach(c=>{c.lap=0;c.totalProgress=0;c.lastRank=null;c.mesh.visible=true});
   $('raceResult').innerHTML=`<strong>Track changed:</strong> ${TRACK_DEFS[activeTrackId].name}. ${value==='random'?'Training will rotate to another circuit every '+sim.trackRotationEvery+' updates.':'Ready to learn or run an evaluation race.'}`;
   log(`Loaded track: ${TRACK_DEFS[activeTrackId].name}.`);updateUI();
 }
 function maybeRotateTrainingTrack(){
   if(sim.trackMode!=='random'||sim.update===0||sim.update%sim.trackRotationEvery!==0)return false;
-  const id=chooseRandomTrainingTrack();buildTrack(id);resetGrid();drivers.forEach(c=>{c.lap=0;c.lastRank=null;c.mesh.visible=true});log(`Multi-track training rotated to ${TRACK_DEFS[id].name}.`);return true;
+  const id=chooseRandomTrainingTrack();buildTrack(id);resetGrid();primeObservations();drivers.forEach(c=>{c.lap=0;c.lastRank=null;c.mesh.visible=true});log(`Multi-track training rotated to ${TRACK_DEFS[id].name}.`);return true;
 }
 function checkpointObject(){
   return{
@@ -93,7 +93,7 @@ function loadCheckpointData(data){
   sim.trackMode=data.training?.trackMode||'mixed';sim.history=Array.isArray(data.training?.history)?data.training.history.slice(-120):[];sim.lastMetrics=sim.history.at(-1)||null;
   sim.running=false;sim.mode='learn';sim.raceFinished=false;discardPartialRollout();
   buildTrack(data.training?.activeTrackId in TRACK_DEFS?data.training.activeTrackId:(sim.trackMode in TRACK_DEFS?sim.trackMode:'mixed'));$('trackSelect').value=sim.trackMode;
-  resetGrid();drivers.forEach(c=>{c.lap=0;c.totalReward=0;c.totalProgress=0;c.collisions=0;c.mesh.visible=true});
+  resetGrid();primeObservations();drivers.forEach(c=>{c.lap=0;c.totalReward=0;c.totalProgress=0;c.collisions=0;c.mesh.visible=true});
   $('raceResult').innerHTML=migrated?`<strong>Legacy checkpoint migrated.</strong> The v1 single-frame/15-action brain was approximately factorized into the new temporal steering + throttle policy. Continue learning before judging it.`:`<strong>Checkpoint loaded.</strong> Brain restored from update ${sim.update}. Start learning or run an evaluation race.`;
   log(migrated?`Migrated v1 checkpoint from update ${sim.update} into the v2 architecture.`:`Loaded v2 checkpoint from update ${sim.update}.`);updateUI();
 }
