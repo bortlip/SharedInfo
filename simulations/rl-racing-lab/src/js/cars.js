@@ -1,0 +1,32 @@
+// Car meshes, shared driver state, grid placement, and respawning.
+const colors=[0x55dbea,0xff7d88,0xffd166,0xc8a5ff];
+function createCarMesh(color){const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.55,.45,3),new THREE.MeshStandardMaterial({color,roughness:.55,metalness:.12}));body.position.y=.48;body.castShadow=true;g.add(body);const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.18,.42,1.35),new THREE.MeshStandardMaterial({color:0x202b34,roughness:.25}));cabin.position.set(0,.86,.12);cabin.castShadow=true;g.add(cabin);const nose=new THREE.Mesh(new THREE.BoxGeometry(1.25,.18,.55),new THREE.MeshStandardMaterial({color:0xf0f4f6}));nose.position.set(0,.58,-1.35);g.add(nose);for(const sx of[-.72,.72])for(const sz of[-.92,.92]){const wheel=new THREE.Mesh(new THREE.BoxGeometry(.18,.38,.62),new THREE.MeshStandardMaterial({color:0x101214}));wheel.position.set(sx,.28,sz);g.add(wheel)}return g}
+function trackHeading(i){const t=tangents[mod(i,TRACK_N)];return Math.atan2(t.z,t.x)}
+function nearestIndexFor(car){let best=car.trackIndex,bestD=Infinity;for(let off=-16;off<=16;off++){const i=mod(car.trackIndex+off,TRACK_N),q=track[i],dx=car.x-q.x,dz=car.z-q.z,d=dx*dx+dz*dz;if(d<bestD){bestD=d;best=i}}car.trackIndex=best;return{index:best,distance:Math.sqrt(bestD)}}
+function progressDelta(oldI,newI){let d=newI-oldI;if(d>TRACK_N/2)d-=TRACK_N;if(d<-TRACK_N/2)d+=TRACK_N;return d*avgSeg}
+
+const drivers=[];
+for(let i=0;i<DRIVER_COUNT;i++){const mesh=createCarMesh(colors[i]);scene.add(mesh);drivers.push({id:i,mesh,x:0,z:0,vx:0,vz:0,heading:0,speed:0,slip:0,gear:1,damage:0,trackIndex:0,lastTrackIndex:0,actionSteer:0,actionThrottle:0,pendingReward:0,pendingDone:false,offTime:0,stuckTime:0,lap:0,episodeProgress:0,totalProgress:0,episodeReward:0,totalReward:0,collisions:0,collisionCooldown:0,rollout:[],lastObs:null,lastAction:0,lastValue:0,lastLogp:0,lastProb:0,latestRGBA:null,raceStatus:'racing',finishTime:null,finishPlace:null,lastRank:null,overtakes:0})}
+function syncCarMesh(car){const roadY=track[car.trackIndex]?.y||0;car.mesh.position.set(car.x,roadY,car.z);car.mesh.rotation.y=-car.heading-Math.PI/2}
+function spawnPose(slot,extraRow=0){
+  const column=slot%2,row=Math.floor(slot/2)+extraRow;
+  const base=mod(finishIndex+24-row*10,TRACK_N),q=track[base],n=normals[base];
+  const lane=(column===0?-1:1)*1.8;
+  return{base,x:q.x+n.x*lane,z:q.z+n.z*lane,heading:trackHeading(base)};
+}
+function resetDriver(car,slot=0,avoidTraffic=true){
+  let pose=spawnPose(slot,0);
+  if(avoidTraffic){
+    for(let attempt=0;attempt<9;attempt++){
+      const candidate=spawnPose(slot,attempt);
+      const blocked=drivers.some(other=>other!==car&&Math.hypot(other.x-candidate.x,other.z-candidate.z)<4.2);
+      pose=candidate;
+      if(!blocked)break;
+    }
+  }
+  car.x=pose.x;car.z=pose.z;car.heading=pose.heading;car.speed=3.5;car.vx=Math.cos(car.heading)*car.speed;car.vz=Math.sin(car.heading)*car.speed;car.slip=0;car.gear=1;car.damage=0;car.trackIndex=pose.base;car.lastTrackIndex=pose.base;
+  car.actionSteer=0;car.actionThrottle=0;car.pendingReward=0;car.pendingDone=false;car.offTime=0;car.stuckTime=0;
+  car.episodeProgress=0;car.episodeReward=0;car.collisionCooldown=0;car.lastObs=null;car.lastRank=null;car.raceStatus='racing';car.finishTime=null;car.finishPlace=null;car.mesh.visible=true;syncCarMesh(car);
+}
+function resetGrid(){drivers.forEach((c,i)=>resetDriver(c,i,false))}
+

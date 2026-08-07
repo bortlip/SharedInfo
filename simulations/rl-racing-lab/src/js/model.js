@@ -1,0 +1,7 @@
+// Shared actor-critic neural network and action sampling.
+function createNetwork(){const s1=Math.sqrt(1/INPUTS),s2=Math.sqrt(1/HIDDEN);return{w1:Float32Array.from({length:HIDDEN*INPUTS},()=>randn()*s1),b1:new Float32Array(HIDDEN),wp:Float32Array.from({length:ACTIONS*HIDDEN},()=>randn()*s2),bp:new Float32Array(ACTIONS),wv:Float32Array.from({length:HIDDEN},()=>randn()*s2),bv:0}}
+let net=createNetwork();
+function forward(obs,temperature=sim.temperature){const h=new Float32Array(HIDDEN);for(let j=0;j<HIDDEN;j++){let s=net.b1[j],o=j*INPUTS;for(let i=0;i<INPUTS;i++)s+=net.w1[o+i]*obs[i];h[j]=Math.tanh(s)}const logits=new Float32Array(ACTIONS);let mx=-Infinity;for(let a=0;a<ACTIONS;a++){let s=net.bp[a],o=a*HIDDEN;for(let j=0;j<HIDDEN;j++)s+=net.wp[o+j]*h[j];logits[a]=s/temperature;if(logits[a]>mx)mx=logits[a]}const probs=new Float32Array(ACTIONS);let sum=0;for(let a=0;a<ACTIONS;a++){probs[a]=Math.exp(logits[a]-mx);sum+=probs[a]}for(let a=0;a<ACTIONS;a++)probs[a]/=sum;let value=net.bv;for(let j=0;j<HIDDEN;j++)value+=net.wv[j]*h[j];return{h,probs,value}}
+function argmax(probs){let best=0;for(let i=1;i<probs.length;i++)if(probs[i]>probs[best])best=i;return best}
+function sampleAction(probs){let r=Math.random(),s=0;for(let a=0;a<ACTIONS;a++){s+=probs[a];if(r<=s)return a}return ACTIONS-1}
+
