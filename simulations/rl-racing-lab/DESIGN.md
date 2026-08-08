@@ -1,169 +1,221 @@
-# POV RL Racing Lab — v0.7 Design
+# POV RL Racing Lab — v0.8 Design
 
-## Design goal
+## Goal
 
-v0.7 keeps the recovered PPO/network architecture while making the application easier to operate and the racing environment easier to read. Learning and Evaluation Race are explicit modes; short-horizon and full-history progress are both visible; track surfaces and collision geometry are more believable without adding hidden motion state to the policy.
+v0.8 turns the recovered racing learner into a configurable experimental platform without discarding the invariants that made the baseline learn again.
 
-The learning causal chain remains:
+The causal chain remains:
 
-**POV pixels → network → steering/throttle action → vehicle movement → reward → PPO/backprop → updated shared network**
+**rendered POV + vehicle-local speed/damage → policy → action → vehicle movement → reward → PPO/backprop → updated policy**
 
-Anything added in v0.7 should either preserve that causal chain or be clearly separated as human-facing telemetry/presentation.
+Configuration, visualization, persistence, and sound are built around that chain. Hidden track knowledge is still not supplied as a model input.
 
-## Preserved learning control
+The current roadmap is kept in one living file: [`TASKS.md`](TASKS.md).
 
-Each driver receives:
+## Brain identity and configuration
 
-- 32×20 grayscale POV = 640 values
-- normalized speed
-- normalized damage
+A **brain** is now a persistent experiment object. Its vision preset and network preset are part of its identity. The active brain also owns its weights, training timeline, track exposure, and evaluation-race history.
 
-Network:
+Architecture-sensitive controls do not mutate an already-trained network. Choosing a different vision/network setup and pressing **Create new brain** first snapshots the current brain into the session, then creates a fresh network with the requested shape.
 
-**642 → 48 tanh → 15-action policy + 1 value estimate**
+A brain may also be duplicated, which creates a child experiment beginning from the same current weights/history. This is useful for branching an already-learned policy into different future training regimes.
 
-There is therefore one learned intermediate/hidden layer containing 48 tanh units. v0.7 intentionally does not widen or deepen it; network-capacity experiments remain separate so UI/surface/collision changes can be evaluated without simultaneously changing the learner.
-Training preserves the historical setup:
+## Vision presets
 
-- decision interval: 0.10 simulated seconds
-- four drivers share one policy and one combined batch
-- PPO update at 512 experiences
-- GAE γ = 0.985, λ = 0.92
-- PPO clip = 0.18
-- three SGD-style passes at learning rate 0.00055
-- exploration temperature 1.35 decaying toward 0.72
-- simple heading + scalar-speed vehicle dynamics
-- historical reward and symmetric collision penalty
-- PPO updates remain every 512 experiences; synchronized full-grid resets use the separately selected clean-start cadence
+Every POV render target is recreated when the active brain changes configuration.
 
-## Training environments
+| Preset | Image channels | Visual inputs | + speed/damage | Total inputs |
+|---|---:|---:|---:|---:|
+| 32×20 grayscale | 1 | 640 | 2 | 642 |
+| 64×40 grayscale | 1 | 2,560 | 2 | 2,562 |
+| 32×20 RGB | 3 | 1,920 | 2 | 1,922 |
+| 64×40 RGB | 3 | 7,680 | 2 | 7,682 |
 
-Balanced Loop remains the known-good baseline geometry:
+The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. Grayscale uses luminance; RGB keeps separate normalized R/G/B channels. Image values are normalized to approximately `[-1, +1]`. Normalized speed and damage occupy the last two input positions.
 
-- 300 centerline samples
-- half-width 5.4
-- finish index = 2
+The AI still does **not** receive lateral track position, centerline distance, track tangent, next-turn geometry, opponent coordinates, or other world-oracle features.
 
-v0.7 intentionally enriches the rendered observation distribution on every circuit: dark asphalt, amber road-edge warnings, alternating red/white curb markers, a 1.25-unit shoulder, grass outside, center dashes, painted forward-direction arrows, and roadside trees. Because the policy consumes pixels, this is a real environment change rather than presentation-only styling.
+## Dense actor-critic presets
 
-Training remains manually selectable across Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix. Track changes are explicit rather than random: the brain is retained, the unfinished PPO batch is discarded, the grid is reset, recent-driving telemetry restarts, and Adaptive clean-start progression restarts at one update for the new circuit.
+The fixed v0.7 one-layer implementation was generalized to a list of fully-connected tanh layers.
 
-## Clean-start cadence
+Presets:
 
-PPO optimization remains fixed at 512 experiences per update. Full-grid clean starts are now an independent schedule. Adaptive mode begins at every PPO update, advances to every 2 updates once average run distance reaches roughly 0.45 track lengths or multiple lap completions are recorded across the four drivers, then to 4 and 8 updates as multi-lap competence grows. Fixed 1/2/4/8-update schedules and a failures-only mode are available. Individual terminal failures always respawn immediately.
+- Baseline: `[48]`
+- Wide: `[128]`
+- Deep: `[96, 48]`
+- Deep + wide: `[128, 64]`
 
-## Reward and surface handling
+Each brain has:
 
-The main learning reward remains signed track progress:
+1. zero or more configured hidden transformations (currently at least one);
+2. a 15-action softmax policy head;
+3. one scalar value head.
 
-- forward track progress: `progress × 0.075`
-- backward track progress: `progress × 0.16` (negative progress therefore produces a larger-magnitude penalty)
-- shoulder time: `−0.07 per second`, with off-road timeout accumulating at 55% rate
-- grass time: `−0.18 per second`
-- lap: `+15`
-- terminal failure after 3 accumulated off-road seconds, 4.5 seconds stuck, or 100 damage: `−5`
-- collisions: both cars receive the same `severity × 0.9` learning penalty
+The baseline therefore remains:
 
-Surface handling is also physical. Shoulder grip scales acceleration, braking, and steering down moderately and adds speed scrub. Grass reduces all three much more strongly and scrubs speed aggressively. This creates visible traction loss/understeer while retaining the baseline scalar-speed model. There is still no separate lateral velocity or slip angle.
+**642 → 48 tanh → 15-action policy + value**
 
-No centerline bonus, position reward, explicit track-direction input, or responsibility-weighted collision reward is active during training.
+Its shape, action encoding, reward, and PPO hyperparameters are unchanged from the recovered baseline.
 
-## Chronological speed-invariant scheduler
+Example parameter counts:
 
-All requested speeds use one fixed-step simulation function. Neither requested speed nor headless state selects an alternate physics/decision loop.
+| Vision | Baseline 48 | Wide 128 | Deep 96→48 | Deep+Wide 128→64 |
+|---|---:|---:|---:|---:|
+| 32×20 gray | 31,648 | 84,368 | 67,168 | 91,600 |
+| 64×40 gray | 123,808 | 330,128 | 251,488 | 337,360 |
+| 32×20 RGB | 93,088 | 248,208 | 190,048 | 255,440 |
+| 64×40 RGB | 369,568 | 985,488 | 743,008 | 992,720 |
 
-For every simulated interval:
+The large dense combinations are intentionally exposed as experiments, not claimed to be efficient designs. Their cost is a useful demonstration of why spatial architectures such as CNNs matter. A small CNN is tracked for the next architecture stage.
 
-1. add requested simulated time to the common accumulator
-2. advance one 1/60-second physics tick
-3. add that tick to the decision accumulator
-4. whenever the decision accumulator reaches 0.10 seconds, execute exactly one policy decision
-5. continue with the next physics tick
+## Generic PPO backprop
 
-Thus 1×, 10×, and 50× produce the same chronological sequence of simulation operations; higher multipliers merely ask the browser to process more of those operations per real second. Spectator repaint cadence is reduced at 10× and 50× independently of the simulation loop.
+Training still uses:
 
-When a PPO batch reaches its update boundary, fixed-step and decision accumulators are cleared before backpropagation. This prevents leftover wall-clock budget from a high-speed animation frame from carrying into the next batch, regardless of whether a synchronized clean start occurs.
+- four drivers sharing the active policy;
+- decisions every 0.10 simulated seconds;
+- 512 combined experiences per PPO update;
+- γ = 0.985;
+- GAE λ = 0.92;
+- PPO clip = 0.18;
+- three SGD-style passes;
+- learning rate = 0.00055;
+- exploration temperature 1.35 decaying toward 0.72.
 
-The simulator still caps work per browser frame. If hardware cannot sustain the requested multiplier, the **Actual** speed indicator reports the lower achieved value rather than altering model timing.
+Forward propagation stores every hidden activation. Backpropagation computes the policy/value gradient into the final hidden layer, then walks the configured tanh layers backward. Hidden deltas are computed before weights are updated, preserving the normal feed-forward backprop dependency.
 
-## Headless display invariant
+The optimizer remains intentionally small and educational rather than a production PPO implementation.
 
-Headless mode is presentation-only. It suppresses the main spectator scene and skips expensive driver-card/progress-chart redraws, but the simulation scheduler does not read `sim.headless`.
+## Brain Inspector
 
-The four neural POV render targets remain mandatory because they are the model input. Physics, observations, policy decisions, rewards, PPO samples, backpropagation, and grid resets are identical with headless on or off.
+The selected driver's latest forward pass is retained for human-facing inspection.
 
-## Progress metrics
+The inspector shows:
 
-Two progress views are maintained. The **Recent driving** chart samples each driver's peak net run distance every 0.5 simulated seconds and retains the last 60 simulated seconds. The **Complete training timeline** retains every completed PPO update for the lifetime of the run/checkpoint, marks training-track changes, may downsample only for rendering efficiency, and adds the current partial batch as a live endpoint.
+- the exact neural POV image;
+- sampled hidden-unit activations for every dense layer;
+- the complete 15-action probability distribution;
+- chosen action;
+- value estimate;
+- policy entropy;
+- exploration temperature.
 
-### Average run distance
+### Input sensitivity / saliency
 
-Each spawn begins with net progress at zero. Signed track progress is accumulated as the car moves; backward movement therefore reduces net progress. The run's metric is the **highest net forward progress reached since that spawn**, not the sum of every positive movement.
+For the selected action, the inspector analytically differentiates that action's pre-softmax logit backward through the dense tanh layers to the observation input.
 
-For the just-completed batch, average the peak net progress of:
+For grayscale, the absolute input gradient is displayed per pixel. For RGB, absolute R/G/B gradients are averaged into one pixel sensitivity magnitude. The visualization scales values within the current frame so structure is visible.
 
-- every episode that failed and reset during the batch
-- each of the four active run segments at the batch boundary
+This answers a limited mathematical question—**where would a small input change most strongly change this action score locally?** It must not be described as consciousness or literal visual attention.
 
-This produces average run distance in meters while preventing forward/backward oscillation from artificially increasing the metric.
+Inspector work is presentation-only. It is throttled and skipped in headless display mode so it cannot become part of the agent-environment timing contract.
 
-### Best run distance
+## Sessions and persistent experiment history
 
-Take the largest peak net progress among those same run segments and retain the all-time maximum.
+A **Lab Session** contains:
 
-Average run distance is the primary trend measure because it should increase as failures happen later. Best distance is useful as an upper-bound signal but is naturally noisier.
+```text
+session
+  id / name / timestamps
+  activeBrainId
+  brains[]
+    id / name / parentId
+    vision + network config
+    typed-array network weights
+    training snapshot + complete PPO history
+    trainingSegments[]
+    races[]
+  recent events[]
+```
 
-The history also stores reward/experience, off-road percentage, resets, collisions, total experiences, training wall time, simulated training time, and action counts.
+Training segments record the tracks a brain has actually trained on, update/experience ranges, best distance, and lap counts. Completed evaluation races retain track, lap count, policy update, and each driver's result.
 
-## Training-time clocks
+The UI summarizes all brains in the current session and recent session activity so an experiment is not reduced to whichever brain happens to be loaded right now.
 
-Two clocks are shown:
+## IndexedDB and exports
 
-- **Wall training** — real elapsed time while learning is running or backpropagating
-- **Sim training** — simulated vehicle time processed in learning mode
+Full networks are persisted in **IndexedDB**, which supports structured cloning of typed arrays and substantially larger objects than practical `localStorage` strings. `localStorage` stores only the id of the most recently active session.
 
-At high requested speed, simulated training time should advance faster than wall time. Total experiences and update number provide model-work counters independent of either clock.
+Autosave occurs after meaningful changes and PPO updates, with a short debounce/idle delay. Switching brains/sessions and explicit session operations also force saves.
 
-## Evaluation races
+There are two portable formats:
 
-Evaluation is deliberately separated from training.
+- **brain export:** one named brain, architecture, weights, training history, exposure, and races;
+- **session export:** every brain and the complete session-level history.
 
-When a race starts:
+JSON export converts typed arrays to ordinary arrays for portability. This is larger than IndexedDB's native representation, especially for near-million-parameter dense networks; that tradeoff is intentional for a self-contained human-movable backup.
 
-1. discard any unfinished learning rollout
-2. choose the requested evaluation track
-3. reset the four-car grid
-4. freeze network weights
-5. select deterministic argmax actions
-6. run for 1, 3, or 5 laps
-7. record finish order/time or DNF
-8. perform no PPO update
+Compatible legacy v1/v2/v3 checkpoint files are migrated into 32×20-gray / 48-hidden baseline brain records.
 
-Available evaluation tracks are Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix.
+Imported network shapes are validated against their declared vision/network preset before use.
 
-Returning to learning rebuilds the selected training circuit before collecting new experience, so an evaluation track cannot accidentally become part of training.
+## Learning / backprop UI state
 
-Figure Eight collision detection ignores X/Z overlaps when the cars are on vertically separated branches.
+`sim.running` means physics/experience collection is advancing. `sim.learning` means the PPO optimizer is executing. Both are part of the higher-level concept **learning is active**.
 
-## Collision geometry and direction telemetry
+The Learning button therefore displays **Pause learning** whenever:
 
-Cars use oriented rectangular footprints based on their rendered width, length, and heading. The separating-axis test detects front/rear and side contact before substantial mesh overlap, resolves penetration even during collision cooldown, and computes damage from relative closing speed. This replaces the old center-distance threshold that allowed visible rear-end overlap.
+```text
+mode == learning AND (running OR backpropagating)
+```
 
-Each car also exposes the dot product between its forward heading and the local track tangent as human-facing direction telemetry. Values below −0.2 are shown as **WRONG WAY** and low positive alignment as **ACROSS**. This exact value is deliberately not part of the 642-input observation; instead, painted road arrows provide a visible direction cue inside the POV image while the agent still receives only pixels, normalized speed, and normalized damage.
+If Pause is pressed during PPO, `pauseAfterLearning` is set. The current PPO update completes without interruption, then `sim.running` remains false rather than automatically resuming. This avoids both label flicker and unsafe mid-optimizer cancellation.
 
-## Checkpoint compatibility
+## Scheduler / headless invariants
 
-The network shape is unchanged, so the checkpoint architecture remains version 3. v0.6 extends training metadata with:
+The chronological scheduler from v0.6/v0.7 is preserved:
 
-- selected training track
-- clean-start mode and adaptive interval
-- run-distance history
-- wall training seconds
-- simulated training seconds
-- best run distance
+1. advance one fixed 1/60-second physics tick;
+2. accumulate decision time;
+3. at 0.10 simulated seconds, execute one policy decision;
+4. continue with the next physics tick.
 
-Older histories may lack these fields. The UI treats them as legacy entries rather than failing; the distance chart starts with the first update that contains the new metrics.
+Requested 1×/2×/4×/10×/50× speed changes only how much of this same sequence is attempted per wall-clock frame.
 
-## Next experimental step
+Headless remains presentation-only. It may suppress spectator, cards, charts, and Brain Inspector painting, but it does not select another physics, observation, reward, experience, PPO, or reset path. Neural POV render targets still run because they are the observation.
 
-Once the preserved learner is reliably improving with the safe scheduler, a sensible next controlled experiment is adding vehicle proprioception—such as slip angle and yaw rate—at the same time realistic lateral/slip physics is reintroduced. That should be tested as a separate version rather than mixed into this execution/telemetry release.
+## Training tracks and clean starts
+
+Training remains manually selectable across Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix.
+
+Changing track preserves the active brain but discards an unfinished PPO batch, creates a clean grid, and resets recent-driving telemetry. Track exposure is recorded in the active brain/session.
+
+PPO updates remain every 512 experiences. Full-grid clean starts are controlled independently with Adaptive, fixed 1/2/4/8-update intervals, or failures-only running. Individual failures still respawn immediately.
+
+## Reward, surfaces, and direction
+
+The v0.7 signed-progress reward/surface model remains in place:
+
+- forward progress earns reward;
+- backward progress produces a larger-magnitude per-meter penalty;
+- shoulder and grass add penalties and reduce effective control/grip;
+- grass is substantially worse than shoulder;
+- laps earn a bonus;
+- prolonged off-road/stuck state or 100 damage terminates an episode;
+- collisions penalize both participants.
+
+Exact track-direction alignment shown in the UI is human-facing telemetry only. Painted arrows put a direction clue into the rendered camera observation.
+
+The current physics is still heading + scalar speed. There is no separate lateral velocity, yaw rate, or true slip angle yet.
+
+## Collision and audio
+
+Cars use oriented rectangular footprints and a separating-axis overlap test. Overlap is resolved even while collision damage is cooling down; new hard impacts compute severity from relative closing speed and remove substantial speed/damage.
+
+Web Audio adds synthesized engine tone and collision transients. It reads speed, gear, throttle, surface, selected driver, and collision severity but does not write simulation state. Audio is therefore purely presentation.
+
+## Evaluation race
+
+Evaluation freezes the active brain, switches to deterministic argmax actions, and records no learning experiences. The same brain is copied across four drivers for the current v0.8 race mode. Results are attached to the active brain's session history.
+
+Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately left for the Experiment Lab stage in [`TASKS.md`](TASKS.md).
+
+## Next controlled architecture/dynamics work
+
+The living roadmap deliberately separates future changes:
+
+- **Experiment Lab:** CNN vision, matched-seed comparisons, brain-vs-brain races, tournaments, curriculum.
+- **Vehicle Dynamics:** true velocity/slip/yaw plus fair vehicle-local proprioception.
+
+That separation matters. It lets us answer whether a changed architecture helped before simultaneously changing the physical state the architecture is being asked to infer.

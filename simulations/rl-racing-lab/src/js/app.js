@@ -40,8 +40,11 @@ try {
     'perception.js',
     'simulation.js',
     'physics.js',
+    'session.js',
     'training.js',
     'race.js',
+    'brain-viz.js',
+    'audio.js',
     'ui.js',
     'runtime.js'
   ]) {

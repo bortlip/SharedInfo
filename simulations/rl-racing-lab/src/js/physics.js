@@ -26,7 +26,7 @@ function collideCars(){
     const a=drivers[i],b=drivers[j];if(sim.mode==='race'&&(a.raceStatus!=='racing'||b.raceStatus!=='racing'))continue;const ay=surfaceHeightForCar(a),by=surfaceHeightForCar(b);if(Math.abs(ay-by)>1.8)continue;const hit=carFootprintOverlap(a,b);if(!hit)continue;
     const separate=hit.overlap*.52+.025;a.x-=hit.nx*separate;a.z-=hit.nz*separate;b.x+=hit.nx*separate;b.z+=hit.nz*separate;if(a.collisionCooldown>0||b.collisionCooldown>0)continue;
     const vax=Math.cos(a.heading)*a.speed,vaz=Math.sin(a.heading)*a.speed,vbx=Math.cos(b.heading)*b.speed,vbz=Math.sin(b.heading)*b.speed,closing=Math.max(0,(vax-vbx)*hit.nx+(vaz-vbz)*hit.nz),severity=clamp(.8+closing*.5+Math.abs(a.speed-b.speed)*.12,1,10);
-    a.damage=clamp(a.damage+severity*2.15,0,100);b.damage=clamp(b.damage+severity*2.15,0,100);if(sim.mode==='learn'){a.pendingReward-=severity*.9;b.pendingReward-=severity*.9}a.speed*=.60;b.speed*=.60;a.collisions++;b.collisions++;sim.collisions++;a.collisionCooldown=b.collisionCooldown=.36;
+    a.damage=clamp(a.damage+severity*2.15,0,100);b.damage=clamp(b.damage+severity*2.15,0,100);if(sim.mode==='learn'){a.pendingReward-=severity*.9;b.pendingReward-=severity*.9}a.speed*=.60;b.speed*=.60;a.collisions++;b.collisions++;sim.collisions++;a.collisionCooldown=b.collisionCooldown=.36;if(typeof playCollisionSound==='function')playCollisionSound(severity);
   }
 }
 function raceProgressScore(car){return car.lap*trackLength+mod(car.trackIndex-finishIndex,TRACK_N)/TRACK_N*trackLength}
