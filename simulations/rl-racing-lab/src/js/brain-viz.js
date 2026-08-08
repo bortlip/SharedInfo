@@ -3,8 +3,8 @@ let lastBrainVizAt=0;
 function actionLabel(index){const a=actionTable[index],steer=a.steer<=-.75?'hard L':a.steer<-.1?'left':a.steer>=.75?'hard R':a.steer>.1?'right':'straight',drive=a.throttle>0?'throttle':a.throttle<0?'brake':'coast';return`${steer} + ${drive}`}
 function policyEntropy(probs){let h=0;for(const p of probs||[])if(p>1e-9)h-=p*Math.log(p);return h}
 function refreshBrainSetupSummary(){
-  const vision=$('visionSelect')?.value||brainConfig.visionId,network=$('networkSelect')?.value||brainConfig.networkId,c=normalizedBrainConfig({visionId:vision,networkId:network}),sizes=brainLayerSizes(c),params=parameterCountForConfig(c),weight=params>700000?'very heavy':params>250000?'heavy':params>90000?'medium':'light';
-  if($('brainSetupSummary'))$('brainSetupSummary').innerHTML=`<strong>${sizes.join(' → ')}</strong><span>${params.toLocaleString()} trainable parameters · ${weight} browser workload</span>`;
+  const vision=$('visionSelect')?.value||brainConfig.visionId,network=$('networkSelect')?.value||brainConfig.networkId,c=normalizedBrainConfig({visionId:vision,networkId:network}),sizes=brainLayerSizes(c),params=parameterCountForConfig(c),tensor=modelTensorBytesForConfig(c),macs=forwardMacCountForConfig(c),weight=params>700000?'very heavy':params>250000?'heavy':params>90000?'medium':'light';
+  if($('brainSetupSummary'))$('brainSetupSummary').innerHTML=`<strong>${sizes.join(' → ')}</strong><span>${params.toLocaleString()} params · ${formatBytes(tensor)} tensors · ${compactNumber(macs)} MAC/decision · ${weight} browser workload</span>`;
 }
 function drawInspectorInput(canvas,rgba){if(!canvas||!rgba)return;drawPreview(canvas,rgba)}
 function drawSaliency(canvas,car){

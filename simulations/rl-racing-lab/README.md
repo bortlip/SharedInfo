@@ -2,13 +2,38 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.0**
+Current release: **v0.8.3**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.3: browser startup test gate
+
+The page no longer uses `id="drivers"`, which could be exposed by the browser as `window.drivers` before `cars.js` created the real driver array. `scene.js` also verifies that `drivers` is actually an array before clearing per-driver perception state. A small Node/Playwright harness now syntax-checks every JavaScript file, rejects HTML-id/classic-global name collisions, launches the real simulator in headless Chromium, fails on browser/page errors, verifies the four POV cards and Brain Lab UI initialize, and confirms learning can begin and produce experience. Run `npm install`, `npx playwright install chromium`, then `npm test` from this folder.
+
+## v0.8.2: startup hardening + full browser diagnostics
+
+The training log DOM id no longer collides with the global `log()` helper. Startup, initialization, runtime, and unhandled-promise failures now flow through one detailed on-page reporter showing the release version, timestamp, page URL, error name/message, source file/line/column when available, and stack trace, with a **Copy diagnostics** button. The original error object is still written to DevTools Console.
+
+## v0.8.1: normalized browser storage + brain cost library
+
+v0.8.1 keeps the v0.8 session model but changes its internal IndexedDB representation. The database is now version 2 with two stores:
+
+```text
+sessions   small session metadata + activeBrainId + recent events
+brains     one record per brain, indexed by sessionId
+```
+
+Existing v0.8 browser data is migrated automatically during the IndexedDB version upgrade: embedded `brains[]` records are copied into the new `brains` store and removed from the session metadata row. After migration, a normal PPO autosave writes the active brain plus the small session metadata record instead of structured-cloning every brain in the session.
+
+The Brain Library now shows each brain's parameter count, approximate Float32 tensor size, forward-pass multiply-accumulate count, and measured last/average PPO optimizer time. The active dashboard also shows last and average PPO time.
+
+The Session Manager exposes origin-level browser storage usage/quota using `navigator.storage.estimate()`, reports best-effort vs persistent durability using `navigator.storage.persisted()`, and can request persistent storage with `navigator.storage.persist()` when supported. Persistent storage protects against automatic storage-pressure eviction; explicit browser/site-data clearing can still remove it, so **Export All remains the real portable backup**.
+
+Brains can now be exported or deleted directly from the library. The current session can be deleted, and **Clear all local data** removes all racing-lab IndexedDB session/brain records plus the last-session pointer before creating one fresh blank session. The app refuses to delete the final brain inside a session because the simulator always needs an active policy.
 
 ## v0.8: Brain Lab + persistent sessions
 
@@ -38,7 +63,7 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 - **Deep:** 96 → 48 tanh layers
 - **Deep + wide:** 128 → 64 tanh layers
 
-The UI shows the resulting layer sizes and parameter count before a new brain is created. The generic PPO implementation backpropagates through any of these dense-layer presets.
+The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
 Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. For example, **64×40 RGB + Wide is about 985,000 trainable parameters** and **64×40 RGB + Deep + wide is about 993,000**. Each PPO update still uses 512 experiences and three passes, so those combinations may spend substantial wall time in backpropagation. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
 
@@ -58,7 +83,7 @@ The sensitivity view differentiates the selected action logit back to the image 
 
 A session contains multiple brains plus a compact experiment history. The Session Manager shows each brain's architecture, update count, total experiences, best run, race count, and the tracks on which it has trained. It also keeps recent session events such as brain creation, switching, track changes, and completed races.
 
-Sessions autosave to **IndexedDB in the browser**. IndexedDB is used rather than storing full networks in `localStorage` because large typed-array weight sets can be several megabytes. A small localStorage key only remembers which session was most recently active.
+Sessions autosave to **IndexedDB in the browser**. Internally, v0.8.1 stores small session metadata separately from one record per brain, indexed by session id. IndexedDB is used rather than storing full networks in `localStorage` because large typed-array weight sets can be several megabytes. A small localStorage key only remembers which session was most recently active.
 
 Available persistence operations:
 

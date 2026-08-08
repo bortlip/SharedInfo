@@ -30,6 +30,20 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
+### v0.8.1 Persistence + brain library cleanup
+
+- [x] Normalize IndexedDB into separate `sessions` metadata and `brains` stores, with `sessionId` index.
+- [x] Automatically migrate existing v0.8 embedded-brain session records during the IndexedDB v1→v2 upgrade.
+- [x] Autosave the active brain plus small session metadata rather than rewriting every brain on each update.
+- [x] Show architecture cost per brain: parameter count, approximate Float32 tensor size, and forward-pass MAC count.
+- [x] Measure and persist actual last/average PPO optimizer time for each brain on the current machine.
+- [x] Show origin storage usage/quota and best-effort vs persistent-storage status; allow requesting persistent storage when supported.
+- [x] Add per-brain Export/Delete actions, guarded current-session deletion, and guarded Clear All Local Data.
+- [x] Keep complete-session Export/Import portable and independent of the internal IndexedDB schema.
+- [x] Remove the browser named-property collision between the training-log DOM id and the global `log()` helper that could abort startup with `log is not a function`.
+- [x] Route startup/initialization/runtime/promise failures through one detailed on-page diagnostics panel with stack/source/version information and Copy Diagnostics.
+- [x] Add a pre-PR source/browser test gate: Node syntax checks, HTML-id/classic-global collision detection, and Playwright Chromium startup/learning smoke tests.
+
 ### v0.8 Brain Lab + sessions
 
 - [x] Keep **Pause learning** visible during PPO/backprop; a pause requested during PPO takes effect after the safe update boundary.
