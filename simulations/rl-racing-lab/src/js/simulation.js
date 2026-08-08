@@ -9,7 +9,7 @@ function chooseAction(car){
   car.lastObs=obs;car.lastAction=action;car.lastValue=out.value;car.lastLogp=Math.log(p);car.lastProb=p;car.actionSteer=act.steer;car.actionThrottle=act.throttle;
   if(sim.mode==='learn'){const steerIndex=STEERS.indexOf(act.steer),throttleIndex=LONGITUDINAL.indexOf(act.throttle);sim.batchSteerCounts[steerIndex]++;sim.batchThrottleCounts[throttleIndex]++}
 }
-function recordEpisodeFailure(car){sim.batchResets++;sim.batchEpisodes++;sim.batchEpisodeDistance+=car.episodeProgress}
+function recordEpisodeFailure(car){sim.batchResets++;sim.batchEpisodes++;sim.batchEpisodeDistance+=car.episodePeakProgress;sim.batchBestRunDistance=Math.max(sim.batchBestRunDistance,car.episodePeakProgress)}
 function decisionStep(){
   if(sim.learning)return;
   if(sim.mode==='race'){

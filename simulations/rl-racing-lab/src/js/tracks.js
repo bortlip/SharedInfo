@@ -1,4 +1,4 @@
-// Circuit definitions, track geometry, and dynamic track construction.
+// Circuit definitions, historical training track geometry, and evaluation-track construction.
 const HALF_WIDTH=5.4;
 const TRACK_DEFS={
   mixed:{name:'Balanced Loop',n:300,make:(a)=>new THREE.Vector3(Math.cos(a)*(35+4.2*Math.sin(2*a)+2*Math.cos(3*a)),0,Math.sin(a)*(24+3.2*Math.cos(3*a)-1.5*Math.sin(2*a)))},
@@ -8,17 +8,15 @@ const TRACK_DEFS={
   figure8:{name:'Figure Eight Overpass',n:420,make:(a)=>new THREE.Vector3(35*Math.sin(a),2.75*(1+Math.cos(a)),21*Math.sin(2*a))},
   grandprix:{name:'Grand Prix',n:520,make:(a)=>new THREE.Vector3(60*Math.cos(a)+12*Math.cos(2*a)+5*Math.sin(5*a),0,38*Math.sin(a)+8*Math.sin(3*a)+5*Math.cos(4*a))}
 };
-const TRAINING_TRACKS=['mixed','reverse','technical','sweepers','figure8','grandprix'];
 let track=[],tangents=[],normals=[],segLen=[],trackLength=0,avgSeg=1,TRACK_N=0,finishIndex=2,activeTrackId='mixed',trackGroup=null;
-
 function makeTrackPoints(id){
   const def=TRACK_DEFS[id]||TRACK_DEFS.mixed,pts=[];
   for(let i=0;i<def.n;i++)pts.push(def.make(i/def.n*Math.PI*2));
   if(def.reverse)pts.reverse();
   return pts;
 }
-function buildTrack(id){
-  activeTrackId='mixed';
+function buildTrack(id='mixed'){
+  activeTrackId=id in TRACK_DEFS?id:'mixed';
   track=makeTrackPoints(activeTrackId);TRACK_N=track.length;tangents=[];normals=[];segLen=[];trackLength=0;
   for(let i=0;i<TRACK_N;i++){
     const prev=track[mod(i-1,TRACK_N)],next=track[mod(i+1,TRACK_N)],t=next.clone().sub(prev).normalize();
@@ -37,9 +35,10 @@ function buildTrack(id){
   const road=new THREE.Mesh(roadGeo,new THREE.MeshStandardMaterial({color:0x303840,roughness:.9,metalness:.05}));road.receiveShadow=true;trackGroup.add(road);
   function edgeLine(sign,color){const pts=track.map((q,i)=>q.clone().addScaledVector(normals[i],sign*HALF_WIDTH).add(new THREE.Vector3(0,.06,0)));pts.push(pts[0].clone());trackGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color,transparent:true,opacity:.92})))}
   edgeLine(1,0xf2f4ef);edgeLine(-1,0xf2f4ef);
-  for(let i=0;i<TRACK_N;i+=10){const q=track[i],t=tangents[i],dash=new THREE.Mesh(new THREE.BoxGeometry(.16,.025,1.55),new THREE.MeshBasicMaterial({color:0xffd96c}));dash.position.set(q.x,q.y+.07,q.z);dash.rotation.y=-Math.atan2(t.z,t.x)+Math.PI/2;trackGroup.add(dash)}
-  for(let i=0;i<TRACK_N;i+=18)for(const side of[-1,1]){
-    const q=track[i].clone().addScaledVector(normals[i],side*(HALF_WIDTH+2.2));
+  const historical=activeTrackId==='mixed',dashEvery=historical?10:12,treeEvery=historical?18:(activeTrackId==='grandprix'?28:22),treeOffset=historical?2.2:3.2;
+  for(let i=0;i<TRACK_N;i+=dashEvery){const q=track[i],t=tangents[i],dash=new THREE.Mesh(new THREE.BoxGeometry(.16,.025,1.55),new THREE.MeshBasicMaterial({color:0xffd96c}));dash.position.set(q.x,q.y+.07,q.z);dash.rotation.y=-Math.atan2(t.z,t.x)+Math.PI/2;trackGroup.add(dash)}
+  for(let i=0;i<TRACK_N;i+=treeEvery)for(const side of[-1,1]){
+    const q=track[i].clone().addScaledVector(normals[i],side*(HALF_WIDTH+treeOffset));if(activeTrackId==='figure8'&&q.y>1.4)continue;
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,1.5,7),new THREE.MeshStandardMaterial({color:0x5a412f}));trunk.position.set(q.x,q.y+.75,q.z);trunk.castShadow=true;trackGroup.add(trunk);
     const crown=new THREE.Mesh(new THREE.ConeGeometry(1,2.4,8),new THREE.MeshStandardMaterial({color:0x2e6a3c}));crown.position.set(q.x,q.y+2.35,q.z);crown.castShadow=true;trackGroup.add(crown);
   }

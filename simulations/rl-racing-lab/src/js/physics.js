@@ -8,7 +8,7 @@ function simulateCar(car,dt){
   const steerRate=1.75*(.28+.72*(car.speed/22));car.heading-=car.actionSteer*steerRate*dt;
   car.x+=Math.cos(car.heading)*car.speed*dt;car.z+=Math.sin(car.heading)*car.speed*dt;
   const near=nearestIndexFor(car),progress=progressDelta(before,near.index),onRoad=near.distance<HALF_WIDTH;
-  car.lastTrackIndex=before;sim.batchDriverSeconds+=dt;if(!onRoad)sim.batchOffRoadSeconds+=dt;
+  car.lastTrackIndex=before;car.episodeNetProgress+=progress;car.episodePeakProgress=Math.max(car.episodePeakProgress,car.episodeNetProgress);sim.batchDriverSeconds+=dt;if(!onRoad)sim.batchOffRoadSeconds+=dt;
   if(progress>=0){const r=progress*.075;car.pendingReward+=r;car.episodeProgress+=progress;car.totalProgress+=progress;if(onRoad)sim.batchForwardMeters+=progress}else car.pendingReward+=progress*.16;
   if(!onRoad){car.offTime+=dt;car.pendingReward-=.16*dt}else car.offTime=Math.max(0,car.offTime-dt*1.5);
   if(car.speed<.8)car.stuckTime+=dt;else car.stuckTime=Math.max(0,car.stuckTime-dt*2);
@@ -18,7 +18,7 @@ function simulateCar(car,dt){
 }
 function collideCars(){
   for(let i=0;i<DRIVER_COUNT;i++)for(let j=i+1;j<DRIVER_COUNT;j++){
-    const a=drivers[i],b=drivers[j];if(sim.mode==='race'&&(a.raceStatus!=='racing'||b.raceStatus!=='racing'))continue;
+    const a=drivers[i],b=drivers[j];if(sim.mode==='race'&&(a.raceStatus!=='racing'||b.raceStatus!=='racing'))continue;const ay=surfaceHeightForCar(a),by=surfaceHeightForCar(b);if(Math.abs(ay-by)>1.8)continue;
     const dx=b.x-a.x,dz=b.z-a.z,d2=dx*dx+dz*dz;
     if(d2<2.7&&a.collisionCooldown<=0&&b.collisionCooldown<=0){
       const d=Math.max(.15,Math.sqrt(d2)),nx=dx/d,nz=dz/d,severity=clamp(1+Math.abs(a.speed-b.speed)*.35+(a.speed+b.speed)*.10,1,9);
