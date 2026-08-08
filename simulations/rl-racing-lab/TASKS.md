@@ -42,6 +42,7 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Keep complete-session Export/Import portable and independent of the internal IndexedDB schema.
 - [x] Remove the browser named-property collision between the training-log DOM id and the global `log()` helper that could abort startup with `log is not a function`.
 - [x] Route startup/initialization/runtime/promise failures through one detailed on-page diagnostics panel with stack/source/version information and Copy Diagnostics.
+- [x] Add a pre-PR source/browser test gate: Node syntax checks, HTML-id/classic-global collision detection, and Playwright Chromium startup/learning smoke tests.
 
 ### v0.8 Brain Lab + sessions
 

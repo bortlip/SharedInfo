@@ -1,0 +1,13 @@
+{
+  "name": "pov-rl-racing-lab-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node tests/check-source.mjs",
+    "test": "npm run check && playwright test",
+    "test:smoke": "playwright test tests/smoke.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

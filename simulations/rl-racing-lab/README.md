@@ -2,13 +2,17 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.2**
+Current release: **v0.8.3**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.3: browser startup test gate
+
+The page no longer uses `id="drivers"`, which could be exposed by the browser as `window.drivers` before `cars.js` created the real driver array. `scene.js` also verifies that `drivers` is actually an array before clearing per-driver perception state. A small Node/Playwright harness now syntax-checks every JavaScript file, rejects HTML-id/classic-global name collisions, launches the real simulator in headless Chromium, fails on browser/page errors, verifies the four POV cards and Brain Lab UI initialize, and confirms learning can begin and produce experience. Run `npm install`, `npx playwright install chromium`, then `npm test` from this folder.
 
 ## v0.8.2: startup hardening + full browser diagnostics
 

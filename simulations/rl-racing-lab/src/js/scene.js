@@ -8,7 +8,7 @@ function rebuildPerceptionResources(){
   for(const camera of observerCameras){camera.aspect=OBS_W/OBS_H;camera.updateProjectionMatrix()}
   for(const rt of renderTargets)rt.dispose?.();renderTargets.length=0;
   for(let i=0;i<DRIVER_COUNT;i++){const rt=new THREE.WebGLRenderTarget(RENDER_W,RENDER_H,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true});rt.texture.colorSpace=THREE.SRGBColorSpace;renderTargets.push(rt)}
-  pixelBuffer=new Uint8Array(RENDER_W*RENDER_H*4);if(typeof drivers!=='undefined')drivers.forEach(c=>{c.latestRGBA=null;c.lastObs=null;c.lastForward=null});
+  pixelBuffer=new Uint8Array(RENDER_W*RENDER_H*4);if(typeof drivers!=='undefined'&&Array.isArray(drivers))drivers.forEach(c=>{c.latestRGBA=null;c.lastObs=null;c.lastForward=null});
 }
 rebuildPerceptionResources();
 scene.add(new THREE.HemisphereLight(0xdff5ff,0x56603f,2));
