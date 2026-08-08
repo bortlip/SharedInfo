@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>POV RL Racing Lab — Reinforcement Learning Race Simulator</title>
-<link rel="stylesheet" href="styles.css?v=0.3.0">
+<link rel="stylesheet" href="styles.css?v=0.3.1">
 </head>
 <body>
 <div class="app">
@@ -22,11 +22,11 @@
 <aside class="side">
 <section class="card side-card"><h2>What the selected AI sees</h2><p>The actual 32×20 grayscale POV feeds the restored baseline network. Speed and damage are the only nonvisual inputs.</p><canvas id="pov" width="32" height="20"></canvas><div class="action-grid"><div class="metric"><small>Steering</small><strong id="steerOut">—</strong></div><div class="metric"><small>Throttle</small><strong id="throttleOut">—</strong></div><div class="metric"><small>Policy confidence</small><strong id="confidenceOut">—</strong></div><div class="metric"><small>Gear</small><strong id="slipOut">—</strong></div></div></section>
 <section class="card side-card"><h2>Four parallel drivers</h2><p>Click a driver to spectate it. All four use the same weights but gather different experience.</p><div id="drivers" class="drivers"></div></section>
-<section class="card side-card"><h2>Learning</h2><p>These are per-update learning signals, not lifetime totals. Reward/experience should trend upward while off-road %, resets, and collisions generally fall.</p><div class="trainstats"><div class="stat"><small>Reward / exp</small><strong id="rewardPerExp">0.000</strong></div><div class="stat"><small>Forward / exp</small><strong id="forwardPerExp">0.00m</strong></div><div class="stat"><small>Off-road</small><strong id="offRoadPct">0%</strong></div><div class="stat"><small>Avg fail dist</small><strong id="avgFailDistance">0m</strong></div><div class="stat"><small>Resets</small><strong id="resetCount">0</strong></div><div class="stat"><small>Laps / hits</small><strong id="lapHitCount">0 / 0</strong></div></div><canvas id="learningChart" class="learning-chart" width="370" height="110"></canvas><div id="actionMix" class="action-mix">Action mix appears after training begins.</div><div class="callout" style="margin-top:9px"><strong>Baseline reward</strong>Forward track progress is the main positive signal. Grass, backwards motion, causing collisions, and becoming stuck are punished. Passes are telemetry only; the learner is first being asked to master driving reliably.</div><p style="margin-top:10px">Training log</p><div id="log" class="log" aria-live="polite"></div></section>
+<section class="card side-card"><h2>Learning</h2><p>These are per-update learning signals, not lifetime totals. Reward/experience should trend upward while off-road %, resets, and collisions generally fall.</p><div class="trainstats"><div class="stat"><small>Reward / exp</small><strong id="rewardPerExp">0.000</strong></div><div class="stat"><small>Forward / exp</small><strong id="forwardPerExp">0.00m</strong></div><div class="stat"><small>Off-road</small><strong id="offRoadPct">0%</strong></div><div class="stat"><small>Avg fail dist</small><strong id="avgFailDistance">0m</strong></div><div class="stat"><small>Resets</small><strong id="resetCount">0</strong></div><div class="stat"><small>Laps / hits</small><strong id="lapHitCount">0 / 0</strong></div></div><canvas id="learningChart" class="learning-chart" width="370" height="110"></canvas><div id="actionMix" class="action-mix">Action mix appears after training begins.</div><div class="callout" style="margin-top:9px"><strong>Track-discipline reward</strong>Forward progress is worth much more on pavement, with the highest value near the center of the road. Approaching the edge adds a small penalty, grass earns almost no progress credit plus a stronger time penalty, and prolonged off-road driving resets sooner. Simply stopping on the asphalt earns no positive reward.</div><p style="margin-top:10px">Training log</p><div id="log" class="log" aria-live="polite"></div></section>
 </aside></div>
 <footer>POV RL Racing Lab <span data-app-version>v—</span> · Three.js · shared actor-critic/PPO learner · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/rl-racing-lab">source on GitHub</a> · related: <a href="../../perception-rover/">Perception Rover</a></footer>
 </div>
-<script src="js/version.js?v=0.3.0"></script>
-<script type="module" src="js/app.js?v=0.3.0"></script>
+<script src="js/version.js?v=0.3.1"></script>
+<script type="module" src="js/app.js?v=0.3.1"></script>
 </body>
 </html>
