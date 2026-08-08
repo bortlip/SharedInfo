@@ -1,122 +1,127 @@
-# POV Reinforcement-Learning Racing Lab — Design
+# POV RL Racing Lab — Design
 
-## Goal
+## Core experiment
 
-Four AI drivers learn racing behavior together from their own forward-facing visual stream. There are no human steering labels and no evolutionary reproduce/mutate step.
+Four drivers share one policy network. Each driver observes a forward 32×20 grayscale rendered camera frame plus its own speed and damage. The network chooses one of fifteen joint steering/longitudinal actions. Track progress, failures, and collisions produce reward. Experiences from all four drivers are combined into a 512-sample PPO-style actor-critic update.
 
-**POV frames → shared actor-critic network → steering + throttle/brake → world/reward → PPO backpropagation → improved shared policy**
+The important causal chain is intentionally visible:
 
-## Observation
+**POV pixels → network → steering/throttle action → vehicle moves → reward → PPO/backprop → updated shared network**
 
-Each car receives:
+## Why v0.3 restores the old learner
 
-- the current **32 × 20 grayscale POV frame**
-- a **32 × 20 frame-difference motion channel** computed from the current and previous visual frame
+The earlier local prototype visibly improved at track following. Later development introduced several dimensions of difficulty simultaneously:
+
+- independent velocity direction and tire-slip-like dynamics
+- temporal/frame-difference perception
+- separate steering and throttle policy heads
+- changed reward density and terminal penalties
+- automatic multi-track training
+- additional race-position shaping
+
+When learning degraded, those changes made diagnosis ambiguous. v0.3 therefore restores the learning-critical pieces of the successful baseline while retaining operational improvements such as modular files, fast training, multiple selectable tracks, evaluation races, checkpoints, better spawning, cache-safe loading, and useful telemetry.
+
+The baseline is not claimed to be the final racing model. It is the control condition from which future complexity can be tested.
+
+## Baseline observation and network
+
+Observation:
+
+- 32×20 grayscale POV = 640 values
 - normalized speed
 - normalized damage
 
-That is **1282 input values**. Other cars must be perceived because they appear in the image. Track position, lateral velocity, collision geometry, and lap progress are not supplied as policy inputs; the simulator may use them only to calculate physics and reward.
+Total: **642 inputs**.
 
-The motion channel exists because the richer grip/slip model made the problem partially observable from one frame. A car that is stable and a car that is sliding sideways can have nearly identical instantaneous images but require different actions.
+Network:
 
-## Policy
+**642 → 48 tanh → 15-action policy + 1 value estimate**
 
-The shared network uses:
+The 15 policy actions are the Cartesian product of:
 
-- 1282 inputs
-- 48 tanh hidden units
-- a 5-way steering policy head: hard left, left, straight, right, hard right
-- a 3-way longitudinal head: brake, coast, throttle
-- one value estimate
+- steering: hard left, left, straight, right, hard right
+- longitudinal: brake, coast, throttle
 
-The two policy heads are sampled independently during learning and use argmax actions during evaluation. Their joint log-probability is used by the PPO ratio.
+The policy is stochastic in learning mode and deterministic in evaluation races.
 
-Separate heads are more data-efficient than the old 15-way Cartesian-product action head: learning that throttle is useful can generalize across steering choices instead of being rediscovered five times.
+## Baseline vehicle model
 
-## Experience and PPO update cycle
+The car has position, heading, scalar speed, damage, and current controls. Velocity always follows the heading. This deliberately removes a hidden lateral-motion state that a one-frame feed-forward policy cannot observe directly.
 
-The four cars collectively gather **512 experiences**. Each experience stores the temporal observation, selected steering action, selected throttle action, immediate reward, old joint log-probability, value estimate, and terminal flag.
+Throttle accelerates, brake decelerates, coast produces mild drag, steering changes heading as a function of speed, and grass slows the car. Damage reduces maximum speed.
 
-When the batch fills:
-
-1. simulation advancement pauses briefly
-2. discounted returns and generalized advantage estimates are computed
-3. advantages are normalized
-4. three clipped PPO-style backpropagation passes update the shared representation, both policy heads, and value head
-5. entropy regularization keeps exploration from collapsing too early
-6. the cars continue from their current states using the new policy
-
-A completed PPO update does not reset the grid. Individual failed cars can respawn independently.
+The model is simple enough for the visual policy to learn while still supporting meaningful throttle and steering decisions.
 
 ## Reward
 
-The dominant reward is **dense forward motion along the local track direction**. Unlike the earlier sample-index-only signal, this provides useful feedback every physics step.
+Primary positive signal:
 
-- forward on-road motion: full positive credit
-- forward off-road motion: tiny positive credit only
-- backward motion: negative reward
-- time off road: continuous penalty
-- collision: penalty apportioned by approximate responsibility
-- failed/stuck episode: modest terminal penalty
-- lap completion: strong bonus
-- lap position: small additional race-position bonus
+- forward progress along the ordered track
 
-The terminal failure penalty was reduced so partial useful behavior is not erased by one large final negative event.
+Additional positive signal:
 
-### Overtake reward exploit
+- lap completion
 
-The earlier implementation rewarded moving up a position more strongly than it punished moving back down. Two cars could therefore gain net reward by repeatedly swapping places. v0.2 removes reward from moment-to-moment rank changes. Passes remain telemetry; race-position reward is paid only when a lap is completed.
+Negative signals:
 
-## Collision responsibility
+- backward progress
+- time off track
+- becoming stuck or badly off track long enough to reset
+- collisions, apportioned by approximate responsibility
 
-Both cars can physically take damage because physics does not care who was at fault. The learning penalty is different: velocity into the collision normal estimates how much each car caused the impact, and the penalty is apportioned by that responsibility.
+Position changes are counted but do not currently create per-frame reward. This avoids reintroducing the earlier pass-swapping reward exploit before basic driving is stable.
 
-## Tracks and surface height
+## Learning cycle
 
-The vehicle state is still fundamentally 2D (`x`, `z`, heading, velocity). Normal tracks are therefore flat. Earlier decorative elevation caused off-track cars to inherit nearby road height and visibly hover over the grass.
+At every 0.1 simulated seconds, each active driver produces an action and later contributes a transition containing observation, action, immediate reward, value estimate, old log probability, and terminal status.
 
-The Figure Eight deliberately retains vertical separation at its crossover. One crossing branch reaches ground level while the other is elevated. A car follows figure-eight road height only while it is within the road corridor; once off track it renders at ground height.
+After 512 combined experiences:
 
-## Learning telemetry
+1. freeze simulation
+2. compute discounted returns and generalized advantage estimates
+3. normalize advantages
+4. run three clipped PPO-style backpropagation passes
+5. update the shared actor-critic network
+6. continue driving with the new policy
 
-Lifetime cumulative reward is not a useful learning indicator because it can become increasingly negative even while recent behavior improves. The dashboard therefore emphasizes per-update measurements:
+Failed cars can independently respawn. A policy update does not reset the whole field.
 
-- reward per experience
-- forward meters per experience
-- off-road percentage
-- average distance before failure/reset
-- resets per update
-- laps and collisions per update
-- steering and throttle action distribution
-- reward-per-experience history over recent updates
+## Tracks and generalization
 
-The learning log records the same normalized metrics after every PPO update.
+The simulator still includes multiple circuits, but track changes are explicit user-controlled experiments rather than automatic curriculum.
 
-## Checkpoints
+Recommended validation sequence:
 
-Checkpoint format **v2** stores the temporal/split-policy architecture, network weights, training metadata, track mode, and recent learning history.
+1. Start a fresh brain on Balanced Loop.
+2. Verify reward/experience trends upward and off-road/reset rates fall.
+3. Run a deterministic evaluation race.
+4. Save the checkpoint.
+5. Switch to Counterflow without resetting the brain and observe zero-shot transfer.
+6. Resume learning there if desired.
+7. Repeat with progressively different circuits only after the baseline behavior is established.
 
-Legacy v1 checkpoints are migratable because the hidden layer remains 48 units. Migration:
+This distinguishes “can learn to drive” from “can generalize to a new road.”
 
-- copies the old image weights into the new current-frame channel
-- initializes the new motion-channel weights to zero
-- moves speed/damage weights to their new input slots
-- factorizes the old 15-way policy weights into averaged steering and throttle heads
-- preserves the value head and training/update metadata
+## Future reintroduction plan
 
-The factorization is approximate, so a migrated policy should be allowed to resume learning before being judged in an evaluation race.
+Once the baseline reliably learns, add complexity one controlled experiment at a time. A sensible order is:
 
-## Success criteria
+1. denser continuous progress reward, while keeping baseline physics
+2. modest race-finish/position incentives
+3. a single previous-frame or motion feature
+4. independent steering/throttle heads
+5. lateral velocity / grip and slip dynamics
+6. multi-track curriculum or procedural tracks
+7. more realistic racing behavior and braking/line optimization
 
-The useful signals are trends rather than one dramatic score:
+Each change should be compared against the baseline using the same track, fresh seeds/checkpoints, and evaluation race metrics. If performance collapses, the responsible change is then identifiable.
 
-- reward per experience rises
-- forward meters per experience rises
-- off-road percentage falls
-- reset frequency falls
-- lap completions become common
-- collision rate declines
-- evaluation races become longer, faster, and more competitive
-- performance transfers across Counterflow and the random multi-track set
+## Fast training
 
-Sophisticated overtaking and racecraft remain emergent goals rather than scripted guarantees.
+Fast mode suppresses the large spectator render and reduces UI updates. The four small POV renders remain mandatory because they are the policy input. Requested simulation speed can exceed achieved speed, so the UI reports both.
+
+## Checkpoint philosophy
+
+A checkpoint stores learned network weights and training metadata, not exact physical world state or an unfinished PPO rollout. Loading starts from a clean grid.
+
+v0.3 returns to the same basic network shape as the original v1 checkpoint, so v1 weights can be loaded directly. v2 temporal/split-head checkpoints are approximately collapsed back into the baseline network for continuity, but should not be treated as identical policies after migration.

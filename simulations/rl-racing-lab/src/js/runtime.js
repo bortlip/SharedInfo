@@ -1,38 +1,14 @@
 // Animation loop, controls, event wiring, and application startup.
 let uiAcc=0;
 function animate(now){
-  requestAnimationFrame(animate);
-  const realDt=Math.min(.05,(now-sim.lastTime)/1000);sim.lastTime=now;
-  if(sim.running&&!sim.learning){
-    sim.physicsAcc+=realDt*sim.speed;sim.decisionAcc+=realDt*sim.speed;
-    const FIXED=1/60,maxPhysics=sim.fastMode&&sim.mode==='learn'?180:80,maxDecisions=sim.fastMode&&sim.mode==='learn'?28:16;
-    let guard=0;while(sim.physicsAcc>=FIXED&&guard++<maxPhysics){physicsStep(FIXED);sim.physicsAcc-=FIXED}
-    guard=0;while(sim.decisionAcc>=DECISION_DT&&guard++<maxDecisions&&!sim.learning){decisionStep();sim.decisionAcc-=DECISION_DT}
-    sim.physicsAcc=Math.min(sim.physicsAcc,.75);sim.decisionAcc=Math.min(sim.decisionAcc,.75);
-  }
-  const fastHeadless=sim.fastMode&&sim.mode==='learn'&&sim.running;container.classList.toggle('fast-paused',fastHeadless);
-  if(!fastHeadless){
-    updateMainCamera();renderer.setRenderTarget(null);
-    const selectedMesh=drivers[sim.selected].mesh,hideOwnCar=sim.cameraMode==='pov',wasVisible=selectedMesh.visible;if(hideOwnCar)selectedMesh.visible=false;
-    renderer.render(scene,mainCamera);if(hideOwnCar)selectedMesh.visible=wasVisible;
-  }
-  if(now-sim.measureReal>=1000){const realSeconds=(now-sim.measureReal)/1000;sim.achievedSpeed=(sim.simClock-sim.measureSim)/Math.max(.001,realSeconds);sim.measureReal=now;sim.measureSim=sim.simClock}
-  uiAcc+=realDt;const uiPeriod=fastHeadless?.5:.16;if(uiAcc>uiPeriod){uiAcc=0;updateUI()}
+  requestAnimationFrame(animate);const realDt=Math.min(.05,(now-sim.lastTime)/1000);sim.lastTime=now;
+  if(sim.running&&!sim.learning){sim.physicsAcc+=realDt*sim.speed;sim.decisionAcc+=realDt*sim.speed;const FIXED=1/60,maxPhysics=sim.fastMode&&sim.mode==='learn'?180:80,maxDecisions=sim.fastMode&&sim.mode==='learn'?28:16;let guard=0;while(sim.physicsAcc>=FIXED&&guard++<maxPhysics){physicsStep(FIXED);sim.physicsAcc-=FIXED}guard=0;while(sim.decisionAcc>=DECISION_DT&&guard++<maxDecisions&&!sim.learning){decisionStep();sim.decisionAcc-=DECISION_DT}sim.physicsAcc=Math.min(sim.physicsAcc,.75);sim.decisionAcc=Math.min(sim.decisionAcc,.75)}
+  const fastHeadless=sim.fastMode&&sim.mode==='learn'&&sim.running;container.classList.toggle('fast-paused',fastHeadless);if(!fastHeadless){updateMainCamera();renderer.setRenderTarget(null);const selectedMesh=drivers[sim.selected].mesh,hideOwnCar=sim.cameraMode==='pov',wasVisible=selectedMesh.visible;if(hideOwnCar)selectedMesh.visible=false;renderer.render(scene,mainCamera);if(hideOwnCar)selectedMesh.visible=wasVisible}
+  if(now-sim.measureReal>=1000){const realSeconds=(now-sim.measureReal)/1000;sim.achievedSpeed=(sim.simClock-sim.measureSim)/Math.max(.001,realSeconds);sim.measureReal=now;sim.measureSim=sim.simClock}uiAcc+=realDt;const uiPeriod=fastHeadless?.5:.16;if(uiAcc>uiPeriod){uiAcc=0;updateUI()}
 }
 $('runBtn').addEventListener('click',()=>{if(sim.learning)return;sim.running=!sim.running;if(sim.running&&drivers.every(c=>c.lastObs===null)&&sim.mode==='learn')drivers.forEach(chooseAction);updateUI()});
 document.querySelectorAll('.speed-btn').forEach(b=>b.addEventListener('click',()=>{sim.speed=Number(b.dataset.speed);document.querySelectorAll('.speed-btn').forEach(x=>x.classList.toggle('active',x===b))}));
-$('cameraBtn').addEventListener('click',()=>{sim.cameraMode=sim.cameraMode==='chase'?'pov':'chase';$('cameraBtn').textContent=sim.cameraMode==='chase'?'Chase camera':'POV camera'});
-$('learnBtn').addEventListener('click',enterLearningMode);
-$('fastBtn').addEventListener('click',()=>{sim.fastMode=!sim.fastMode;container.classList.toggle('fast-paused',sim.fastMode&&sim.mode==='learn');log(sim.fastMode?'Fast training enabled: spectator rendering paused while learning.':'Visual training restored.');updateUI()});
-$('trackSelect').addEventListener('change',event=>changeTrackMode(event.target.value));$('raceBtn').addEventListener('click',startEvaluationRace);$('raceLaps').addEventListener('change',()=>sim.raceLaps=Number($('raceLaps').value));
-$('saveBtn').addEventListener('click',saveCheckpoint);$('loadBtn').addEventListener('click',()=>$('loadInput').click());
-$('loadInput').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{loadCheckpointData(JSON.parse(await file.text()))}catch(error){log(`Load failed: ${error.message}`);$('raceResult').innerHTML=`<strong>Load failed.</strong> ${error.message}`}event.target.value=''});
-$('resetBtn').addEventListener('click',()=>{
-  if(sim.learning)return;
-  sim.running=false;sim.mode='learn';sim.update=0;sim.experience=0;sim.totalExperience=0;sim.temperature=1.25;sim.lastLoss=0;sim.raceFinished=false;sim.history=[];sim.lastMetrics=null;resetBatchTelemetry();
-  net=createNetwork();drivers.forEach(c=>{c.rollout=[];c.totalReward=0;c.totalProgress=0;c.lap=0;c.collisions=0;c.overtakes=0;c.lastObs=null;c.prevFrame=null;c.latestRGBA=null;c.mesh.visible=true});
-  resetGrid();primeObservations();$('log').innerHTML='';$('raceResult').textContent='Learning reset. Fresh random temporal brain; evaluation race is idle.';log('Learning reset. Fresh random shared policy.');updateUI();
-});
-resetBatchTelemetry();resetGrid();primeObservations();mainCamera.position.set(0,12,45);drivers.forEach(c=>syncCarMesh(c));
-log('Ready. The policy sees the current POV plus visual motion, then learns steering and throttle with separate heads.');
-updateUI();animate(performance.now());
+$('cameraBtn').addEventListener('click',()=>{sim.cameraMode=sim.cameraMode==='chase'?'pov':'chase';$('cameraBtn').textContent=sim.cameraMode==='chase'?'Chase camera':'POV camera'});$('learnBtn').addEventListener('click',enterLearningMode);$('fastBtn').addEventListener('click',()=>{sim.fastMode=!sim.fastMode;container.classList.toggle('fast-paused',sim.fastMode&&sim.mode==='learn');log(sim.fastMode?'Fast training enabled: spectator rendering paused while learning.':'Visual training restored.');updateUI()});
+$('trackSelect').addEventListener('change',event=>changeTrackMode(event.target.value));$('raceBtn').addEventListener('click',startEvaluationRace);$('raceLaps').addEventListener('change',()=>sim.raceLaps=Number($('raceLaps').value));$('saveBtn').addEventListener('click',saveCheckpoint);$('loadBtn').addEventListener('click',()=>$('loadInput').click());$('loadInput').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{loadCheckpointData(JSON.parse(await file.text()))}catch(error){log(`Load failed: ${error.message}`);$('raceResult').innerHTML=`<strong>Load failed.</strong> ${error.message}`}event.target.value=''});
+$('resetBtn').addEventListener('click',()=>{if(sim.learning)return;sim.running=false;sim.mode='learn';sim.update=0;sim.experience=0;sim.totalExperience=0;sim.temperature=1.35;sim.lastLoss=0;sim.raceFinished=false;sim.history=[];sim.lastMetrics=null;resetBatchTelemetry();net=createNetwork();drivers.forEach(c=>{c.rollout=[];c.totalReward=0;c.totalProgress=0;c.lap=0;c.collisions=0;c.overtakes=0;c.lastObs=null;c.latestRGBA=null;c.mesh.visible=true});resetGrid();primeObservations();$('log').innerHTML='';$('raceResult').textContent='Learning reset. Fresh random baseline brain; evaluation race is idle.';log('Learning reset. Fresh random baseline shared policy.');updateUI()});
+resetBatchTelemetry();resetGrid();primeObservations();mainCamera.position.set(0,12,45);drivers.forEach(c=>syncCarMesh(c));log('Ready. Baseline learner restored: single POV frame, joint steering/throttle action, and simple arcade dynamics.');updateUI();animate(performance.now());
