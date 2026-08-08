@@ -68,9 +68,16 @@ function loadClassicScript(relativePath) {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const url = new URL(relativePath, import.meta.url);
+    const errorsBeforeLoad = reportedErrorCount;
     url.searchParams.set('v', releaseVersion);
     script.src = url.href;
-    script.onload = resolve;
+    script.onload = () => {
+      if (reportedErrorCount > errorsBeforeLoad) {
+        reject(new Error(`${relativePath} reported an error while loading; startup stopped before dependent scripts ran.`));
+        return;
+      }
+      resolve();
+    };
     script.onerror = () => reject(new Error(`Could not load ${relativePath}.`));
     document.head.appendChild(script);
   });

@@ -2,13 +2,17 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.4**
+Current release: **v0.8.5**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.5: recent-chart syntax fix + fail-fast script loading
+
+The recent-driving chart no longer uses an invalid expression-bodied arrow callback containing a second statement. The chart loop is expanded into readable block-form JavaScript. The classic-script loader now also stops startup when a script reports an error during evaluation, preventing later dependent scripts from producing misleading secondary failures such as `log is not defined`.
 
 ## v0.8.4: shared-helper startup fix
 
