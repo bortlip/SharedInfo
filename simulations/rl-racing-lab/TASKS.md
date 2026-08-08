@@ -30,6 +30,11 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
+### v0.8.6 UI stability
+
+- [x] Keep driver telemetry rows at a stable height when direction labels change.
+- [x] Remove the internal scrollbar from the 15-action policy list and show all actions inline.
+
 ### v0.8.5 Syntax + loader hardening
 
 - [x] Fix the invalid recent-chart callback that caused `ui.js` to fail parsing.

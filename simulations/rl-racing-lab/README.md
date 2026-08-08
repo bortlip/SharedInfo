@@ -2,13 +2,17 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.5**
+Current release: **v0.8.6**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.6: stable driver telemetry + full policy list
+
+Driver telemetry cells now keep their direction/value text on one line in shrink-safe columns, so labels such as `100% FWD`, `ACROSS`, and `WRONG WAY` no longer make the two-column driver grid repeatedly grow and collapse. The 15-action policy list no longer has an internal max-height/scrollbar; the Brain Inspector expands with the page so every action is visible at once.
 
 ## v0.8.5: recent-chart syntax fix + fail-fast script loading
 
