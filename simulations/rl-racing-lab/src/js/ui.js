@@ -2,7 +2,7 @@
 let lastSessionListSig='',lastBrainLibrarySig='',lastTimelineSig='';
 function updateMainCamera(){const car=drivers[sim.selected],f=new THREE.Vector3(Math.cos(car.heading),0,Math.sin(car.heading)),roadY=surfaceHeightForCar(car);if(sim.cameraMode==='chase'){const desired=new THREE.Vector3(car.x-f.x*7,roadY+3.7,car.z-f.z*7);mainCamera.position.lerp(desired,.10);mainCamera.lookAt(car.x+f.x*5,roadY+.65,car.z+f.z*5)}else{mainCamera.position.set(car.x+f.x*.25,roadY+1.25,car.z+f.z*.25);mainCamera.lookAt(car.x+f.x*14,roadY+.65,car.z+f.z*14)}}
 function resize(){const w=container.clientWidth,h=container.clientHeight;renderer.setSize(w,h,false);mainCamera.aspect=w/h;mainCamera.updateProjectionMatrix()}window.addEventListener('resize',resize);resize();
-function log(text){const el=$('log'),line=document.createElement('div');line.textContent=text;el.prepend(line);while(el.children.length>28)el.lastChild.remove()}
+function log(text){const el=$('trainingLog'),line=document.createElement('div');line.textContent=text;el.prepend(line);while(el.children.length>28)el.lastChild.remove()}
 function formatDuration(seconds){seconds=Math.max(0,Math.floor(seconds||0));const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;return h?`${h}h ${String(m).padStart(2,'0')}m`:m?`${m}m ${String(s).padStart(2,'0')}s`:`${s}s`}
 function compactNumber(n){return n>=1e6?`${(n/1e6).toFixed(n>=1e7?1:2)}M`:n>=1e3?`${(n/1e3).toFixed(n>=1e5?0:1)}k`:String(Math.round(n))}
 function formatBytes(bytes){bytes=Math.max(0,Number(bytes)||0);if(bytes>=1024**3)return`${(bytes/1024**3).toFixed(2)} GiB`;if(bytes>=1024**2)return`${(bytes/1024**2).toFixed(2)} MiB`;if(bytes>=1024)return`${(bytes/1024).toFixed(bytes>=1024*100?0:1)} KiB`;return`${Math.round(bytes)} B`}

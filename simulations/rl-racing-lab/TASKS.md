@@ -40,6 +40,7 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Show origin storage usage/quota and best-effort vs persistent-storage status; allow requesting persistent storage when supported.
 - [x] Add per-brain Export/Delete actions, guarded current-session deletion, and guarded Clear All Local Data.
 - [x] Keep complete-session Export/Import portable and independent of the internal IndexedDB schema.
+- [x] Remove the browser named-property collision between the training-log DOM id and the global `log()` helper that could abort startup with `log is not a function`.
 
 ### v0.8 Brain Lab + sessions
 
