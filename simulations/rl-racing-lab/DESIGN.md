@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.8 Design
+# POV RL Racing Lab — v0.8.1 Design
 
 ## Goal
 
@@ -87,6 +87,8 @@ Forward propagation stores every hidden activation. Backpropagation computes the
 
 The optimizer remains intentionally small and educational rather than a production PPO implementation.
 
+Each PPO update measures optimizer wall time beginning after the deliberate 90 ms BACKPROP-display pause and ending after the three training passes. `lastPpoMs`, cumulative PPO time, and PPO count are stored in the brain training snapshot, allowing the UI to report both the latest and mean optimizer time for that architecture on the current machine.
+
 ## Brain Inspector
 
 The selected driver's latest forward pass is retained for human-facing inspection.
@@ -133,11 +135,19 @@ Training segments record the tracks a brain has actually trained on, update/expe
 
 The UI summarizes all brains in the current session and recent session activity so an experiment is not reduced to whichever brain happens to be loaded right now.
 
-## IndexedDB and exports
+## IndexedDB v2, storage durability, and exports
 
 Full networks are persisted in **IndexedDB**, which supports structured cloning of typed arrays and substantially larger objects than practical `localStorage` strings. `localStorage` stores only the id of the most recently active session.
 
+Database version 2 normalizes persistence into `sessions` and `brains` object stores. `brains` has a non-unique `sessionId` index. The in-memory model still exposes `labSession.brains[]` for simple simulator code, but persistence serializes session metadata separately from brain records.
+
+The v1→v2 `onupgradeneeded` migration walks each old session cursor, writes every embedded brain into the new `brains` store while preserving ids/order, then updates the session row without its embedded `brains[]`. The upgrade transaction is atomic at the IndexedDB version-change level: the new database version does not become available until that migration transaction completes.
+
+Normal autosave now writes only the active brain record plus the small session metadata record. Explicit whole-session creation/import writes all brain records. Brain/session deletion removes the corresponding records rather than leaving orphaned model tensors.
+
 Autosave occurs after meaningful changes and PPO updates, with a short debounce/idle delay. Switching brains/sessions and explicit session operations also force saves.
+
+The Session Manager also reports `navigator.storage.estimate()` usage/quota and `navigator.storage.persisted()` durability. A user gesture may call `navigator.storage.persist()` to ask the browser for persistent storage. This changes eviction semantics, not ownership: the user can still explicitly clear site data.
 
 There are two portable formats:
 
