@@ -2,7 +2,11 @@
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),mod=(n,m)=>((n%m)+m)%m;
 const randn=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
 const uid=prefix=>`${prefix}-${globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}`;
-const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const escapeHtml=value=>String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+function formatDuration(seconds){seconds=Math.max(0,Math.floor(seconds||0));const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;return h?`${h}h ${String(m).padStart(2,'0')}m`:m?`${m}m ${String(s).padStart(2,'0')}s`:`${s}s`}
+function compactNumber(n){return n>=1e6?`${(n/1e6).toFixed(n>=1e7?1:2)}M`:n>=1e3?`${(n/1e3).toFixed(n>=1e5?0:1)}k`:String(Math.round(n))}
+function formatBytes(bytes){bytes=Math.max(0,Number(bytes)||0);if(bytes>=1024**3)return`${(bytes/1024**3).toFixed(2)} GiB`;if(bytes>=1024**2)return`${(bytes/1024**2).toFixed(2)} MiB`;if(bytes>=1024)return`${(bytes/1024).toFixed(bytes>=1024*100?0:1)} KiB`;return`${Math.round(bytes)} B`}
+function formatMs(ms){ms=Number(ms)||0;if(ms<=0)return'—';return ms>=1000?`${(ms/1000).toFixed(ms>=10000?1:2)} s`:`${ms.toFixed(ms>=100?0:1)} ms`}
 
 const VISION_PRESETS={
   gray32:{id:'gray32',label:'32×20 grayscale',w:32,h:20,channels:1,renderScale:2,color:false},

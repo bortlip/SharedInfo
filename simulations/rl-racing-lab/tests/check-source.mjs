@@ -32,6 +32,15 @@ for (const name of classicOrder) {
   classicSources.set(name, await readFile(path.join(jsDir, name), 'utf8'));
 }
 
+
+// Shared display helpers used by several later scripts must live in the first shared layer.
+const stateSource = classicSources.get('state.js');
+for (const helper of ['formatDuration','compactNumber','formatBytes','formatMs']) {
+  const pattern = new RegExp(`function\\s+${helper}\\s*\\(`);
+  if (pattern.test(stateSource)) continue;
+  failed = true;
+  console.error(`\nShared-helper load-order violation: ${helper} must be declared in state.js.`);
+}
 const declarations = new Map();
 const declaration = /^(?:function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*))/gm;
 for (const [index, name] of classicOrder.entries()) {
@@ -60,4 +69,4 @@ for (const htmlFile of htmlFiles) {
 }
 
 if (failed) process.exit(1);
-console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; no pre-declaration HTML-id/global hazards found.`);
+console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);

@@ -18,22 +18,25 @@ function buildErrorDiagnostics(error, context = 'runtime', meta = {}) {
   return lines.join('\n');
 }
 
+let reportedErrorCount = 0;
 function showRuntimeError(error, context = 'runtime', meta = {}) {
   const message = String(error?.message || error || 'Unknown error');
   const diagnostics = buildErrorDiagnostics(error, context, meta);
   console.error(`POV RL Racing Lab ${context} error.`, error);
   bootError.style.display = 'block';
-  bootError.replaceChildren();
-  const title = document.createElement('strong');
-  title.textContent = `POV RL Racing Lab hit a ${context} error.`;
-  const summary = document.createElement('p');
-  summary.textContent = message;
-  const help = document.createElement('p');
-  help.textContent = 'Detailed diagnostics are below. Copy them when reporting the problem; DevTools Console still contains the original error object.';
+  if (reportedErrorCount === 0) {
+    bootError.replaceChildren();
+    const title = document.createElement('strong');
+    title.textContent = 'POV RL Racing Lab reported one or more errors.';
+    const help = document.createElement('p');
+    help.textContent = 'Each failure is preserved below in the order it was reported. Copy the diagnostics when reporting a problem; DevTools Console still contains the original error objects.';
+    bootError.append(title, help);
+  }
+  reportedErrorCount++;
   const details = document.createElement('details');
   details.open = true;
   const detailsSummary = document.createElement('summary');
-  detailsSummary.textContent = 'Full error diagnostics';
+  detailsSummary.textContent = `${reportedErrorCount}. ${context}: ${message}`;
   const pre = document.createElement('pre');
   pre.textContent = diagnostics;
   const copy = document.createElement('button');
@@ -48,7 +51,7 @@ function showRuntimeError(error, context = 'runtime', meta = {}) {
     }
   });
   details.append(detailsSummary, copy, pre);
-  bootError.append(title, summary, help, details);
+  bootError.append(details);
 }
 
 globalThis.showRlRacingError = showRuntimeError;
