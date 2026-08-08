@@ -30,6 +30,15 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
+### v0.8.7 Inspector + cameras + PPO experiment controls
+
+- [x] Show sampled real network connections with learned weight strength and live signed contribution alongside node activations.
+- [x] Add Chase, Driver POV, High chase, Helicopter, Trackside, Overhead follow, and Whole track spectator cameras without changing neural POV inputs.
+- [x] Keep both progress charts and summary metrics live during headless training while suppressing expensive spectator/driver-card/inspector repainting.
+- [x] Add per-brain PPO batch size, backprop pass count, learning rate, and clip-range experiment controls with historical defaults preserved.
+- [x] Persist/restore PPO settings with each brain and record the active settings in update history/session events.
+- [ ] Consider advanced learning controls after we have comparison tooling: gamma, GAE lambda, exploration/temperature schedule, value-loss weight, entropy bonus, and gradient-norm clipping.
+
 ### v0.8.6 UI stability
 
 - [x] Keep driver telemetry rows at a stable height when direction labels change.

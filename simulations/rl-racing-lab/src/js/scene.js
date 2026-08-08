@@ -2,7 +2,7 @@
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9ec3d1);scene.fog=new THREE.Fog(0x9ec3d1,45,115);
 const container=$('scene'),renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;container.appendChild(renderer.domElement);
-const mainCamera=new THREE.PerspectiveCamera(58,1,.1,180),observerCameras=[],renderTargets=[];let pixelBuffer=new Uint8Array(1);
+const mainCamera=new THREE.PerspectiveCamera(58,1,.1,300),observerCameras=[],renderTargets=[];let pixelBuffer=new Uint8Array(1);
 function rebuildPerceptionResources(){
   while(observerCameras.length<DRIVER_COUNT)observerCameras.push(new THREE.PerspectiveCamera(66,OBS_W/OBS_H,.08,90));
   for(const camera of observerCameras){camera.aspect=OBS_W/OBS_H;camera.updateProjectionMatrix()}

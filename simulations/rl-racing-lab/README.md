@@ -2,13 +2,23 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.6**
+Current release: **v0.8.7**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.7: live connection graph + spectator cameras + PPO experiments
+
+The Brain Inspector now draws a representative sampled subgraph of the real active network. Node size/brightness reflects live activation; connection thickness reflects absolute learned weight strength; connection opacity reflects the current absolute contribution (`|weight × source activation|`); cyan/red connections indicate positive/negative signed contribution. Speed and damage inputs are always included in the sampled input nodes, while the large image input is sampled so dense networks remain legible.
+
+Spectator viewing now includes Chase, Driver POV, High chase, Helicopter, Trackside, Overhead follow, and Whole track cameras. These are presentation-only and never alter the neural observation cameras.
+
+Four controlled PPO experiment settings are stored with each brain and restored when that brain is loaded: experience batch (256/512/1024), backprop passes (1/3/5), learning rate (0.00025/0.00055/0.001), and PPO clip range (0.10/0.18/0.25). Existing brains without saved PPO settings use the historical baseline of 512 experiences, 3 passes, learning rate 0.00055, and clip 0.18. Changing a PPO setting discards only the unfinished batch so one update never mixes two parameter sets.
+
+Headless training now keeps summary statistics and both learning-progress charts live (at the throttled headless dashboard cadence) while suppressing spectator, driver-card, and Brain Inspector repainting. Neural POV rendering still occurs because those images are the policy inputs.
 
 ## v0.8.6: stable driver telemetry + full policy list
 
@@ -77,13 +87,14 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 
 The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
-Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. For example, **64×40 RGB + Wide is about 985,000 trainable parameters** and **64×40 RGB + Deep + wide is about 993,000**. Each PPO update still uses 512 experiences and three passes, so those combinations may spend substantial wall time in backpropagation. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
+Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. For example, **64×40 RGB + Wide is about 985,000 trainable parameters** and **64×40 RGB + Deep + wide is about 993,000**. The historical baseline PPO setup uses 512 experiences and three passes, while v0.8.7 also exposes controlled batch/pass experiments, so those combinations may spend substantial wall time in backpropagation. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
 
 ## Live Brain Inspector
 
 The selected driver now has a live network view showing:
 
 - the exact grayscale or RGB image entering the policy;
+- a sampled subgraph of real network nodes and connections, with node activation plus learned weight/live-contribution strength;
 - hidden-layer activations;
 - all 15 action probabilities and the chosen action;
 - value estimate, exploration temperature, and policy entropy;
@@ -117,7 +128,7 @@ In **Learning** mode:
 
 - four drivers share the active brain;
 - the selected track supplies observations and reward;
-- PPO updates every 512 combined experiences;
+- PPO updates after the active brain's selected 256/512/1024 combined-experience batch;
 - Adaptive clean starts begin at every PPO update and can relax to every 2, 4, and 8 updates as performance improves;
 - fixed 1/2/4/8-update clean starts or failures-only running remain available.
 
@@ -162,7 +173,7 @@ All 1×/2×/4×/10×/50× settings use the same chronological scheduler:
 
 Higher requested speeds ask the browser to process more identical simulated work per wall-clock second; they do not switch physics or policy timing. At high speed the spectator/dashboard are simply repainted less often.
 
-Headless is a **presentation flag, not a learning mode**. It suppresses spectator and expensive dashboard/inspector painting, but physics, neural POV rendering, observations, actions, reward, experience collection, PPO, and reset logic use the same path.
+Headless is a **presentation flag, not a learning mode**. It suppresses spectator, driver-card, and Brain Inspector repainting while summary metrics and both learning-progress charts remain live at a throttled cadence. Physics, neural POV rendering, observations, actions, reward, experience collection, PPO, and reset logic use the same path.
 
 ## Folder structure
 
