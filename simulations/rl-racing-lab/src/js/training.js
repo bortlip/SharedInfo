@@ -21,10 +21,10 @@ function captureBatchMetrics(avgReward){
   sim.lastMetrics=metrics;sim.history.push(metrics);if(sim.history.length>120)sim.history.shift();return metrics;
 }
 async function performLearningUpdate(){
-  sim.learning=true;sim.running=false;$('learningOverlay').classList.add('show');$('phaseText').textContent='BACKPROP';$('learningText').textContent=`Training on ${sim.experience} experiences…`;updateUI();await new Promise(r=>setTimeout(r,70));
+  sim.learning=true;sim.running=false;$('learningOverlay').classList.add('show');$('phaseText').textContent='BACKPROP';$('learningText').textContent=`Training on ${sim.experience} experiences…`;updateUI();await new Promise(r=>setTimeout(r,90));
   const batch=buildTrainingBatch(),avgReward=sim.batchReward/Math.max(1,sim.experience);let loss=0,count=0;
   for(let epoch=0;epoch<3;epoch++){shuffle(batch);for(const e of batch){loss+=trainSample(e,.00055);count++}$('learningText').textContent=`Backprop pass ${epoch+1}/3 · ${batch.length} samples`;await new Promise(r=>setTimeout(r,0))}
   sim.lastLoss=loss/Math.max(1,count);sim.update++;sim.temperature=Math.max(.72,1.35-sim.update*.005);const metrics=captureBatchMetrics(avgReward);
-  log(`Update ${sim.update}: r/exp ${metrics.rewardPerExp.toFixed(3)} · forward/exp ${metrics.forwardPerExp.toFixed(2)}m · off-road ${metrics.offRoadPct.toFixed(0)}% · resets ${metrics.resets} · laps ${metrics.laps} · loss ${sim.lastLoss.toFixed(3)}`);
-  drivers.forEach(c=>{c.rollout=[];c.lastObs=null;c.pendingReward=0});sim.experience=0;resetBatchTelemetry();drivers.forEach(chooseAction);sim.learning=false;sim.running=true;$('learningOverlay').classList.remove('show');
+  log(`Update ${sim.update}: r/exp ${metrics.rewardPerExp.toFixed(3)} · forward/exp ${metrics.forwardPerExp.toFixed(2)}m · off-road ${metrics.offRoadPct.toFixed(0)}% · resets ${metrics.resets} · laps ${metrics.laps} · loss ${sim.lastLoss.toFixed(3)} · full grid reset`);
+  drivers.forEach(c=>{c.rollout=[];c.lastObs=null;c.pendingReward=0});sim.experience=0;resetBatchTelemetry();resetGrid();drivers.forEach(chooseAction);sim.learning=false;sim.running=true;$('learningOverlay').classList.remove('show');
 }

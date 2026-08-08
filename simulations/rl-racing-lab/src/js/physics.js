@@ -7,29 +7,23 @@ function simulateCar(car,dt){
   car.gear=Math.min(5,1+Math.floor(car.speed/4.4));
   const steerRate=1.75*(.28+.72*(car.speed/22));car.heading-=car.actionSteer*steerRate*dt;
   car.x+=Math.cos(car.heading)*car.speed*dt;car.z+=Math.sin(car.heading)*car.speed*dt;
-  const near=nearestIndexFor(car),progress=progressDelta(before,near.index),onRoad=near.distance<HALF_WIDTH,edgeRatio=clamp(near.distance/HALF_WIDTH,0,1);
+  const near=nearestIndexFor(car),progress=progressDelta(before,near.index),onRoad=near.distance<HALF_WIDTH;
   car.lastTrackIndex=before;sim.batchDriverSeconds+=dt;if(!onRoad)sim.batchOffRoadSeconds+=dt;
-  if(progress>=0){
-    if(onRoad){const centerQuality=1-edgeRatio*edgeRatio,r=progress*.12*(1+.8*centerQuality);car.pendingReward+=r;car.episodeProgress+=progress;car.totalProgress+=progress;sim.batchForwardMeters+=progress}
-    else car.pendingReward+=progress*.005;
-  }else car.pendingReward+=progress*(onRoad?.22:.08);
-  if(!onRoad){car.offTime+=dt;car.pendingReward-=.45*dt}else{car.offTime=Math.max(0,car.offTime-dt*1.5);car.pendingReward-=Math.pow(edgeRatio,4)*.08*dt}
+  if(progress>=0){const r=progress*.075;car.pendingReward+=r;car.episodeProgress+=progress;car.totalProgress+=progress;if(onRoad)sim.batchForwardMeters+=progress}else car.pendingReward+=progress*.16;
+  if(!onRoad){car.offTime+=dt;car.pendingReward-=.16*dt}else car.offTime=Math.max(0,car.offTime-dt*1.5);
   if(car.speed<.8)car.stuckTime+=dt;else car.stuckTime=Math.max(0,car.stuckTime-dt*2);
-  if(before>TRACK_N*.82&&near.index<TRACK_N*.18&&progress>0){car.lap++;if(sim.mode==='learn'){sim.batchLaps++;car.pendingReward+=15;log(`Driver ${car.id+1} completed lap ${car.lap} on ${TRACK_DEFS[activeTrackId].name}.`)}else if(car.lap>=sim.raceLaps)markRaceFinished(car)}
-  if(car.offTime>1.75||car.stuckTime>4.5||car.damage>=100){car.pendingReward-=car.offTime>1.75?4:5;car.pendingDone=true}
+  if(before>TRACK_N*.82&&near.index<TRACK_N*.18&&progress>0){car.lap++;if(sim.mode==='learn'){sim.batchLaps++;car.pendingReward+=15;log(`Driver ${car.id+1} completed lap ${car.lap}.`)}else if(car.lap>=sim.raceLaps)markRaceFinished(car)}
+  if(car.offTime>3||car.stuckTime>4.5||car.damage>=100){car.pendingReward-=5;car.pendingDone=true}
   syncCarMesh(car);
 }
 function collideCars(){
   for(let i=0;i<DRIVER_COUNT;i++)for(let j=i+1;j<DRIVER_COUNT;j++){
     const a=drivers[i],b=drivers[j];if(sim.mode==='race'&&(a.raceStatus!=='racing'||b.raceStatus!=='racing'))continue;
-    const ay=surfaceHeightForCar(a),by=surfaceHeightForCar(b);if(Math.abs(ay-by)>1.8)continue;
     const dx=b.x-a.x,dz=b.z-a.z,d2=dx*dx+dz*dz;
     if(d2<2.7&&a.collisionCooldown<=0&&b.collisionCooldown<=0){
-      const d=Math.max(.15,Math.sqrt(d2)),nx=dx/d,nz=dz/d,avx=Math.cos(a.heading)*a.speed,avz=Math.sin(a.heading)*a.speed,bvx=Math.cos(b.heading)*b.speed,bvz=Math.sin(b.heading)*b.speed;
-      const closing=Math.max(0,(avx-bvx)*nx+(avz-bvz)*nz),severity=clamp(1+closing*.45+(a.speed+b.speed)*.07,1,9),aInto=Math.max(0,avx*nx+avz*nz),bInto=Math.max(0,-(bvx*nx+bvz*nz)),intoTotal=aInto+bInto;
-      const aBlame=intoTotal>.25?aInto/intoTotal:.5,bBlame=1-aBlame;
+      const d=Math.max(.15,Math.sqrt(d2)),nx=dx/d,nz=dz/d,severity=clamp(1+Math.abs(a.speed-b.speed)*.35+(a.speed+b.speed)*.10,1,9);
       a.damage=clamp(a.damage+severity*1.3,0,100);b.damage=clamp(b.damage+severity*1.3,0,100);
-      if(sim.mode==='learn'){a.pendingReward-=severity*.75*aBlame;b.pendingReward-=severity*.75*bBlame}
+      if(sim.mode==='learn'){a.pendingReward-=severity*.75;b.pendingReward-=severity*.75}
       a.speed*=.72;b.speed*=.72;a.collisions++;b.collisions++;sim.collisions++;a.x-=nx*.45;a.z-=nz*.45;b.x+=nx*.45;b.z+=nz*.45;a.collisionCooldown=b.collisionCooldown=.45;
     }
   }
