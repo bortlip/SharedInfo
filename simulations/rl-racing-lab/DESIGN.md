@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.6 Design
+# POV RL Racing Lab — v0.6.1 Design
 
 ## Design goal
 

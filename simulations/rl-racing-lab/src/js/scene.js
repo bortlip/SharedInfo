@@ -4,7 +4,7 @@ const container=$('scene'),renderer=new THREE.WebGLRenderer({antialias:true,powe
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;container.appendChild(renderer.domElement);
 const mainCamera=new THREE.PerspectiveCamera(58,1,.1,180),observerCameras=[],renderTargets=[];
 for(let i=0;i<DRIVER_COUNT;i++){observerCameras.push(new THREE.PerspectiveCamera(66,OBS_W/OBS_H,.08,90));const rt=new THREE.WebGLRenderTarget(RENDER_W,RENDER_H,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true});rt.texture.colorSpace=THREE.SRGBColorSpace;renderTargets.push(rt)}
-const pixelBuffer=new Uint8Array(RENDER_W*RENDER_H*4),povCtx=$('pov').getContext('2d'),povImage=povCtx.createImageData(OBS_W,OBS_H);
+const pixelBuffer=new Uint8Array(RENDER_W*RENDER_H*4);
 
 scene.add(new THREE.HemisphereLight(0xdff5ff,0x56603f,2));
 const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(25,45,18);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-70;sun.shadow.camera.right=70;sun.shadow.camera.top=70;sun.shadow.camera.bottom=-70;scene.add(sun);
