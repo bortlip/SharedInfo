@@ -15,4 +15,3 @@ function captureObservation(car){
 }
 function primeObservations(){for(const car of drivers)captureObservation(car)}
 function drawPreview(canvas,rgba){if(!canvas||!rgba)return;const ctx=canvas.getContext('2d'),image=ctx.createImageData(OBS_W,OBS_H);image.data.set(rgba);ctx.putImageData(image,0,0)}
-function updatePOV(){const car=drivers[sim.selected];if(!car.latestRGBA)return;povImage.data.set(car.latestRGBA);povCtx.putImageData(povImage,0,0)}
