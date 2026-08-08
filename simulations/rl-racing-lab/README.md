@@ -2,13 +2,17 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.1**
+Current release: **v0.8.2**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.2: startup hardening + full browser diagnostics
+
+The training log DOM id no longer collides with the global `log()` helper. Startup, initialization, runtime, and unhandled-promise failures now flow through one detailed on-page reporter showing the release version, timestamp, page URL, error name/message, source file/line/column when available, and stack trace, with a **Copy diagnostics** button. The original error object is still written to DevTools Console.
 
 ## v0.8.1: normalized browser storage + brain cost library
 
