@@ -71,6 +71,20 @@ Negative signals:
 
 Position changes are counted but do not currently create per-frame reward. This avoids reintroducing the earlier pass-swapping reward exploit before basic driving is stable.
 
+### v0.3.1 track-discipline shaping
+
+This is a controlled reward-only experiment: architecture, observation, action space, PPO settings, and vehicle dynamics remain unchanged.
+
+- Forward progress on pavement is amplified relative to the original baseline.
+- The progress multiplier is highest near the road center and declines toward the edge.
+- A small fourth-power edge penalty begins while the car is still on pavement, creating a warning signal before failure.
+- Forward progress on grass receives almost no positive credit.
+- Continuous off-road penalty is stronger.
+- Off-road episodes terminate after 1.75 seconds instead of 3 seconds, reducing the amount of low-value grass-driving experience in each PPO batch.
+- There is no positive survival/time reward for merely staying on pavement, because that could make stopping an attractive policy.
+
+The expected signature is lower off-road percentage, greater distance before reset, and eventually higher forward meters per experience. If those do not improve, reward magnitude alone is unlikely to be the main problem.
+
 ## Learning cycle
 
 At every 0.1 simulated seconds, each active driver produces an action and later contributes a transition containing observation, action, immediate reward, value estimate, old log probability, and terminal status.

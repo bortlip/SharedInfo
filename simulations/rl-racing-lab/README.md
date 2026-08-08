@@ -2,7 +2,7 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, perceive the world through their own rendered POV camera, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.3.0**
+Current release: **v0.3.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
@@ -40,7 +40,7 @@ This is much easier to interpret than changing the environment underneath a novi
 
 ## Reward and collisions
 
-Forward track progress is the primary positive signal. Backward progress, grass/off-track time, becoming stuck, and collisions are negative. Lap completion receives a bonus.
+v0.3.1 strengthens track-discipline shaping without changing the network, PPO algorithm, action space, or vehicle physics. Forward progress on pavement is worth substantially more than progress on grass, and progress near the centerline is worth more than progress near the edge. Cars also receive a small increasing edge penalty before leaving the road, a stronger continuous off-road penalty, and reset after 1.75 seconds off road instead of 3 seconds. There is deliberately no positive reward merely for remaining stationary on pavement, which avoids teaching the policy to stop.
 
 Both cars physically take damage in a collision. The learning penalty is apportioned using approximate collision responsibility based on each car's motion into the contact, so a car that is merely rear-ended is not punished as if it caused the crash.
 

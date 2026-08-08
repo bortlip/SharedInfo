@@ -7,13 +7,16 @@ function simulateCar(car,dt){
   car.gear=Math.min(5,1+Math.floor(car.speed/4.4));
   const steerRate=1.75*(.28+.72*(car.speed/22));car.heading-=car.actionSteer*steerRate*dt;
   car.x+=Math.cos(car.heading)*car.speed*dt;car.z+=Math.sin(car.heading)*car.speed*dt;
-  const near=nearestIndexFor(car),progress=progressDelta(before,near.index),onRoad=near.distance<HALF_WIDTH;
+  const near=nearestIndexFor(car),progress=progressDelta(before,near.index),onRoad=near.distance<HALF_WIDTH,edgeRatio=clamp(near.distance/HALF_WIDTH,0,1);
   car.lastTrackIndex=before;sim.batchDriverSeconds+=dt;if(!onRoad)sim.batchOffRoadSeconds+=dt;
-  if(progress>=0){const r=progress*.075;car.pendingReward+=r;car.episodeProgress+=progress;car.totalProgress+=progress;if(onRoad)sim.batchForwardMeters+=progress}else car.pendingReward+=progress*.16;
-  if(!onRoad){car.offTime+=dt;car.pendingReward-=.16*dt}else car.offTime=Math.max(0,car.offTime-dt*1.5);
+  if(progress>=0){
+    if(onRoad){const centerQuality=1-edgeRatio*edgeRatio,r=progress*.12*(1+.8*centerQuality);car.pendingReward+=r;car.episodeProgress+=progress;car.totalProgress+=progress;sim.batchForwardMeters+=progress}
+    else car.pendingReward+=progress*.005;
+  }else car.pendingReward+=progress*(onRoad?.22:.08);
+  if(!onRoad){car.offTime+=dt;car.pendingReward-=.45*dt}else{car.offTime=Math.max(0,car.offTime-dt*1.5);car.pendingReward-=Math.pow(edgeRatio,4)*.08*dt}
   if(car.speed<.8)car.stuckTime+=dt;else car.stuckTime=Math.max(0,car.stuckTime-dt*2);
   if(before>TRACK_N*.82&&near.index<TRACK_N*.18&&progress>0){car.lap++;if(sim.mode==='learn'){sim.batchLaps++;car.pendingReward+=15;log(`Driver ${car.id+1} completed lap ${car.lap} on ${TRACK_DEFS[activeTrackId].name}.`)}else if(car.lap>=sim.raceLaps)markRaceFinished(car)}
-  if(car.offTime>3||car.stuckTime>4.5||car.damage>=100){car.pendingReward-=5;car.pendingDone=true}
+  if(car.offTime>1.75||car.stuckTime>4.5||car.damage>=100){car.pendingReward-=car.offTime>1.75?4:5;car.pendingDone=true}
   syncCarMesh(car);
 }
 function collideCars(){
