@@ -20,6 +20,8 @@ Four controlled PPO experiment settings are stored with each brain and restored 
 
 Headless training now keeps summary statistics and both learning-progress charts live (at the throttled headless dashboard cadence) while suppressing spectator, driver-card, and Brain Inspector repainting. Neural POV rendering still occurs because those images are the policy inputs.
 
+The earlier asphalt arrows are replaced by a cleaner three-tone edge-strip pattern. Three distinct tones have different forward and reverse cyclic orderings, so a single POV image can contain a direction cue without arrow symbols on the racing surface. The tones are deliberately separated by luminance so the cue works for both grayscale and RGB brains.
+
 ## v0.8.6: stable driver telemetry + full policy list
 
 Driver telemetry cells now keep their direction/value text on one line in shrink-safe columns, so labels such as `100% FWD`, `ACROSS`, and `WRONG WAY` no longer make the two-column driver grid repeatedly grow and collapse. The 15-action policy list no longer has an internal max-height/scrollbar; the Brain Inspector expands with the page so every action is visible at once.
@@ -155,9 +157,9 @@ The dashboard also shows best-ever run, off-road percentage, reward/experience, 
 
 ## World, direction, collisions, and sound
 
-Tracks use dark asphalt, warning-edge paint, red/white curb markers, shoulder, grass, center markings, roadside scenery, and painted forward-direction arrows. Shoulder and grass reduce effective steering/acceleration/braking authority and scrub speed, with grass substantially worse.
+Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Shoulder and grass reduce effective steering/acceleration/braking authority and scrub speed, with grass substantially worse.
 
-The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel; painted arrows put a direction clue in the actual camera image. Exact FORWARD / ACROSS / WRONG WAY alignment shown in the dashboard is human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel. The edge strips repeat three distinct luminance tones in track-forward order, so their visible order reverses when a car faces the wrong way; this puts a direction clue in the actual camera image. Exact FORWARD / ACROSS / WRONG WAY alignment shown in the dashboard is human-facing telemetry only.
 
 Cars use oriented rectangular collision footprints rather than a simple center-distance threshold, allowing close side-by-side running while detecting rear-end contact before substantial visual overlap. Hard impacts cause more damage and speed loss.
 

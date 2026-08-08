@@ -203,7 +203,7 @@ The v0.7 signed-progress reward/surface model remains in place:
 - prolonged off-road/stuck state or 100 damage terminates an episode;
 - collisions penalize both participants.
 
-Exact track-direction alignment shown in the UI is human-facing telemetry only. Painted arrows put a direction clue into the rendered camera observation.
+Exact track-direction alignment shown in the UI is human-facing telemetry only. The narrow edge strips repeat three distinct luminance tones in track-forward order. A forward view therefore sees one cyclic ordering of the three tones while a reversed view sees the opposite ordering, giving the vision policy a directional cue inside the rendered camera observation without an explicit track-direction input.
 
 The current physics is still heading + scalar speed. There is no separate lateral velocity, yaw rate, or true slip angle yet.
 

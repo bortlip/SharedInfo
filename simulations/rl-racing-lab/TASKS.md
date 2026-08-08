@@ -97,5 +97,5 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Complete training timeline plus recent-driving chart.
 - [x] Selectable training tracks and adaptive/fixed clean-start cadence.
 - [x] Explicit Learning and Evaluation Race modes.
-- [x] Asphalt/shoulder/grass presentation, surface handling, direction arrows, and human-facing wrong-way telemetry.
+- [x] Asphalt/shoulder/grass presentation, surface handling, three-tone visual direction strips, and human-facing wrong-way telemetry.
 - [x] Oriented car collision footprints with stronger impact handling.
