@@ -1,14 +1,14 @@
-# POV RL Racing Lab — v0.6.1 Design
+# POV RL Racing Lab — v0.7 Design
 
 ## Design goal
 
-v0.6 preserves the recovered learning core while restoring manual training-track selection and allowing synchronized clean starts to become less frequent as the policy becomes competent.
+v0.7 keeps the recovered PPO/network architecture while making the application easier to operate and the racing environment easier to read. Learning and Evaluation Race are explicit modes; short-horizon and full-history progress are both visible; track surfaces and collision geometry are more believable without adding hidden motion state to the policy.
 
 The learning causal chain remains:
 
 **POV pixels → network → steering/throttle action → vehicle movement → reward → PPO/backprop → updated shared network**
 
-Anything added in v0.6 should either preserve that learning chain or be an explicit experimental control around it.
+Anything added in v0.7 should either preserve that causal chain or be clearly separated as human-facing telemetry/presentation.
 
 ## Preserved learning control
 
@@ -22,7 +22,7 @@ Network:
 
 **642 → 48 tanh → 15-action policy + 1 value estimate**
 
-There is therefore one learned intermediate/hidden layer containing 48 tanh units. v0.6 intentionally does not widen or deepen it; network-capacity experiments remain separate so track/reset execution changes can be evaluated without changing the learner itself.
+There is therefore one learned intermediate/hidden layer containing 48 tanh units. v0.7 intentionally does not widen or deepen it; network-capacity experiments remain separate so UI/surface/collision changes can be evaluated without simultaneously changing the learner.
 Training preserves the historical setup:
 
 - decision interval: 0.10 simulated seconds
@@ -38,33 +38,35 @@ Training preserves the historical setup:
 
 ## Training environments
 
-Balanced Loop remains the known-good baseline and preserves its historical visual distribution:
+Balanced Loop remains the known-good baseline geometry:
 
 - 300 centerline samples
 - half-width 5.4
-- center dash every 10 samples
-- roadside trees every 18 samples
-- tree offset = half-width + 2.2
 - finish index = 2
 
-Those details matter because the policy consumes rendered pixels. v0.6 also allows deliberate training on Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix. Track changes are explicit rather than random: the brain is retained, the unfinished PPO batch is discarded, the grid is reset, and Adaptive clean-start progression restarts at one update for the new circuit.
+v0.7 intentionally enriches the rendered observation distribution on every circuit: dark asphalt, amber road-edge warnings, alternating red/white curb markers, a 1.25-unit shoulder, grass outside, center dashes, painted forward-direction arrows, and roadside trees. Because the policy consumes pixels, this is a real environment change rather than presentation-only styling.
+
+Training remains manually selectable across Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix. Track changes are explicit rather than random: the brain is retained, the unfinished PPO batch is discarded, the grid is reset, recent-driving telemetry restarts, and Adaptive clean-start progression restarts at one update for the new circuit.
 
 ## Clean-start cadence
 
 PPO optimization remains fixed at 512 experiences per update. Full-grid clean starts are now an independent schedule. Adaptive mode begins at every PPO update, advances to every 2 updates once average run distance reaches roughly 0.45 track lengths or multiple lap completions are recorded across the four drivers, then to 4 and 8 updates as multi-lap competence grows. Fixed 1/2/4/8-update schedules and a failures-only mode are available. Individual terminal failures always respawn immediately.
 
-## Historical reward
+## Reward and surface handling
 
-The learning reward remains:
+The main learning reward remains signed track progress:
 
 - forward track progress: `progress × 0.075`
-- backward track progress: `progress × 0.16`
-- off-road time: `−0.16 per second`
+- backward track progress: `progress × 0.16` (negative progress therefore produces a larger-magnitude penalty)
+- shoulder time: `−0.07 per second`, with off-road timeout accumulating at 55% rate
+- grass time: `−0.18 per second`
 - lap: `+15`
-- terminal failure after 3 seconds off road, 4.5 seconds stuck, or 100 damage: `−5`
-- collisions: both cars receive the same `severity × 0.75` learning penalty
+- terminal failure after 3 accumulated off-road seconds, 4.5 seconds stuck, or 100 damage: `−5`
+- collisions: both cars receive the same `severity × 0.9` learning penalty
 
-No centerline bonus, edge shaping, position reward, or responsibility-weighted collision reward is active during training.
+Surface handling is also physical. Shoulder grip scales acceleration, braking, and steering down moderately and adds speed scrub. Grass reduces all three much more strongly and scrubs speed aggressively. This creates visible traction loss/understeer while retaining the baseline scalar-speed model. There is still no separate lateral velocity or slip angle.
+
+No centerline bonus, position reward, explicit track-direction input, or responsibility-weighted collision reward is active during training.
 
 ## Chronological speed-invariant scheduler
 
@@ -92,7 +94,7 @@ The four neural POV render targets remain mandatory because they are the model i
 
 ## Progress metrics
 
-Every completed PPO update is retained for the lifetime of the run/checkpoint. The graph draws the history from update 0, marks training-track changes, may downsample only for rendering efficiency, and adds the current partial batch as a live endpoint.
+Two progress views are maintained. The **Recent driving** chart samples each driver's peak net run distance every 0.5 simulated seconds and retains the last 60 simulated seconds. The **Complete training timeline** retains every completed PPO update for the lifetime of the run/checkpoint, marks training-track changes, may downsample only for rendering efficiency, and adds the current partial batch as a live endpoint.
 
 ### Average run distance
 
@@ -142,6 +144,12 @@ Available evaluation tracks are Balanced Loop, Counterflow, Technical Circuit, F
 Returning to learning rebuilds the selected training circuit before collecting new experience, so an evaluation track cannot accidentally become part of training.
 
 Figure Eight collision detection ignores X/Z overlaps when the cars are on vertically separated branches.
+
+## Collision geometry and direction telemetry
+
+Cars use oriented rectangular footprints based on their rendered width, length, and heading. The separating-axis test detects front/rear and side contact before substantial mesh overlap, resolves penetration even during collision cooldown, and computes damage from relative closing speed. This replaces the old center-distance threshold that allowed visible rear-end overlap.
+
+Each car also exposes the dot product between its forward heading and the local track tangent as human-facing direction telemetry. Values below −0.2 are shown as **WRONG WAY** and low positive alignment as **ACROSS**. This exact value is deliberately not part of the 642-input observation; instead, painted road arrows provide a visible direction cue inside the POV image while the agent still receives only pixels, normalized speed, and normalized damage.
 
 ## Checkpoint compatibility
 

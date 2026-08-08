@@ -2,12 +2,24 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, see the world through their own rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.6.1**
+Current release: **v0.7.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.7: clearer modes, dual progress views, and richer track surfaces
+
+v0.7 turns the controls into two explicit workflows: **Learning** and **Evaluation Race**. Switching modes prepares and pauses that activity; starting it is a separate action. Training controls, race controls, playback/view controls, and brain checkpoint controls are grouped separately so it is obvious what will happen next.
+
+Learning progress now has two complementary charts: a rolling **last 60 simulated seconds** view showing each driver's current-run distance, and the existing **complete training timeline** showing average/best run distance across PPO updates from update 0.
+
+Tracks now render as dark asphalt with an amber warning edge, red/white curb markers, a distinct shoulder, and grass outside. The scalar-speed baseline remains in place, but surface grip differs: shoulders reduce acceleration/braking/steering authority and scrub speed; grass does so much more aggressively. This approximates traction loss/understeer without reintroducing hidden lateral-velocity state. True momentum-based sliding remains a future experiment to pair with slip/yaw proprioception.
+
+Collision detection now uses each car's oriented rectangular footprint instead of waiting for their centers to get extremely close. Overlap is resolved immediately, hard impacts remove more speed and cause more damage, and side-by-side cars can still run closely without an oversized circular hitbox.
+
+The UI also shows **surface** and **direction alignment** for every driver. Direction alignment is telemetry only: it is not added to the neural inputs. Backward travel is already punished by signed track-progress reward, while painted forward-direction arrows on the asphalt give the POV policy a visual cue for recovering from a turn-around.
 
 ## v0.6: selectable training + adaptive clean starts
 
@@ -46,7 +58,7 @@ Headless only suppresses the large spectator render and expensive driver/chart r
 
 ## Measuring learning progress
 
-The progress graph keeps the **entire run from update 0**, rather than only a recent rolling window. Completed PPO updates remain the historical record, and the current partial batch appears as a live endpoint while training is visible.
+The complete timeline keeps the **entire run from update 0**, while the separate recent-driving chart retains only the last 60 simulated seconds. Completed PPO updates remain the long-term historical record, and the current partial batch appears as a live endpoint while training is visible.
 
 It plots:
 
