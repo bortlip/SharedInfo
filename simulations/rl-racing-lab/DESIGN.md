@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.8.1 Design
+# POV RL Racing Lab — v0.8.7 Design
 
 ## Goal
 
@@ -56,7 +56,7 @@ The baseline therefore remains:
 
 **642 → 48 tanh → 15-action policy + value**
 
-Its shape, action encoding, reward, and PPO hyperparameters are unchanged from the recovered baseline.
+Its shape, action encoding, and reward remain the recovered baseline. The historical PPO preset is still available unchanged, while v0.8.7 allows controlled per-brain PPO variations.
 
 Example parameter counts:
 
@@ -75,19 +75,17 @@ Training still uses:
 
 - four drivers sharing the active policy;
 - decisions every 0.10 simulated seconds;
-- 512 combined experiences per PPO update;
 - γ = 0.985;
 - GAE λ = 0.92;
-- PPO clip = 0.18;
-- three SGD-style passes;
-- learning rate = 0.00055;
 - exploration temperature 1.35 decaying toward 0.72.
+
+Four PPO update parameters are now controlled per brain with discrete experiment-safe options. The historical baseline remains **512 experiences / 3 passes / learning rate 0.00055 / clip 0.18**. Available options are batch 256/512/1024, passes 1/3/5, learning rate 0.00025/0.00055/0.001, and clip 0.10/0.18/0.25. Changing one discards only the unfinished experience batch so a single optimizer update never mixes configurations.
 
 Forward propagation stores every hidden activation. Backpropagation computes the policy/value gradient into the final hidden layer, then walks the configured tanh layers backward. Hidden deltas are computed before weights are updated, preserving the normal feed-forward backprop dependency.
 
 The optimizer remains intentionally small and educational rather than a production PPO implementation.
 
-Each PPO update measures optimizer wall time beginning after the deliberate 90 ms BACKPROP-display pause and ending after the three training passes. `lastPpoMs`, cumulative PPO time, and PPO count are stored in the brain training snapshot, allowing the UI to report both the latest and mean optimizer time for that architecture on the current machine.
+Each PPO update measures optimizer wall time beginning after the deliberate 90 ms BACKPROP-display pause and ending after the configured training passes. `lastPpoMs`, cumulative PPO time, PPO count, and the PPO parameter snapshot are stored with the brain, allowing architecture/training-cost comparisons on the current machine.
 
 ## Brain Inspector
 
@@ -111,7 +109,7 @@ For grayscale, the absolute input gradient is displayed per pixel. For RGB, abso
 
 This answers a limited mathematical question—**where would a small input change most strongly change this action score locally?** It must not be described as consciousness or literal visual attention.
 
-Inspector work is presentation-only. It is throttled and skipped in headless display mode so it cannot become part of the agent-environment timing contract.
+Inspector work is presentation-only. It is throttled and skipped in headless display mode so it cannot become part of the agent-environment timing contract. The network activity view samples a legible subset of real nodes/connections: node intensity/size encodes live activation, connection width encodes absolute learned weight strength, and connection opacity/color encodes the current signed `weight × source activation` contribution.
 
 ## Sessions and persistent experiment history
 
@@ -183,7 +181,7 @@ The chronological scheduler from v0.6/v0.7 is preserved:
 
 Requested 1×/2×/4×/10×/50× speed changes only how much of this same sequence is attempted per wall-clock frame.
 
-Headless remains presentation-only. It may suppress spectator, cards, charts, and Brain Inspector painting, but it does not select another physics, observation, reward, experience, PPO, or reset path. Neural POV render targets still run because they are the observation.
+Headless remains presentation-only. It suppresses spectator, driver-card, and Brain Inspector repainting, but summary metrics and both learning-progress charts remain live at the throttled headless dashboard cadence. It does not select another physics, observation, reward, experience, PPO, or reset path. Neural POV render targets still run because they are the observation.
 
 ## Training tracks and clean starts
 
@@ -191,7 +189,7 @@ Training remains manually selectable across Balanced Loop, Counterflow, Technica
 
 Changing track preserves the active brain but discards an unfinished PPO batch, creates a clean grid, and resets recent-driving telemetry. Track exposure is recorded in the active brain/session.
 
-PPO updates remain every 512 experiences. Full-grid clean starts are controlled independently with Adaptive, fixed 1/2/4/8-update intervals, or failures-only running. Individual failures still respawn immediately.
+PPO update batch size is selected per brain (256/512/1024, baseline 512). Full-grid clean starts are controlled independently with Adaptive, fixed 1/2/4/8-update intervals, or failures-only running. Individual failures still respawn immediately.
 
 ## Reward, surfaces, and direction
 
