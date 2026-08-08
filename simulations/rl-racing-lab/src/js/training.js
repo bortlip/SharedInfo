@@ -20,10 +20,10 @@ function captureBatchMetrics(avgReward){
   const liveDistances=drivers.map(c=>c.episodePeakProgress),distanceSum=sim.batchEpisodeDistance+liveDistances.reduce((a,b)=>a+b,0),distanceCount=sim.batchEpisodes+DRIVER_COUNT;
   const avgRunDistance=distanceSum/Math.max(1,distanceCount),batchBestRunDistance=Math.max(sim.batchBestRunDistance,...liveDistances);sim.bestRunDistance=Math.max(sim.bestRunDistance,batchBestRunDistance);
   const metrics={update:sim.update,rewardPerExp:avgReward,forwardPerExp:sim.batchForwardMeters/Math.max(1,sim.experience),offRoadPct:sim.batchOffRoadSeconds/Math.max(.001,sim.batchDriverSeconds)*100,avgRunDistance,batchBestRunDistance,bestRunDistance:sim.bestRunDistance,resets:sim.batchResets,laps:sim.batchLaps,collisions:sim.collisions,loss:sim.lastLoss,totalExperience:sim.totalExperience,wallSeconds:sim.trainingWallSeconds,simSeconds:sim.trainingSimSeconds,steer:[...sim.batchSteerCounts],throttle:[...sim.batchThrottleCounts]};
-  sim.lastMetrics=metrics;sim.history.push(metrics);if(sim.history.length>240)sim.history.shift();return metrics;
+  sim.lastMetrics=metrics;sim.history.push(metrics);return metrics;
 }
 async function performLearningUpdate(){
-  sim.learning=true;sim.running=false;$('learningOverlay').classList.add('show');$('phaseText').textContent='BACKPROP';$('learningText').textContent=`Training on ${sim.experience} experiences…`;updateUI();await new Promise(r=>setTimeout(r,90));
+  sim.learning=true;sim.running=false;sim.physicsAcc=0;sim.decisionAcc=0;$('learningOverlay').classList.add('show');$('phaseText').textContent='BACKPROP';$('learningText').textContent=`Training on ${sim.experience} experiences…`;updateUI();await new Promise(r=>setTimeout(r,90));
   const batch=buildTrainingBatch(),avgReward=sim.batchReward/Math.max(1,sim.experience);let loss=0,count=0;
   for(let epoch=0;epoch<3;epoch++){shuffle(batch);for(const e of batch){loss+=trainSample(e,.00055);count++}$('learningText').textContent=`Backprop pass ${epoch+1}/3 · ${batch.length} samples`;await new Promise(r=>setTimeout(r,0))}
   sim.lastLoss=loss/Math.max(1,count);sim.update++;sim.temperature=Math.max(.72,1.35-sim.update*.005);const metrics=captureBatchMetrics(avgReward);

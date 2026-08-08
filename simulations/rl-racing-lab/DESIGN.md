@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.5 Design
+# POV RL Racing Lab — v0.5.1 Design
 
 ## Design goal
 
@@ -22,6 +22,7 @@ Network:
 
 **642 → 48 tanh → 15-action policy + 1 value estimate**
 
+There is therefore one learned intermediate/hidden layer containing 48 tanh units. v0.5.1 intentionally does not widen or deepen it; network-capacity experiments are deferred so scheduler/display changes can be evaluated without changing the learner itself.
 Training preserves the historical setup:
 
 - decision interval: 0.10 simulated seconds
@@ -63,33 +64,33 @@ The learning reward remains:
 
 No centerline bonus, edge shaping, position reward, or responsibility-weighted collision reward is active during training.
 
-## Chronological fast scheduler
+## Chronological speed-invariant scheduler
 
-The previous fast scheduler used separate catch-up loops for physics and decisions. At high requested speed it could process many physics steps and then several decisions with little or no vehicle motion between those decisions.
+All requested speeds use one fixed-step simulation function. Neither requested speed nor headless state selects an alternate physics/decision loop.
 
-v0.5 uses one chronological fixed-step loop:
+For every simulated interval:
 
-1. add requested simulated time to an accumulator
+1. add requested simulated time to the common accumulator
 2. advance one 1/60-second physics tick
 3. add that tick to the decision accumulator
 4. whenever the decision accumulator reaches 0.10 seconds, execute exactly one policy decision
 5. continue with the next physics tick
 
-Thus 10× and 50× increase throughput without changing the simulated ordering of observation, action, and movement.
+Thus 1×, 10×, and 50× produce the same chronological sequence of simulation operations; higher multipliers merely ask the browser to process more of those operations per real second. Spectator repaint cadence is reduced at 10× and 50× independently of the simulation loop.
 
-The simulator intentionally caps work per browser frame. If hardware cannot sustain the requested multiplier, the **Actual** speed indicator reports the lower achieved value rather than altering the model.
+When a PPO batch reaches its update boundary, fixed-step and decision accumulators are cleared before backprop/reset. This deliberately prevents leftover wall-clock budget from a high-speed animation frame from carrying into the freshly reset next batch.
 
-## Headless training
+The simulator still caps work per browser frame. If hardware cannot sustain the requested multiplier, the **Actual** speed indicator reports the lower achieved value rather than altering model timing.
 
-Headless mode skips the main spectator scene render and avoids rebuilding driver cards, POV previews, and the progress chart on each UI refresh.
+## Headless display invariant
 
-The four neural POV render targets remain mandatory. They are not cosmetic rendering; they are the model input.
+Headless mode is presentation-only. It suppresses the main spectator scene and skips expensive driver-card/progress-chart redraws, but the simulation scheduler does not read `sim.headless`.
 
-Headless mode therefore means **spectator-headless**, not vision-free simulation.
+The four neural POV render targets remain mandatory because they are the model input. Physics, observations, policy decisions, rewards, PPO samples, backpropagation, and grid resets are identical with headless on or off.
 
 ## Progress metrics
 
-Each completed PPO update records a progress snapshot.
+Every completed PPO update is retained for the lifetime of the run/checkpoint. The graph draws the history from update 0 and may downsample only for rendering efficiency; it also adds the current partial batch as a live endpoint.
 
 ### Average run distance
 
