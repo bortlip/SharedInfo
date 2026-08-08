@@ -30,6 +30,13 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
+### v0.8.5 Syntax + loader hardening
+
+- [x] Fix the invalid recent-chart callback that caused `ui.js` to fail parsing.
+- [x] Expand the affected chart code into readable block-form JavaScript rather than compressed expression chaining.
+- [x] Stop classic-script startup immediately when a script reports an evaluation error, avoiding misleading follow-on initialization failures.
+- [x] Actually execute Node syntax parsing against the repaired `ui.js` source before publishing this fix.
+
 ### v0.8.4 Startup hardening
 
 - [x] Move shared display-format helpers into the early `state.js` layer so Brain Inspector initialization cannot depend on later `ui.js` declarations.
