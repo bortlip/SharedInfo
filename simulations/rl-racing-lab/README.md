@@ -2,7 +2,7 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, see the world through their own rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.6.0**
+Current release: **v0.6.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
