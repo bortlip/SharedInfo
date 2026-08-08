@@ -2,33 +2,33 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share one actor-critic policy, see the world through their own rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.5.1**
+Current release: **v0.6.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
 
-## v0.5: keep the learner, restore the lab
+## v0.6: selectable training + adaptive clean starts
 
-v0.4 reproduced the earlier v0.2 learning setup closely enough that track following began improving again. v0.5 keeps that learning problem intact while restoring useful experimentation features around it.
+The v0.4/v0.5 work recovered a learning setup that visibly improves again. v0.6 keeps that learner intact but restores deliberate training on every circuit and separates **PPO update cadence** from **full-grid reset cadence**.
 
 Training still uses:
 
 - 32×20 grayscale POV plus normalized speed and damage
 - 642 → **48-neuron tanh hidden layer** → 15 joint steering/throttle actions plus one value head
 - four cars sharing one policy
-- 512 combined experiences per PPO update
+- **512 combined experiences per PPO update**
 - three PPO-style SGD passes at learning rate 0.00055
 - the historical arcade vehicle model and reward scale
-- the 300-sample historical Balanced Loop and its original visual landmarks
-- **a full four-car grid reset after every PPO update**
 
-The training track remains locked to Balanced Loop so faster execution, telemetry, and races do not silently change the distribution that started learning again.
+The training-track selector now offers Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix. Changing training tracks preserves the brain, discards only the unfinished PPO batch, resets the cars cleanly, and restarts the adaptive clean-start stage for that circuit.
+
+PPO still runs every 512 experiences. Synchronized grid resets are controlled separately: Adaptive starts with a clean grid every update, then relaxes to every 2, 4, and 8 PPO updates as broad average run distance or repeated lap completions improve. Fixed 1/2/4/8-update cadences and **Failures only** are also available. Individual off-road/stuck/damage failures always respawn immediately.
 
 ## Safe 10× / 50× scheduling
 
-v0.5.1 uses the same simulation scheduler at every requested speed. Speed changes only how much identical simulated time the browser is asked to process per real second.
+v0.6 uses the same simulation scheduler at every requested speed. Speed changes only how much identical simulated time the browser is asked to process per real second.
 
 The scheduler advances fixed 1/60-second physics ticks in chronological order and triggers one policy decision every 0.10 simulated seconds:
 
@@ -36,7 +36,7 @@ The scheduler advances fixed 1/60-second physics ticks in chronological order an
 
 The scheduler does not branch on 1× versus 50×. At 10× and 50× the spectator and dashboard simply repaint less frequently so rendering consumes less of the real-time budget. If the machine cannot sustain the requested rate, the **Actual** indicator reports the lower achieved rate instead of changing physics or policy cadence.
 
-At the start of every PPO update, scheduler accumulators are cleared together with the mandatory full-grid reset. This prevents unused high-speed wall-clock budget from spilling across a learning-update boundary.
+At every PPO boundary the fixed-step and decision accumulators are cleared before backpropagation. This prevents unused high-speed wall-clock budget from spilling into the next experience batch whether the cars clean-start or continue from their current positions.
 
 ## Headless display
 
@@ -71,7 +71,7 @@ The chart is intentionally noisy. Look for a trend over many updates rather than
 
 ## Evaluation races are back
 
-Training remains locked to the historical Balanced Loop, but evaluation races can use:
+Both training and evaluation can use:
 
 - Balanced Loop
 - Counterflow
@@ -91,9 +91,9 @@ The Figure Eight collision test also respects the overpass height, so cars on ve
 
 ## Checkpoints
 
-Checkpoint network format remains version 3 because the learning architecture has not changed. v0.5 additionally stores progress history, wall/simulated training time, and best-run distance when available.
+Checkpoint network format remains version 3 because the learning architecture has not changed. v0.6 additionally stores the selected training track, clean-start mode/adaptive cadence, full progress history, wall/simulated training time, and best-run distance when available.
 
-Older compatible checkpoints can still be loaded. Old history that predates the new run-distance metrics is accepted; the new progress chart simply begins once v0.5-style metrics exist.
+Older compatible checkpoints can still be loaded. Missing v0.6 training-control fields fall back to Balanced Loop plus Adaptive clean starts.
 
 For a clean comparison of learning behavior, use **Reset learning** and begin from a fresh random network.
 
