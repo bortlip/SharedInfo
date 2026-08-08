@@ -30,6 +30,10 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
+### v0.8.8 Three-tone direction cue
+
+- [x] Replace asphalt arrows/red-white curb blocks with repeating three-luminance edge strips whose order reverses when viewed backward.
+
 ### v0.8.7 Inspector + cameras + PPO experiment controls
 
 - [x] Show sampled real network connections with learned weight strength and live signed contribution alongside node activations.
@@ -97,5 +101,5 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Complete training timeline plus recent-driving chart.
 - [x] Selectable training tracks and adaptive/fixed clean-start cadence.
 - [x] Explicit Learning and Evaluation Race modes.
-- [x] Asphalt/shoulder/grass presentation, surface handling, direction arrows, and human-facing wrong-way telemetry.
+- [x] Asphalt/shoulder/grass presentation, surface handling, three-tone visual direction strips, and human-facing wrong-way telemetry.
 - [x] Oriented car collision footprints with stronger impact handling.
