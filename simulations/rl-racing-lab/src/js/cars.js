@@ -11,7 +11,7 @@ function surfaceHeightForCar(car){
   return distanceFromTrack(car)<=HALF_WIDTH+1?q.y:0;
 }
 const drivers=[];
-for(let i=0;i<DRIVER_COUNT;i++){const mesh=createCarMesh(colors[i]);scene.add(mesh);drivers.push({id:i,mesh,x:0,z:0,heading:0,speed:0,gear:1,damage:0,trackIndex:0,lastTrackIndex:0,actionSteer:0,actionThrottle:0,pendingReward:0,pendingDone:false,offTime:0,stuckTime:0,lap:0,episodeProgress:0,totalProgress:0,episodeReward:0,totalReward:0,collisions:0,collisionCooldown:0,rollout:[],lastObs:null,lastAction:7,lastValue:0,lastLogp:0,lastProb:0,latestRGBA:null,raceStatus:'racing',finishTime:null,finishPlace:null,lastRank:null,overtakes:0})}
+for(let i=0;i<DRIVER_COUNT;i++){const mesh=createCarMesh(colors[i]);scene.add(mesh);drivers.push({id:i,mesh,x:0,z:0,heading:0,speed:0,gear:1,damage:0,trackIndex:0,lastTrackIndex:0,actionSteer:0,actionThrottle:0,pendingReward:0,pendingDone:false,offTime:0,stuckTime:0,lap:0,episodeProgress:0,episodeNetProgress:0,episodePeakProgress:0,totalProgress:0,episodeReward:0,totalReward:0,collisions:0,collisionCooldown:0,rollout:[],lastObs:null,lastAction:7,lastValue:0,lastLogp:0,lastProb:0,latestRGBA:null,raceStatus:'racing',finishTime:null,finishPlace:null,lastRank:null,overtakes:0})}
 function syncCarMesh(car){car.mesh.position.set(car.x,surfaceHeightForCar(car),car.z);car.mesh.rotation.y=-car.heading-Math.PI/2}
 function spawnPose(slot,extraRow=0){
   const column=slot%2,row=Math.floor(slot/2)+extraRow,base=mod(finishIndex+24-row*10,TRACK_N),q=track[base],n=normals[base],lane=(column===0?-1:1)*1.8;
@@ -22,6 +22,6 @@ function resetDriver(car,slot=0,avoidTraffic=true){
   if(avoidTraffic){for(let attempt=0;attempt<9;attempt++){const candidate=spawnPose(slot,attempt),blocked=drivers.some(other=>other!==car&&Math.hypot(other.x-candidate.x,other.z-candidate.z)<4.2);pose=candidate;if(!blocked)break}}
   car.x=pose.x;car.z=pose.z;car.heading=pose.heading;car.speed=3.5;car.gear=1;car.damage=0;car.trackIndex=pose.base;car.lastTrackIndex=pose.base;
   car.actionSteer=0;car.actionThrottle=0;car.pendingReward=0;car.pendingDone=false;car.offTime=0;car.stuckTime=0;
-  car.episodeProgress=0;car.episodeReward=0;car.collisionCooldown=0;car.lastObs=null;car.lastRank=null;car.raceStatus='racing';car.finishTime=null;car.finishPlace=null;car.mesh.visible=true;syncCarMesh(car);
+  car.episodeProgress=0;car.episodeNetProgress=0;car.episodePeakProgress=0;car.episodeReward=0;car.collisionCooldown=0;car.lastObs=null;car.lastRank=null;car.raceStatus='racing';car.finishTime=null;car.finishPlace=null;car.mesh.visible=true;syncCarMesh(car);
 }
 function resetGrid(){drivers.forEach((c,i)=>resetDriver(c,i,false))}
