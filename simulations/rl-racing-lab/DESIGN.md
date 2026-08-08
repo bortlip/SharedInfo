@@ -1,14 +1,14 @@
-# POV RL Racing Lab — v0.5 Design
+# POV RL Racing Lab — v0.6 Design
 
 ## Design goal
 
-v0.5 preserves the historical learning setup that began showing improvement again while restoring fast execution, progress measurement, and frozen-policy racing around it.
+v0.6 preserves the recovered learning core while restoring manual training-track selection and allowing synchronized clean starts to become less frequent as the policy becomes competent.
 
 The learning causal chain remains:
 
 **POV pixels → network → steering/throttle action → vehicle movement → reward → PPO/backprop → updated shared network**
 
-Anything added in v0.5 should either leave that chain unchanged or operate outside training.
+Anything added in v0.6 should either preserve that learning chain or be an explicit experimental control around it.
 
 ## Preserved learning control
 
@@ -22,6 +22,7 @@ Network:
 
 **642 → 48 tanh → 15-action policy + 1 value estimate**
 
+There is therefore one learned intermediate/hidden layer containing 48 tanh units. v0.6 intentionally does not widen or deepen it; network-capacity experiments remain separate so track/reset execution changes can be evaluated without changing the learner itself.
 Training preserves the historical setup:
 
 - decision interval: 0.10 simulated seconds
@@ -33,11 +34,11 @@ Training preserves the historical setup:
 - exploration temperature 1.35 decaying toward 0.72
 - simple heading + scalar-speed vehicle dynamics
 - historical reward and symmetric collision penalty
-- full four-car grid reset after every PPO update
+- PPO updates remain every 512 experiences; synchronized full-grid resets use the separately selected clean-start cadence
 
-## Historical training environment
+## Training environments
 
-Learning is always rebuilt on the historical Balanced Loop:
+Balanced Loop remains the known-good baseline and preserves its historical visual distribution:
 
 - 300 centerline samples
 - half-width 5.4
@@ -46,9 +47,11 @@ Learning is always rebuilt on the historical Balanced Loop:
 - tree offset = half-width + 2.2
 - finish index = 2
 
-These details are part of the observation distribution because the policy consumes rendered pixels.
+Those details matter because the policy consumes rendered pixels. v0.6 also allows deliberate training on Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix. Track changes are explicit rather than random: the brain is retained, the unfinished PPO batch is discarded, the grid is reset, and Adaptive clean-start progression restarts at one update for the new circuit.
 
-Other circuits exist only for evaluation in v0.5.
+## Clean-start cadence
+
+PPO optimization remains fixed at 512 experiences per update. Full-grid clean starts are now an independent schedule. Adaptive mode begins at every PPO update, advances to every 2 updates once average run distance reaches roughly 0.45 track lengths or multiple lap completions are recorded across the four drivers, then to 4 and 8 updates as multi-lap competence grows. Fixed 1/2/4/8-update schedules and a failures-only mode are available. Individual terminal failures always respawn immediately.
 
 ## Historical reward
 
@@ -63,33 +66,33 @@ The learning reward remains:
 
 No centerline bonus, edge shaping, position reward, or responsibility-weighted collision reward is active during training.
 
-## Chronological fast scheduler
+## Chronological speed-invariant scheduler
 
-The previous fast scheduler used separate catch-up loops for physics and decisions. At high requested speed it could process many physics steps and then several decisions with little or no vehicle motion between those decisions.
+All requested speeds use one fixed-step simulation function. Neither requested speed nor headless state selects an alternate physics/decision loop.
 
-v0.5 uses one chronological fixed-step loop:
+For every simulated interval:
 
-1. add requested simulated time to an accumulator
+1. add requested simulated time to the common accumulator
 2. advance one 1/60-second physics tick
 3. add that tick to the decision accumulator
 4. whenever the decision accumulator reaches 0.10 seconds, execute exactly one policy decision
 5. continue with the next physics tick
 
-Thus 10× and 50× increase throughput without changing the simulated ordering of observation, action, and movement.
+Thus 1×, 10×, and 50× produce the same chronological sequence of simulation operations; higher multipliers merely ask the browser to process more of those operations per real second. Spectator repaint cadence is reduced at 10× and 50× independently of the simulation loop.
 
-The simulator intentionally caps work per browser frame. If hardware cannot sustain the requested multiplier, the **Actual** speed indicator reports the lower achieved value rather than altering the model.
+When a PPO batch reaches its update boundary, fixed-step and decision accumulators are cleared before backpropagation. This prevents leftover wall-clock budget from a high-speed animation frame from carrying into the next batch, regardless of whether a synchronized clean start occurs.
 
-## Headless training
+The simulator still caps work per browser frame. If hardware cannot sustain the requested multiplier, the **Actual** speed indicator reports the lower achieved value rather than altering model timing.
 
-Headless mode skips the main spectator scene render and avoids rebuilding driver cards, POV previews, and the progress chart on each UI refresh.
+## Headless display invariant
 
-The four neural POV render targets remain mandatory. They are not cosmetic rendering; they are the model input.
+Headless mode is presentation-only. It suppresses the main spectator scene and skips expensive driver-card/progress-chart redraws, but the simulation scheduler does not read `sim.headless`.
 
-Headless mode therefore means **spectator-headless**, not vision-free simulation.
+The four neural POV render targets remain mandatory because they are the model input. Physics, observations, policy decisions, rewards, PPO samples, backpropagation, and grid resets are identical with headless on or off.
 
 ## Progress metrics
 
-Each completed PPO update records a progress snapshot.
+Every completed PPO update is retained for the lifetime of the run/checkpoint. The graph draws the history from update 0, marks training-track changes, may downsample only for rendering efficiency, and adds the current partial batch as a live endpoint.
 
 ### Average run distance
 
@@ -136,14 +139,16 @@ When a race starts:
 
 Available evaluation tracks are Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix.
 
-Returning to learning always rebuilds the historical Balanced Loop before collecting new experience. Evaluation therefore cannot accidentally turn another track into part of the training curriculum.
+Returning to learning rebuilds the selected training circuit before collecting new experience, so an evaluation track cannot accidentally become part of training.
 
 Figure Eight collision detection ignores X/Z overlaps when the cars are on vertically separated branches.
 
 ## Checkpoint compatibility
 
-The network shape is unchanged, so the checkpoint architecture remains version 3. v0.5 extends training metadata with:
+The network shape is unchanged, so the checkpoint architecture remains version 3. v0.6 extends training metadata with:
 
+- selected training track
+- clean-start mode and adaptive interval
 - run-distance history
 - wall training seconds
 - simulated training seconds
