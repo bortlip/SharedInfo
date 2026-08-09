@@ -1,6 +1,6 @@
 // Pure sim-cade vehicle dynamics and vehicle-local observation contract. No Three.js/browser state required.
-const VEHICLE_DYNAMICS_VERSION=2,VEHICLE_OBSERVATION_VERSION=3;
-const VEHICLE_SENSE_KEYS=['speed','forwardSpeed','lateralSpeed','yawRate','slipAngle','steerCommand','throttleCommand','damage','rpm','gear'];
+const VEHICLE_DYNAMICS_VERSION=2,VEHICLE_OBSERVATION_VERSION=4;
+const VEHICLE_SENSE_KEYS=['speed','forwardSpeed','lateralSpeed','yawRate','slipAngle','steerCommand','throttleCommand','damage','rpm','gear','steerAngle'];
 const VEHICLE_SENSE_INDEX=Object.fromEntries(VEHICLE_SENSE_KEYS.map((key,index)=>[key,index])),VEHICLE_SENSE_COUNT=VEHICLE_SENSE_KEYS.length;
 const VEHICLE_GRAVITY=9.81,VEHICLE_WHEELBASE=2.55,VEHICLE_WHEEL_RADIUS=.32,VEHICLE_FINAL_DRIVE=4.1,VEHICLE_IDLE_RPM=1050,VEHICLE_REDLINE_RPM=7200,VEHICLE_MAX_SPEED=40;
 const VEHICLE_GEAR_RATIOS=[3.15,2.20,1.65,1.30,1.05];
@@ -15,7 +15,7 @@ function vehicleUpdateTransmission(state,forwardSpeed,throttle,dt){state.gear=ve
 function vehicleResetMotion(state,speed=0){const v=Math.max(0,Number(speed)||0),heading=Number(state.heading)||0;state.vx=Math.cos(heading)*v;state.vz=Math.sin(heading)*v;state.yawRate=0;state.steerAngle=0;state.shiftTimer=0;state.gear=1;state.lateralAccel=0;state.longitudinalAccel=0;state.tireScrub=0;state.gripUse=0;return vehicleUpdateDerived(state)}
 function vehicleStopMotion(state){state.vx=0;state.vz=0;state.yawRate=0;state.steerAngle=0;state.shiftTimer=0;state.lateralAccel=0;state.longitudinalAccel=0;state.tireScrub=0;state.gripUse=0;return vehicleUpdateDerived(state)}
 function vehicleObservationValues(state){vehicleUpdateDerived(state);return[
-  vehicleClamp(state.speed/22,0,1)*2-1,
+  vehicleClamp(state.speed/VEHICLE_MAX_SPEED,0,1)*2-1,
   vehicleClamp(state.forwardSpeed/VEHICLE_MAX_SPEED,-1,1),
   vehicleClamp(state.lateralSpeed/12,-1,1),
   vehicleClamp((Number(state.yawRate)||0)/1.6,-1,1),
@@ -24,7 +24,8 @@ function vehicleObservationValues(state){vehicleUpdateDerived(state);return[
   vehicleClamp(Number(state.actionThrottle)||0,-1,1),
   vehicleClamp((Number(state.damage)||0)/100,0,1)*2-1,
   vehicleClamp(((Number(state.rpm)||VEHICLE_IDLE_RPM)-VEHICLE_IDLE_RPM)/(VEHICLE_REDLINE_RPM-VEHICLE_IDLE_RPM),0,1)*2-1,
-  (vehicleClamp(Math.trunc(state.gear||1),1,VEHICLE_GEAR_RATIOS.length)-1)/(VEHICLE_GEAR_RATIOS.length-1)*2-1
+  (vehicleClamp(Math.trunc(state.gear||1),1,VEHICLE_GEAR_RATIOS.length)-1)/(VEHICLE_GEAR_RATIOS.length-1)*2-1,
+  vehicleClamp((Number(state.steerAngle)||0)/.58,-1,1)
 ]}
 function stepVehicleDynamics(state,controls,surface,dt){
   dt=vehicleClamp(Number(dt)||0,0,.05);if(dt<=0)return vehicleUpdateDerived(state);
