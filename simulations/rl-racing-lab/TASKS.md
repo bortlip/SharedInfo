@@ -22,6 +22,13 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
+### v1.0.1 Wide neural POV
+
+- [x] Reshape every neural vision preset to 2.5:1 at the same visual-value count: 40×16 low-res and 80×32 high-res for grayscale/RGB.
+- [x] Use a 52° vertical (~101° horizontal) neural FOV and lower road-biased aim so less observation bandwidth is spent on sky and more covers lateral racing context.
+- [x] Preserve saved vision preset ids and dense tensor dimensions while advancing observation provenance to O3 because pixel geometry changed.
+- [x] Guard wide preset dimensions/value counts, camera constants/wiring, O3 provenance, vehicle dynamics, and legacy network migration in the executable Node source gate.
+
 ### v1.0.0 Sim-cade vehicle dynamics
 
 - [x] Replace scalar-speed motion with persistent world `vx/vz`, chassis yaw rate, steering angle, local forward/lateral velocity, and recoverable slip angle.

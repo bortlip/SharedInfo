@@ -40,6 +40,12 @@ for (const name of ['vehicle-dynamics.js','track-layouts.js','tracks.js','cars.j
   console.error(`\nDeterminism violation: ${name} uses Math.random instead of experimentRandom().`);
 }
 
+// Neural camera geometry is part of the observation contract: keep it wide, low-biased, and actually wired into rendering.
+const sceneSource = classicSources.get('scene.js'), perceptionSource = classicSources.get('perception.js');
+if (!sceneSource.includes('NEURAL_CAMERA_VERTICAL_FOV') || !perceptionSource.includes('NEURAL_CAMERA_HEIGHT') || !perceptionSource.includes('NEURAL_CAMERA_LOOK_AHEAD') || !perceptionSource.includes('NEURAL_CAMERA_LOOK_HEIGHT')) {
+  failed = true;
+  console.error('\nWide neural-camera configuration is not wired into scene/perception.');
+}
 // Execute the pure v1.0 sim-cade vehicle model: acceleration/shifts, braking, grip differences,
 // slide recovery, observation bounds, and long-run finite state.
 const vehicleDynamicsSource = classicSources.get('vehicle-dynamics.js');
@@ -91,9 +97,9 @@ try {
 const stateSource = classicSources.get('state.js');
 const rngContext = vm.createContext({ performance });
 try {
-  vm.runInContext(`${vehicleDynamicsSource}\n${stateSource}\nresetExperimentRng(123456789);const a=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const b=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const policyBefore=experimentRandom('policy');resetExperimentRng(123456789);for(let i=0;i<250;i++)experimentRandom('init');const policyAfter=experimentRandom('policy');globalThis.__rngProbe={a,b,policyBefore,policyAfter,inputs:INPUTS,senses:VEHICLE_SENSE_COUNT};`, rngContext);
+  vm.runInContext(`${vehicleDynamicsSource}\n${stateSource}\nresetExperimentRng(123456789);const a=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const b=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const policyBefore=experimentRandom('policy');resetExperimentRng(123456789);for(let i=0;i<250;i++)experimentRandom('init');const policyAfter=experimentRandom('policy');globalThis.__rngProbe={a,b,policyBefore,policyAfter,inputs:INPUTS,visualInputs:VISUAL_INPUTS,senses:VEHICLE_SENSE_COUNT,observationVersion:VEHICLE_OBSERVATION_VERSION,vision:[VISION_PRESETS.gray32.w,VISION_PRESETS.gray32.h,VISION_PRESETS.gray64.w,VISION_PRESETS.gray64.h,VISION_PRESETS.rgb32.w,VISION_PRESETS.rgb32.h,VISION_PRESETS.rgb64.w,VISION_PRESETS.rgb64.h],visualCounts:[VISION_PRESETS.gray32.w*VISION_PRESETS.gray32.h*VISION_PRESETS.gray32.channels,VISION_PRESETS.gray64.w*VISION_PRESETS.gray64.h*VISION_PRESETS.gray64.channels,VISION_PRESETS.rgb32.w*VISION_PRESETS.rgb32.h*VISION_PRESETS.rgb32.channels,VISION_PRESETS.rgb64.w*VISION_PRESETS.rgb64.h*VISION_PRESETS.rgb64.channels],camera:[NEURAL_CAMERA_VERTICAL_FOV,NEURAL_CAMERA_HEIGHT,NEURAL_CAMERA_LOOK_AHEAD,NEURAL_CAMERA_LOOK_HEIGHT]};`, rngContext);
   const probe = rngContext.__rngProbe;
-  if (!probe || probe.inputs !== 650 || probe.senses !== 10 || probe.a.some((value,index) => value !== probe.b[index]) || probe.policyBefore !== probe.policyAfter) {
+  if (!probe || probe.inputs !== 650 || probe.visualInputs !== 640 || probe.senses !== 10 || probe.observationVersion !== 3 || JSON.stringify(probe.vision) !== JSON.stringify([40,16,80,32,40,16,80,32]) || JSON.stringify(probe.visualCounts) !== JSON.stringify([640,2560,1920,7680]) || JSON.stringify(probe.camera) !== JSON.stringify([52,1.38,14,.05]) || probe.a.some((value,index) => value !== probe.b[index]) || probe.policyBefore !== probe.policyAfter) {
     failed = true;
     console.error('\nDeterminism/observation-contract violation:', probe);
   }
@@ -155,4 +161,4 @@ for (const htmlFile of htmlFiles) {
 }
 
 if (failed) process.exit(1);
-console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; vehicle dynamics + legacy network migration validated; all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
+console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; wide neural POV + vehicle dynamics + legacy network migration validated; all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);

@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v1.0.0 Design
+# POV RL Racing Lab — v1.0.1 Design
 
 ## Goal
 
@@ -41,16 +41,16 @@ The comparison UI derives rows from the brains already stored in the current ses
 Comparison rows include architecture, seed/provenance, update/experience, track, average/best run, reward/experience, off-road percentage, measured PPO time, and PPO configuration. A run is called fully matched only when seed, selected track, track-layout revision, vehicle-dynamics revision, vehicle-observation revision, and replayable-from-start provenance all agree.
 ## Vision presets
 
-Every POV render target is recreated when the active brain changes configuration.
+Every POV render target is recreated when the active brain changes configuration. v1.0.1 uses a 2.5:1 neural view for every preset: the low-resolution geometry is 40×16 and the high-resolution geometry is 80×32. This preserves the previous visual-value counts while reallocating pixels from vertical sky coverage to lateral racing context.
 
 | Preset | Image channels | Visual inputs | Vehicle-local inputs | Total inputs |
 |---|---:|---:|---:|---:|
-| 32×20 grayscale | 1 | 640 | 10 | 650 |
-| 64×40 grayscale | 1 | 2,560 | 10 | 2,570 |
-| 32×20 RGB | 3 | 1,920 | 10 | 1,930 |
-| 64×40 RGB | 3 | 7,680 | 10 | 7,690 |
+| 40×16 grayscale | 1 | 640 | 10 | 650 |
+| 80×32 grayscale | 1 | 2,560 | 10 | 2,570 |
+| 40×16 RGB | 3 | 1,920 | 10 | 1,930 |
+| 80×32 RGB | 3 | 7,680 | 10 | 7,690 |
 
-The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. Grayscale uses luminance; RGB keeps normalized R/G/B channels. The ten normalized local values are legacy-compatible scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering, previous throttle/brake, damage, RPM, and gear.
+The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. The observer camera uses a 52° vertical FOV, which is about 101° horizontally at the 2.5:1 aspect ratio, and aims slightly downward toward the road. Grayscale uses luminance; RGB keeps normalized R/G/B channels. The ten normalized local values are legacy-compatible scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering, previous throttle/brake, damage, RPM, and gear.
 
 The AI still does **not** receive lateral track position, centerline distance, track tangent, next-turn geometry, opponent coordinates, world position, or other world-oracle features.
 
@@ -81,10 +81,10 @@ Example parameter counts:
 
 | Vision | Baseline 48 | Wide 128 | Deep 96→48 | Deep+Wide 128→64 |
 |---|---:|---:|---:|---:|
-| 32×20 gray | 32,032 | 85,392 | 67,936 | 92,624 |
-| 64×40 gray | 124,192 | 331,152 | 252,256 | 338,384 |
-| 32×20 RGB | 93,472 | 249,232 | 190,816 | 256,464 |
-| 64×40 RGB | 369,952 | 986,512 | 743,776 | 993,744 |
+| 40×16 gray | 32,032 | 85,392 | 67,936 | 92,624 |
+| 80×32 gray | 124,192 | 331,152 | 252,256 | 338,384 |
+| 40×16 RGB | 93,472 | 249,232 | 190,816 | 256,464 |
+| 80×32 RGB | 369,952 | 986,512 | 743,776 | 993,744 |
 
 The large dense combinations are intentionally exposed as experiments, not claimed to be efficient designs. Their cost is a useful demonstration of why spatial architectures such as CNNs matter. A small CNN is tracked for the next architecture stage.
 
@@ -214,9 +214,9 @@ The drivetrain is a lightweight five-speed automatic. Wheel speed, gear ratio, f
 
 The neural observation tail contains ten normalized vehicle-local values: scalar speed (kept for legacy compatibility), signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, and gear. Local senses make the new hidden motion state observable without revealing track geometry or world coordinates.
 
-Saved pre-v1.0 dense networks are migrated at load time. Their visual first-layer weights are copied unchanged; the historical speed and damage weights are mapped to those matching slots in the new tail; all eight new sensor weights start at zero. The migrated tensor is then saved in current shape, but its experiment provenance remains D1/O1 until an explicit Reset creates a clean D2/O2 seeded run.
+Saved pre-v1.0 dense networks are migrated at load time. Their visual first-layer weights are copied unchanged; the historical speed and damage weights are mapped to those matching slots in the new tail; all eight new sensor weights start at zero. The migrated tensor is then saved in current shape, but its historical experiment provenance remains D1/O1. v1.0.0 introduced D2/O2; the v1.0.1 wide camera keeps the same tensor widths but changes pixel semantics, so Reset establishes a clean D2/O3 seeded run.
 
-`VEHICLE_DYNAMICS_VERSION = 2` and `VEHICLE_OBSERVATION_VERSION = 2` are stored beside track-layout revision in completed PPO metrics, training segments, evaluation races, and new-brain experiment provenance. A comparison is fully matched only when seed, track, T/D/O revisions, and seeded-from-start status all agree.
+`VEHICLE_DYNAMICS_VERSION = 2` and current `VEHICLE_OBSERVATION_VERSION = 3` are stored beside track-layout revision in completed PPO metrics, training segments, evaluation races, and new-brain experiment provenance. O3 denotes the 2.5:1 wide/lower neural camera plus the same ten vehicle-local values; a comparison is fully matched only when seed, track, T/D/O revisions, and seeded-from-start status all agree.
 
 The local executable gate runs this pure model for acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, bounded local observations, long-run finite integration, and legacy network migration. Presentation-only tire/engine audio is intentionally outside the deterministic learning path.
 
@@ -232,7 +232,7 @@ Approximate v2 lap lengths are 490 m Balanced Loop/Counterflow, 585 m Technical 
 
 The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
 
-Because circuit geometry is part of the environment, `TRACK_LAYOUT_VERSION = 2` remains explicit provenance beside the v1.0 D/O revisions. Existing v0.9.0 history defaults to T1/D1/O1 as appropriate; v0.9.1 history is T2/D1/O1; v1.0 training records T2/D2/O2. Comparison tooling only calls conditions fully matched when seed, selected track, all T/D/O revisions, and replayable-from-start provenance agree. Resetting an older brain clears old history and establishes a clean current-environment seeded run.
+Because circuit geometry is part of the environment, `TRACK_LAYOUT_VERSION = 2` remains explicit provenance beside the D/O revisions. Existing v0.9.0 history defaults to T1/D1/O1 as appropriate; v0.9.1 history is T2/D1/O1; the v1.0.0 physics candidate recorded T2/D2/O2; current v1.0.1 training records **T2/D2/O3**. Comparison tooling only calls conditions fully matched when seed, selected track, all T/D/O revisions, and replayable-from-start provenance agree. Resetting an older brain clears old history and establishes a clean current-environment seeded run.
 
 ## Training tracks and clean starts
 
