@@ -2,7 +2,7 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.8**
+Current release: **v0.9.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
@@ -10,6 +10,13 @@ Current release: **v0.8.8**
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
 
+## v0.9.0: reproducible experiments + matched-budget comparison
+
+New brains now have an explicit 32-bit experiment seed. One visible seed derives three independent deterministic random streams for network initialization, policy/action sampling, and PPO shuffling, so changing network size does not merely shift every later random decision. The seed plus current RNG continuation state are persisted with each brain, included in portable exports, restored after reload/switch, and recorded in PPO history. Resetting a v0.9 brain recreates its original seeded weights and stochastic streams.
+
+Existing pre-v0.9 brains are preserved rather than pretending their earlier history was seeded: the first v0.9 load assigns and persists a deterministic continuation seed, while the UI marks that the historical portion cannot be replayed from that seed. A source-check invariant now rejects `Math.random()` in training-affecting track/car/model/simulation/physics/training code; presentation-only particles remain intentionally outside the deterministic learning path.
+
+The new **Experiment comparison** view treats each saved brain and its existing training history as the canonical run. By default it compares brains at the closest completed PPO update to a common experience budget; an alternate view shows each brain at its latest completed update. Rows include architecture, seed, actual experience/update, track, average/best run, reward per experience, off-road percentage, average PPO time, and PPO setup, with a warning when seeds are not matched.
 ## v0.8.8: direction strips + physical scenery impacts
 
 The earlier asphalt arrows and red/white curb blocks are replaced by cleaner three-tone edge strips. Three distinct luminance levels have different forward and reverse cyclic orderings, so a single POV image can contain a direction cue without arrow symbols on the racing surface. The pattern closes in complete three-tone cycles on every circuit and works for both grayscale and RGB brains.
@@ -204,6 +211,7 @@ src/js/physics.js     Vehicle dynamics, rewards, surfaces, car/tree collisions.
 src/js/effects.js     Presentation-only sparks, debris, smoke, dust, and tree fragments.
 src/js/session.js     Multiple brains, IndexedDB autosave, import/export, history.
 src/js/training.js    Generic dense PPO backprop and progress metrics.
+src/js/experiments.js Reproducible seed-aware matched-budget brain comparisons.
 src/js/race.js        Frozen-policy evaluation races and mode transitions.
 src/js/brain-viz.js   Hidden activations, policy display, saliency/sensitivity.
 src/js/audio.js       Presentation-only engine and collision audio.

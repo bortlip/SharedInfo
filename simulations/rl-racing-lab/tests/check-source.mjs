@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
 const jsDir = path.join(root, 'src', 'js');
@@ -24,7 +25,7 @@ for (const file of jsFiles) {
 // name before the later script that declares the intended global has executed.
 const classicOrder = [
   'version.js','state.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js',
-  'simulation.js','physics.js','session.js','training.js','race.js','brain-viz.js',
+  'simulation.js','physics.js','session.js','training.js','experiments.js','race.js','brain-viz.js',
   'audio.js','ui.js','runtime.js'
 ];
 const classicSources = new Map();
@@ -32,9 +33,38 @@ for (const name of classicOrder) {
   classicSources.set(name, await readFile(path.join(jsDir, name), 'utf8'));
 }
 
+// Training-affecting randomness must use the saved experiment streams. Presentation-only effects are intentionally excluded.
+for (const name of ['tracks.js','cars.js','model.js','simulation.js','physics.js','training.js']) {
+  if (!/\bMath\.random\b/.test(classicSources.get(name))) continue;
+  failed = true;
+  console.error(`\nDeterminism violation: ${name} uses Math.random instead of experimentRandom().`);
+}
 
 // Shared display helpers used by several later scripts must live in the first shared layer.
 const stateSource = classicSources.get('state.js');
+const rngContext = vm.createContext({ performance });
+try {
+  vm.runInContext(`${stateSource}\nresetExperimentRng(123456789);const a=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const b=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const policyBefore=experimentRandom('policy');resetExperimentRng(123456789);for(let i=0;i<250;i++)experimentRandom('init');const policyAfter=experimentRandom('policy');globalThis.__rngProbe={a,b,policyBefore,policyAfter};`, rngContext);
+  const probe = rngContext.__rngProbe;
+  if (!probe || probe.a.some((value,index) => value !== probe.b[index]) || probe.policyBefore !== probe.policyAfter) {
+    failed = true;
+    console.error('\nDeterminism violation: seeded RNG streams did not replay independently.');
+  }
+} catch (error) {
+  failed = true;
+  console.error('\nSeeded RNG execution check failed:', error);
+}
+const modelContext = vm.createContext({ performance });
+try {
+  vm.runInContext(`${stateSource}\n${classicSources.get('model.js')}\nresetExperimentRng(424242);const n1=createNetwork();resetExperimentRng(424242);const n2=createNetwork();resetExperimentRng(424243);const n3=createNetwork();const w1=Array.from(n1.layers[0].w.slice(0,32)),w2=Array.from(n2.layers[0].w.slice(0,32)),w3=Array.from(n3.layers[0].w.slice(0,32));globalThis.__networkProbe={same:w1.every((v,i)=>v===w2[i]),different:w1.some((v,i)=>v!==w3[i])};`, modelContext);
+  if (!modelContext.__networkProbe?.same || !modelContext.__networkProbe?.different) {
+    failed = true;
+    console.error('\nDeterminism violation: network initialization did not replay from the experiment seed.');
+  }
+} catch (error) {
+  failed = true;
+  console.error('\nSeeded network initialization check failed:', error);
+}
 for (const helper of ['formatDuration','compactNumber','formatBytes','formatMs']) {
   const pattern = new RegExp(`function\\s+${helper}\\s*\\(`);
   if (pattern.test(stateSource)) continue;
@@ -69,4 +99,4 @@ for (const htmlFile of htmlFiles) {
 }
 
 if (failed) process.exit(1);
-console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
+console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
