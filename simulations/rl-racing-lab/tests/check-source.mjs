@@ -23,7 +23,7 @@ for (const file of jsFiles) {
 // appear as named window properties. The dangerous case is an earlier script reading a
 // name before the later script that declares the intended global has executed.
 const classicOrder = [
-  'version.js','state.js','scene.js','tracks.js','cars.js','model.js','perception.js',
+  'version.js','state.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js',
   'simulation.js','physics.js','session.js','training.js','race.js','brain-viz.js',
   'audio.js','ui.js','runtime.js'
 ];

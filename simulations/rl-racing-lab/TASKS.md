@@ -6,7 +6,7 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 - [ ] Add a small CNN vision brain so higher-resolution/color input can be compared with dense MLPs efficiently.
 - [ ] Add side-by-side experiment comparison across saved brains and training runs.
-- [ ] Add brain-vs-brain / garage races where the four cars can use different saved policies.
+- [ ] Add multi-brain arenas where cars can use different saved policies, both for frozen garage races and for independent co-training in the same physical world. Start with a common vision preset, then generalize heterogeneous observation shapes.
 - [ ] Add ghost comparison against an older checkpoint/brain.
 - [ ] Add tournament mode across saved brains and unseen tracks.
 - [ ] Add explicit experiment seeds/reproducible RNG so architecture comparisons can use matched random conditions.
@@ -30,9 +30,11 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Done
 
-### v0.8.8 Three-tone direction cue
+### v0.8.8 Direction cue + scenery impacts
 
 - [x] Replace asphalt arrows/red-white curb blocks with repeating three-luminance edge strips whose order reverses when viewed backward.
+- [x] Give tree trunks lightweight physical colliders with strong speed loss, damage, reward penalty, and impact sound.
+- [x] Add bounded car/tree impact particles (sparks, body debris, smoke, wood, leaves, dust) that are hidden from neural POV observations and suppressed in headless learning.
 
 ### v0.8.7 Inspector + cameras + PPO experiment controls
 

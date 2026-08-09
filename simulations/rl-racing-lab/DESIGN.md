@@ -211,6 +211,10 @@ The current physics is still heading + scalar speed. There is no separate latera
 
 Cars use oriented rectangular footprints and a separating-axis overlap test. Overlap is resolved even while collision damage is cooling down; new hard impacts compute severity from relative closing speed and remove substantial speed/damage.
 
+Track construction also records lightweight tree trunk colliders separately from their Three.js meshes. Physics tests each car's oriented footprint against those static circles, separates overlap, heavily scrubs speed, and applies damage/reward consequences on a new impact. This keeps scenery physics independent of rendering objects.
+
+Impact particles are presentation-only. Car/car contact emits sparks, dark fragments, and smoke; tree strikes emit wood, leaves, and dust. The effect layer is hidden while neural POV render targets are captured and is suppressed/cleared during headless learning, so visual randomness cannot enter the policy observation or affect simulation state.
+
 Web Audio adds synthesized engine tone and collision transients. It reads speed, gear, throttle, surface, selected driver, and collision severity but does not write simulation state. Audio is therefore purely presentation.
 
 ## Evaluation race

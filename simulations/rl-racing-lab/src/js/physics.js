@@ -26,9 +26,32 @@ function collideCars(){
     const a=drivers[i],b=drivers[j];if(sim.mode==='race'&&(a.raceStatus!=='racing'||b.raceStatus!=='racing'))continue;const ay=surfaceHeightForCar(a),by=surfaceHeightForCar(b);if(Math.abs(ay-by)>1.8)continue;const hit=carFootprintOverlap(a,b);if(!hit)continue;
     const separate=hit.overlap*.52+.025;a.x-=hit.nx*separate;a.z-=hit.nz*separate;b.x+=hit.nx*separate;b.z+=hit.nz*separate;if(a.collisionCooldown>0||b.collisionCooldown>0)continue;
     const vax=Math.cos(a.heading)*a.speed,vaz=Math.sin(a.heading)*a.speed,vbx=Math.cos(b.heading)*b.speed,vbz=Math.sin(b.heading)*b.speed,closing=Math.max(0,(vax-vbx)*hit.nx+(vaz-vbz)*hit.nz),severity=clamp(.8+closing*.5+Math.abs(a.speed-b.speed)*.12,1,10);
-    a.damage=clamp(a.damage+severity*2.15,0,100);b.damage=clamp(b.damage+severity*2.15,0,100);if(sim.mode==='learn'){a.pendingReward-=severity*.9;b.pendingReward-=severity*.9}a.speed*=.60;b.speed*=.60;a.collisions++;b.collisions++;sim.collisions++;a.collisionCooldown=b.collisionCooldown=.36;if(typeof playCollisionSound==='function')playCollisionSound(severity);
+    a.damage=clamp(a.damage+severity*2.15,0,100);b.damage=clamp(b.damage+severity*2.15,0,100);if(sim.mode==='learn'){a.pendingReward-=severity*.9;b.pendingReward-=severity*.9}a.speed*=.60;b.speed*=.60;a.collisions++;b.collisions++;sim.collisions++;a.collisionCooldown=b.collisionCooldown=.36;const impactY=(ay+by)*.5+.28;if(typeof spawnImpactEffects==='function')spawnImpactEffects((a.x+b.x)*.5,(a.z+b.z)*.5,impactY,severity,'car');if(typeof playCollisionSound==='function')playCollisionSound(severity);
+  }
+}
+function treeFootprintOverlap(car,tree){
+  const halfL=1.62,halfW=.88,fx=Math.cos(car.heading),fz=Math.sin(car.heading),rx=-fz,rz=fx,dx=tree.x-car.x,dz=tree.z-car.z,localF=dx*fx+dz*fz,localR=dx*rx+dz*rz,nearF=clamp(localF,-halfL,halfL),nearR=clamp(localR,-halfW,halfW),cx=car.x+fx*nearF+rx*nearR,cz=car.z+fz*nearF+rz*nearR,vx=tree.x-cx,vz=tree.z-cz,dist=Math.hypot(vx,vz);
+  if(dist>=tree.radius)return null;
+  if(dist>1e-6)return{nx:vx/dist,nz:vz/dist,overlap:tree.radius-dist};
+  const frontGap=halfL-Math.abs(localF),sideGap=halfW-Math.abs(localR);
+  if(frontGap<sideGap){const sign=localF>=0?1:-1;return{nx:fx*sign,nz:fz*sign,overlap:tree.radius+frontGap}}
+  const sign=localR>=0?1:-1;return{nx:rx*sign,nz:rz*sign,overlap:tree.radius+sideGap};
+}
+function collideTrees(){
+  for(const car of drivers){
+    if(sim.mode==='race'&&car.raceStatus!=='racing')continue;
+    const carY=surfaceHeightForCar(car);
+    for(const tree of treeColliders){
+      if(Math.abs(carY-tree.y)>1.0)continue;
+      const hit=treeFootprintOverlap(car,tree);if(!hit)continue;
+      car.x-=hit.nx*(hit.overlap+.025);car.z-=hit.nz*(hit.overlap+.025);syncCarMesh(car);
+      if(car.collisionCooldown>0)continue;
+      const vx=Math.cos(car.heading)*car.speed,vz=Math.sin(car.heading)*car.speed,closing=Math.max(0,vx*hit.nx+vz*hit.nz),severity=clamp(1.5+closing*.62,1.5,12);
+      car.damage=clamp(car.damage+severity*2.8,0,100);if(sim.mode==='learn')car.pendingReward-=severity*1.15;car.speed*=.22;car.collisions++;sim.collisions++;car.collisionCooldown=.48;
+      const contactX=tree.x-hit.nx*tree.radius,contactZ=tree.z-hit.nz*tree.radius;if(typeof spawnImpactEffects==='function')spawnImpactEffects(contactX,contactZ,tree.y+.25,severity,'tree');if(typeof playCollisionSound==='function')playCollisionSound(severity*1.15);
+    }
   }
 }
 function raceProgressScore(car){return car.lap*trackLength+mod(car.trackIndex-finishIndex,TRACK_N)/TRACK_N*trackLength}
 function updatePositionTelemetry(){const order=[...drivers].sort((a,b)=>raceProgressScore(b)-raceProgressScore(a));order.forEach((car,index)=>{const rank=index+1;if(car.lastRank!=null&&rank<car.lastRank&&car.offTime<.25&&car.speed>2)car.overtakes+=car.lastRank-rank;car.lastRank=rank})}
-function physicsStep(dt){sim.simClock+=dt;if(sim.mode==='race')sim.raceTime+=dt;drivers.forEach(c=>{if(sim.mode!=='race'||c.raceStatus==='racing')simulateCar(c,dt)});collideCars()}
+function physicsStep(dt){sim.simClock+=dt;if(sim.mode==='race')sim.raceTime+=dt;drivers.forEach(c=>{if(sim.mode!=='race'||c.raceStatus==='racing')simulateCar(c,dt)});collideCars();collideTrees();if(typeof updateImpactEffects==='function')updateImpactEffects(dt)}
