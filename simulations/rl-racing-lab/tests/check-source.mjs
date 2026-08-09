@@ -24,7 +24,7 @@ for (const file of jsFiles) {
 // appear as named window properties. The dangerous case is an earlier script reading a
 // name before the later script that declares the intended global has executed.
 const classicOrder = [
-  'version.js','state.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js',
+  'version.js','state.js','track-layouts.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js',
   'simulation.js','physics.js','session.js','training.js','experiments.js','race.js','brain-viz.js',
   'audio.js','ui.js','runtime.js'
 ];
@@ -34,10 +34,28 @@ for (const name of classicOrder) {
 }
 
 // Training-affecting randomness must use the saved experiment streams. Presentation-only effects are intentionally excluded.
-for (const name of ['tracks.js','cars.js','model.js','simulation.js','physics.js','training.js']) {
+for (const name of ['track-layouts.js','tracks.js','cars.js','model.js','simulation.js','physics.js','training.js']) {
   if (!/\bMath\.random\b/.test(classicSources.get(name))) continue;
   failed = true;
   console.error(`\nDeterminism violation: ${name} uses Math.random instead of experimentRandom().`);
+}
+
+// Build every pure circuit definition and enforce the road-ribbon safety envelope.
+const trackLayoutSource = classicSources.get('track-layouts.js');
+const trackLayoutContext = vm.createContext({});
+try {
+  vm.runInContext(`${trackLayoutSource}\nglobalThis.__trackLayoutProbe={version:TRACK_LAYOUT_VERSION,stats:Object.fromEntries(Object.entries(TRACK_LAYOUT_STATS).map(([id,s])=>[id,{length:s.length,minRadius:s.minRadius,minClearance:s.minClearance,minSegment:s.minSegment,maxSegment:s.maxSegment,averageSegment:s.averageSegment}]))};`, trackLayoutContext);
+  const probe = trackLayoutContext.__trackLayoutProbe;
+  const expected = ['mixed','reverse','technical','sweepers','figure8','grandprix'];
+  const stats = probe?.stats || {};
+  const invalid = expected.filter(id => !stats[id] || stats[id].minRadius < 18 || stats[id].minClearance < 15 || stats[id].maxSegment > stats[id].averageSegment * 1.08 || stats[id].minSegment < stats[id].averageSegment * .92);
+  if (probe?.version !== 2 || invalid.length || Number(stats.mixed?.length) < 450 || Number(stats.grandprix?.length) < 900 || Number(stats.grandprix?.length) < Number(stats.mixed?.length) * 1.8) {
+    failed = true;
+    console.error(`\nTrack-layout validation failed${invalid.length ? ` for: ${invalid.join(', ')}` : ''}.`);
+  }
+} catch (error) {
+  failed = true;
+  console.error('\nTrack-layout execution check failed:', error);
 }
 
 // Shared display helpers used by several later scripts must live in the first shared layer.
@@ -99,4 +117,4 @@ for (const htmlFile of htmlFiles) {
 }
 
 if (failed) process.exit(1);
-console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
+console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);

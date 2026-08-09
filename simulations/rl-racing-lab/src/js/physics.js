@@ -52,6 +52,6 @@ function collideTrees(){
     }
   }
 }
-function raceProgressScore(car){return car.lap*trackLength+mod(car.trackIndex-finishIndex,TRACK_N)/TRACK_N*trackLength}
+function raceProgressScore(car){const lapDistance=mod((trackDistance[car.trackIndex]??0)-(trackDistance[finishIndex]??0),trackLength);return car.lap*trackLength+lapDistance}
 function updatePositionTelemetry(){const order=[...drivers].sort((a,b)=>raceProgressScore(b)-raceProgressScore(a));order.forEach((car,index)=>{const rank=index+1;if(car.lastRank!=null&&rank<car.lastRank&&car.offTime<.25&&car.speed>2)car.overtakes+=car.lastRank-rank;car.lastRank=rank})}
 function physicsStep(dt){sim.simClock+=dt;if(sim.mode==='race')sim.raceTime+=dt;drivers.forEach(c=>{if(sim.mode!=='race'||c.raceStatus==='racing')simulateCar(c,dt)});collideCars();collideTrees();if(typeof updateImpactEffects==='function')updateImpactEffects(dt)}

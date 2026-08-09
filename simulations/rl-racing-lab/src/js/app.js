@@ -86,7 +86,7 @@ function loadClassicScript(relativePath) {
 try {
   globalThis.THREE = await import('https://cdn.jsdelivr.net/npm/three@0.170.0/+esm');
   for (const file of [
-    'state.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js','simulation.js','physics.js','session.js','training.js','experiments.js','race.js','brain-viz.js','audio.js','ui.js','runtime.js'
+    'state.js','track-layouts.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js','simulation.js','physics.js','session.js','training.js','experiments.js','race.js','brain-viz.js','audio.js','ui.js','runtime.js'
   ]) await loadClassicScript(file);
 } catch (error) {
   showRuntimeError(error, 'startup');

@@ -12,9 +12,9 @@ function updateMainCamera(){
   }else if(mode==='overhead'){
     desired=new THREE.Vector3(car.x-f.x*4,roadY+34,car.z-f.z*4);mainCamera.position.lerp(desired,.07);look=new THREE.Vector3(car.x+f.x*4,roadY,car.z+f.z*4);
   }else if(mode==='trackside'){
-    const index=mod(car.trackIndex+18,TRACK_N),q=track[index],n=normals[index],height=q?.y||0;desired=new THREE.Vector3(q.x+n.x*(HALF_WIDTH+SHOULDER_WIDTH+4),height+3.8,q.z+n.z*(HALF_WIDTH+SHOULDER_WIDTH+4));mainCamera.position.lerp(desired,.10);look=new THREE.Vector3(car.x,roadY+.65,car.z);
+    const index=mod(car.trackIndex+trackStepsForDistance(28),TRACK_N),q=track[index],n=normals[index],height=q?.y||0;desired=new THREE.Vector3(q.x+n.x*(HALF_WIDTH+SHOULDER_WIDTH+4),height+3.8,q.z+n.z*(HALF_WIDTH+SHOULDER_WIDTH+4));mainCamera.position.lerp(desired,.10);look=new THREE.Vector3(car.x,roadY+.65,car.z);
   }else if(mode==='overview'){
-    desired=new THREE.Vector3(0,92,38);mainCamera.position.lerp(desired,.05);look=new THREE.Vector3(0,0,0);
+    const span=Math.max(trackBounds.spanX,trackBounds.spanZ),height=Math.max(90,span*1.05);desired=new THREE.Vector3(trackBounds.centerX,height,trackBounds.centerZ+span*.10);mainCamera.position.lerp(desired,.08);look=new THREE.Vector3(trackBounds.centerX,(trackBounds.minY+trackBounds.maxY)/2,trackBounds.centerZ);
   }else{
     desired=new THREE.Vector3(car.x-f.x*7,roadY+3.7,car.z-f.z*7);mainCamera.position.lerp(desired,.10);look=new THREE.Vector3(car.x+f.x*5,roadY+.65,car.z+f.z*5);
   }
