@@ -1,5 +1,5 @@
 // Pure sim-cade vehicle dynamics and vehicle-local observation contract. No Three.js/browser state required.
-const VEHICLE_DYNAMICS_VERSION=2,VEHICLE_OBSERVATION_VERSION=2;
+const VEHICLE_DYNAMICS_VERSION=2,VEHICLE_OBSERVATION_VERSION=3;
 const VEHICLE_SENSE_KEYS=['speed','forwardSpeed','lateralSpeed','yawRate','slipAngle','steerCommand','throttleCommand','damage','rpm','gear'];
 const VEHICLE_SENSE_INDEX=Object.fromEntries(VEHICLE_SENSE_KEYS.map((key,index)=>[key,index])),VEHICLE_SENSE_COUNT=VEHICLE_SENSE_KEYS.length;
 const VEHICLE_GRAVITY=9.81,VEHICLE_WHEELBASE=2.55,VEHICLE_WHEEL_RADIUS=.32,VEHICLE_FINAL_DRIVE=4.1,VEHICLE_IDLE_RPM=1050,VEHICLE_REDLINE_RPM=7200,VEHICLE_MAX_SPEED=40;

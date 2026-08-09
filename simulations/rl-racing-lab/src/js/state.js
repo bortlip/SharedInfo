@@ -16,11 +16,12 @@ function compactNumber(n){return n>=1e6?`${(n/1e6).toFixed(n>=1e7?1:2)}M`:n>=1e3
 function formatBytes(bytes){bytes=Math.max(0,Number(bytes)||0);if(bytes>=1024**3)return`${(bytes/1024**3).toFixed(2)} GiB`;if(bytes>=1024**2)return`${(bytes/1024**2).toFixed(2)} MiB`;if(bytes>=1024)return`${(bytes/1024).toFixed(bytes>=1024*100?0:1)} KiB`;return`${Math.round(bytes)} B`}
 function formatMs(ms){ms=Number(ms)||0;if(ms<=0)return'—';return ms>=1000?`${(ms/1000).toFixed(ms>=10000?1:2)} s`:`${ms.toFixed(ms>=100?0:1)} ms`}
 
+const NEURAL_CAMERA_VERTICAL_FOV=52,NEURAL_CAMERA_HEIGHT=1.38,NEURAL_CAMERA_LOOK_AHEAD=14,NEURAL_CAMERA_LOOK_HEIGHT=.05;
 const VISION_PRESETS={
-  gray32:{id:'gray32',label:'32×20 grayscale',w:32,h:20,channels:1,renderScale:2,color:false},
-  gray64:{id:'gray64',label:'64×40 grayscale',w:64,h:40,channels:1,renderScale:2,color:false},
-  rgb32:{id:'rgb32',label:'32×20 RGB color',w:32,h:20,channels:3,renderScale:2,color:true},
-  rgb64:{id:'rgb64',label:'64×40 RGB color',w:64,h:40,channels:3,renderScale:2,color:true}
+  gray32:{id:'gray32',label:'40×16 grayscale',w:40,h:16,channels:1,renderScale:2,color:false},
+  gray64:{id:'gray64',label:'80×32 grayscale',w:80,h:32,channels:1,renderScale:2,color:false},
+  rgb32:{id:'rgb32',label:'40×16 RGB color',w:40,h:16,channels:3,renderScale:2,color:true},
+  rgb64:{id:'rgb64',label:'80×32 RGB color',w:80,h:32,channels:3,renderScale:2,color:true}
 };
 const NETWORK_PRESETS={
   baseline:{id:'baseline',label:'Baseline · 48',hidden:[48]},
@@ -29,7 +30,7 @@ const NETWORK_PRESETS={
   deepwide:{id:'deepwide',label:'Deep + wide · 128 → 64',hidden:[128,64]}
 };
 let brainConfig={visionId:'gray32',networkId:'baseline'};
-let OBS_W=32,OBS_H=20,OBS_SCALE=2,CHANNELS=1,RENDER_W=64,RENDER_H=40,PIXELS=640,VISUAL_INPUTS=640,INPUTS=640+VEHICLE_SENSE_COUNT,HIDDEN_LAYERS=[48];
+let OBS_W=40,OBS_H=16,OBS_SCALE=2,CHANNELS=1,RENDER_W=80,RENDER_H=32,PIXELS=640,VISUAL_INPUTS=640,INPUTS=640+VEHICLE_SENSE_COUNT,HIDDEN_LAYERS=[48];
 function normalizedBrainConfig(config={}){return{visionId:config.visionId in VISION_PRESETS?config.visionId:'gray32',networkId:config.networkId in NETWORK_PRESETS?config.networkId:'baseline'}}
 function applyBrainConfiguration(config){
   brainConfig=normalizedBrainConfig(config);const v=VISION_PRESETS[brainConfig.visionId],n=NETWORK_PRESETS[brainConfig.networkId];

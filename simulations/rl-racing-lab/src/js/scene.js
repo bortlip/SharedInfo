@@ -4,8 +4,8 @@ const container=$('scene'),renderer=new THREE.WebGLRenderer({antialias:true,powe
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;container.appendChild(renderer.domElement);
 const mainCamera=new THREE.PerspectiveCamera(58,1,.1,700),observerCameras=[],renderTargets=[];let pixelBuffer=new Uint8Array(1);
 function rebuildPerceptionResources(){
-  while(observerCameras.length<DRIVER_COUNT)observerCameras.push(new THREE.PerspectiveCamera(66,OBS_W/OBS_H,.08,90));
-  for(const camera of observerCameras){camera.aspect=OBS_W/OBS_H;camera.updateProjectionMatrix()}
+  while(observerCameras.length<DRIVER_COUNT)observerCameras.push(new THREE.PerspectiveCamera(NEURAL_CAMERA_VERTICAL_FOV,OBS_W/OBS_H,.08,90));
+  for(const camera of observerCameras){camera.fov=NEURAL_CAMERA_VERTICAL_FOV;camera.aspect=OBS_W/OBS_H;camera.updateProjectionMatrix()}
   for(const rt of renderTargets)rt.dispose?.();renderTargets.length=0;
   for(let i=0;i<DRIVER_COUNT;i++){const rt=new THREE.WebGLRenderTarget(RENDER_W,RENDER_H,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true});rt.texture.colorSpace=THREE.SRGBColorSpace;renderTargets.push(rt)}
   pixelBuffer=new Uint8Array(RENDER_W*RENDER_H*4);if(typeof drivers!=='undefined'&&Array.isArray(drivers))drivers.forEach(c=>{c.latestRGBA=null;c.lastObs=null;c.lastForward=null});
