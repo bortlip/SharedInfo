@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.8.7 Design
+# POV RL Racing Lab — v0.8.8 Design
 
 ## Goal
 
@@ -203,13 +203,17 @@ The v0.7 signed-progress reward/surface model remains in place:
 - prolonged off-road/stuck state or 100 damage terminates an episode;
 - collisions penalize both participants.
 
-Exact track-direction alignment shown in the UI is human-facing telemetry only. Painted arrows put a direction clue into the rendered camera observation.
+Exact track-direction alignment shown in the UI is human-facing telemetry only. The narrow edge strips repeat three distinct luminance tones in track-forward order. A forward view therefore sees one cyclic ordering of the three tones while a reversed view sees the opposite ordering, giving the vision policy a directional cue inside the rendered camera observation without an explicit track-direction input.
 
 The current physics is still heading + scalar speed. There is no separate lateral velocity, yaw rate, or true slip angle yet.
 
 ## Collision and audio
 
 Cars use oriented rectangular footprints and a separating-axis overlap test. Overlap is resolved even while collision damage is cooling down; new hard impacts compute severity from relative closing speed and remove substantial speed/damage.
+
+Track construction also records lightweight tree trunk colliders separately from their Three.js meshes. Physics tests each car's oriented footprint against those static circles, separates overlap, heavily scrubs speed, and applies damage/reward consequences on a new impact. This keeps scenery physics independent of rendering objects.
+
+Impact particles are presentation-only. Car/car contact emits sparks, dark fragments, and smoke; tree strikes emit wood, leaves, and dust. The effect layer is hidden while neural POV render targets are captured and is suppressed/cleared during headless learning, so visual randomness cannot enter the policy observation or affect simulation state.
 
 Web Audio adds synthesized engine tone and collision transients. It reads speed, gear, throttle, surface, selected driver, and collision severity but does not write simulation state. Audio is therefore purely presentation.
 

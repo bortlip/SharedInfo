@@ -2,13 +2,19 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.8.7**
+Current release: **v0.8.8**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v0.8.8: direction strips + physical scenery impacts
+
+The earlier asphalt arrows and red/white curb blocks are replaced by cleaner three-tone edge strips. Three distinct luminance levels have different forward and reverse cyclic orderings, so a single POV image can contain a direction cue without arrow symbols on the racing surface. The pattern closes in complete three-tone cycles on every circuit and works for both grayscale and RGB brains.
+
+Trees now have lightweight trunk colliders rather than being scenery cars can pass through. A tree impact pushes the car out, heavily scrubs speed, adds damage and training penalty, and uses the existing collision sound. Car-car impacts emit sparks/body debris/smoke; tree impacts emit wood fragments/leaves/dust. These particles are presentation-only: they are suppressed in headless learning and hidden during neural POV rendering, so they do not become random policy inputs.
 
 ## v0.8.7: live connection graph + spectator cameras + PPO experiments
 
@@ -155,11 +161,11 @@ The dashboard also shows best-ever run, off-road percentage, reward/experience, 
 
 ## World, direction, collisions, and sound
 
-Tracks use dark asphalt, warning-edge paint, red/white curb markers, shoulder, grass, center markings, roadside scenery, and painted forward-direction arrows. Shoulder and grass reduce effective steering/acceleration/braking authority and scrub speed, with grass substantially worse.
+Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Shoulder and grass reduce effective steering/acceleration/braking authority and scrub speed, with grass substantially worse.
 
-The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel; painted arrows put a direction clue in the actual camera image. Exact FORWARD / ACROSS / WRONG WAY alignment shown in the dashboard is human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel. The edge strips repeat three distinct luminance tones in track-forward order, so their visible order reverses when a car faces the wrong way; this puts a direction clue in the actual camera image. Exact FORWARD / ACROSS / WRONG WAY alignment shown in the dashboard is human-facing telemetry only.
 
-Cars use oriented rectangular collision footprints rather than a simple center-distance threshold, allowing close side-by-side running while detecting rear-end contact before substantial visual overlap. Hard impacts cause more damage and speed loss.
+Cars use oriented rectangular collision footprints rather than a simple center-distance threshold, allowing close side-by-side running while detecting rear-end contact before substantial visual overlap. Trees use lightweight circular trunk colliders tested against the same oriented car footprint. Hard car/car and car/tree impacts cause damage and speed loss, with tree strikes producing the stronger stop.
 
 Optional Web Audio synthesizes engine tone from speed/gear/throttle and plays a short impact sound for collisions. Audio is presentation-only and never feeds the policy or simulation state.
 
@@ -194,7 +200,8 @@ src/js/cars.js        Car meshes, state, grid placement, direction telemetry.
 src/js/model.js       Configurable dense actor-critic networks and input gradients.
 src/js/perception.js  Configurable grayscale/RGB POV observations.
 src/js/simulation.js  Policy decisions and experience collection.
-src/js/physics.js     Vehicle dynamics, rewards, surfaces, collisions.
+src/js/physics.js     Vehicle dynamics, rewards, surfaces, car/tree collisions.
+src/js/effects.js     Presentation-only sparks, debris, smoke, dust, and tree fragments.
 src/js/session.js     Multiple brains, IndexedDB autosave, import/export, history.
 src/js/training.js    Generic dense PPO backprop and progress metrics.
 src/js/race.js        Frozen-policy evaluation races and mode transitions.
