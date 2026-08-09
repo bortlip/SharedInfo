@@ -1,12 +1,12 @@
-# POV RL Racing Lab — v0.9.1 Design
+# POV RL Racing Lab — v1.0.0 Design
 
 ## Goal
 
-v0.8 turns the recovered racing learner into a configurable experimental platform without discarding the invariants that made the baseline learn again.
+v1.0 keeps the configurable experiment platform and replaces its final major scalar-speed simplification with a bounded sim-cade world-velocity/yaw/slip model.
 
 The causal chain remains:
 
-**rendered POV + vehicle-local speed/damage → policy → action → vehicle movement → reward → PPO/backprop → updated policy**
+**rendered POV + vehicle-local dynamics senses → policy → steering/drive action → world velocity/yaw/tire response → reward → PPO/backprop → updated policy**
 
 Configuration, visualization, persistence, and sound are built around that chain. Hidden track knowledge is still not supplied as a model input.
 
@@ -22,7 +22,7 @@ A brain may also be duplicated, which creates a child experiment beginning from 
 
 ## Reproducible experiment identity
 
-A v0.9 brain is also the canonical training-run record; no parallel experiment entity duplicates its weights/history. A new brain stores a visible unsigned 32-bit experiment seed plus the current continuation state of three independently derived random streams:
+A v0.9+ brain is also the canonical training-run record; no parallel experiment entity duplicates its weights/history. A new brain stores a visible unsigned 32-bit experiment seed plus the current continuation state of three independently derived random streams:
 
 - `init` — network weight initialization;
 - `policy` — stochastic policy/action sampling;
@@ -32,27 +32,27 @@ Separating the streams matters for architecture experiments: a wider/deeper netw
 
 Brains created before v0.9 cannot retroactively become reproducible. On first v0.9 load they receive a persisted continuation seed/RNG state and `seededFromStart = false`; future continuation is deterministic, while comparison UI explicitly marks that their earlier history is not replayable from that assigned seed.
 
-Presentation-only randomness is excluded from the learning contract. Impact particle randomness may remain nondeterministic because the effect layer is hidden during neural POV capture and does not write simulation state. A static source check rejects direct `Math.random()` usage in training-affecting track/car/model/simulation/physics/training modules.
+Presentation-only randomness is excluded from the learning contract. Impact-particle and audio-noise randomness may remain nondeterministic because those layers are hidden from neural POV capture and never write simulation state. A static source check rejects direct `Math.random()` usage in training-affecting vehicle/track/car/model/simulation/physics/training modules.
 
 ## Experiment comparison
 
 The comparison UI derives rows from the brains already stored in the current session. **Matched experience budget** chooses the smallest latest completed experience count among trained brains and, for each brain, displays the closest completed PPO metric to that common target. **Latest completed update each** instead shows every brain at its own latest checkpoint. The displayed actual experience count remains visible, so differing PPO batch sizes are not falsely represented as an exact match.
 
-Comparison rows include architecture, seed/provenance, update/experience, track, average and best run distance, reward per experience, off-road percentage, measured average PPO wall time, and PPO configuration. Seed status is called out separately because matched training budget without matched stochastic conditions is not a controlled A/B test.
+Comparison rows include architecture, seed/provenance, update/experience, track, average/best run, reward/experience, off-road percentage, measured PPO time, and PPO configuration. A run is called fully matched only when seed, selected track, track-layout revision, vehicle-dynamics revision, vehicle-observation revision, and replayable-from-start provenance all agree.
 ## Vision presets
 
 Every POV render target is recreated when the active brain changes configuration.
 
-| Preset | Image channels | Visual inputs | + speed/damage | Total inputs |
+| Preset | Image channels | Visual inputs | Vehicle-local inputs | Total inputs |
 |---|---:|---:|---:|---:|
-| 32×20 grayscale | 1 | 640 | 2 | 642 |
-| 64×40 grayscale | 1 | 2,560 | 2 | 2,562 |
-| 32×20 RGB | 3 | 1,920 | 2 | 1,922 |
-| 64×40 RGB | 3 | 7,680 | 2 | 7,682 |
+| 32×20 grayscale | 1 | 640 | 10 | 650 |
+| 64×40 grayscale | 1 | 2,560 | 10 | 2,570 |
+| 32×20 RGB | 3 | 1,920 | 10 | 1,930 |
+| 64×40 RGB | 3 | 7,680 | 10 | 7,690 |
 
-The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. Grayscale uses luminance; RGB keeps separate normalized R/G/B channels. Image values are normalized to approximately `[-1, +1]`. Normalized speed and damage occupy the last two input positions.
+The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. Grayscale uses luminance; RGB keeps normalized R/G/B channels. The ten normalized local values are legacy-compatible scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering, previous throttle/brake, damage, RPM, and gear.
 
-The AI still does **not** receive lateral track position, centerline distance, track tangent, next-turn geometry, opponent coordinates, or other world-oracle features.
+The AI still does **not** receive lateral track position, centerline distance, track tangent, next-turn geometry, opponent coordinates, world position, or other world-oracle features.
 
 ## Dense actor-critic presets
 
@@ -73,18 +73,18 @@ Each brain has:
 
 The baseline therefore remains:
 
-**642 → 48 tanh → 15-action policy + value**
+**650 → 48 tanh → 15-action policy + value**
 
-Its shape, action encoding, and reward remain the recovered baseline. The historical PPO preset is still available unchanged, while v0.8.7 allows controlled per-brain PPO variations.
+The hidden shape, action encoding, reward, and historical PPO preset remain available; v1.0 changes the physical environment and appends fair vehicle-local state needed to make that environment observable.
 
 Example parameter counts:
 
 | Vision | Baseline 48 | Wide 128 | Deep 96→48 | Deep+Wide 128→64 |
 |---|---:|---:|---:|---:|
-| 32×20 gray | 31,648 | 84,368 | 67,168 | 91,600 |
-| 64×40 gray | 123,808 | 330,128 | 251,488 | 337,360 |
-| 32×20 RGB | 93,088 | 248,208 | 190,048 | 255,440 |
-| 64×40 RGB | 369,568 | 985,488 | 743,008 | 992,720 |
+| 32×20 gray | 32,032 | 85,392 | 67,936 | 92,624 |
+| 64×40 gray | 124,192 | 331,152 | 252,256 | 338,384 |
+| 32×20 RGB | 93,472 | 249,232 | 190,816 | 256,464 |
+| 64×40 RGB | 369,952 | 986,512 | 743,776 | 993,744 |
 
 The large dense combinations are intentionally exposed as experiments, not claimed to be efficient designs. Their cost is a useful demonstration of why spatial architectures such as CNNs matter. A small CNN is tracked for the next architecture stage.
 
@@ -202,6 +202,24 @@ Requested 1×/2×/4×/10×/50× speed changes only how much of this same sequenc
 
 Headless remains presentation-only. It suppresses spectator, driver-card, and Brain Inspector repainting, but summary metrics and both learning-progress charts remain live at the throttled headless dashboard cadence. It does not select another physics, observation, reward, experience, PPO, or reset path. Neural POV render targets still run because they are the observation.
 
+## Vehicle dynamics v2: world velocity, yaw, grip, and drivetrain
+
+`vehicle-dynamics.js` is deliberately renderer-independent. The authoritative planar motion state is `x/z`, world velocity `vx/vz`, chassis `heading`, and `yawRate`; steering angle, gear/shift state, damage, and the previous discrete policy controls complete the persistent vehicle state. Forward/lateral speed and slip angle are derived in the chassis frame each step rather than replacing world velocity.
+
+At each fixed 1/60-second tick, the current road/shoulder/grass surface selects a friction coefficient, cornering response, yaw response, and rolling resistance. Steering is rate-limited toward a speed-sensitive steering angle. A wheelbase-based kinematic yaw request is then capped by available lateral acceleration (`μg`) and approached with a surface-dependent yaw response. This creates speed/grip-limited understeer instead of allowing arbitrary heading rotation.
+
+After chassis yaw advances, lateral tire acceleration opposes chassis-frame lateral velocity but is itself capped by grip. Engine/brake acceleration and lateral acceleration share a circular friction budget: lateral demand reduces the longitudinal acceleration still available in that tick. Because chassis heading and world velocity evolve separately, tire saturation can leave persistent sideslip; when demand drops, lateral force aligns velocity back toward the car and the slide is recoverable.
+
+The drivetrain is a lightweight five-speed automatic. Wheel speed, gear ratio, final drive, and wheel radius produce RPM; shift thresholds select gears; a bounded torque curve changes drive acceleration across the rev range; and a short shift timer cuts drive force during the shift. Damage reduces available power and maximum speed. This is a sim-cade mechanism, not a clutch/differential/turbo or per-wheel driveline model.
+
+The neural observation tail contains ten normalized vehicle-local values: scalar speed (kept for legacy compatibility), signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, and gear. Local senses make the new hidden motion state observable without revealing track geometry or world coordinates.
+
+Saved pre-v1.0 dense networks are migrated at load time. Their visual first-layer weights are copied unchanged; the historical speed and damage weights are mapped to those matching slots in the new tail; all eight new sensor weights start at zero. The migrated tensor is then saved in current shape, but its experiment provenance remains D1/O1 until an explicit Reset creates a clean D2/O2 seeded run.
+
+`VEHICLE_DYNAMICS_VERSION = 2` and `VEHICLE_OBSERVATION_VERSION = 2` are stored beside track-layout revision in completed PPO metrics, training segments, evaluation races, and new-brain experiment provenance. A comparison is fully matched only when seed, track, T/D/O revisions, and seeded-from-start status all agree.
+
+The local executable gate runs this pure model for acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, bounded local observations, long-run finite integration, and legacy network migration. Presentation-only tire/engine audio is intentionally outside the deterministic learning path.
+
 ## Track layout v2: rounded circuits and physical arc distance
 
 v0.9.1 replaces the distorted trigonometric centerlines with pure data-driven waypoint circuits. Each waypoint has an explicit corner-rounding distance. Track construction trims the incoming/outgoing straights around that waypoint and joins the trim points with a quadratic curve whose endpoint tangents align with those straights. The resulting dense closed path is then resampled at approximately 1.5 m of physical arc length.
@@ -214,7 +232,7 @@ Approximate v2 lap lengths are 490 m Balanced Loop/Counterflow, 585 m Technical 
 
 The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
 
-Because circuit geometry is part of the environment, `TRACK_LAYOUT_VERSION = 2` is included in completed PPO metrics, training segments, races, and new-brain experiment provenance. Existing v0.9.0 history defaults to layout v1. Comparison tooling only calls conditions fully matched when seed, track, layout revision, and replayable-from-start provenance agree. Resetting an older brain clears its old history and establishes a clean v2 seeded run.
+Because circuit geometry is part of the environment, `TRACK_LAYOUT_VERSION = 2` remains explicit provenance beside the v1.0 D/O revisions. Existing v0.9.0 history defaults to T1/D1/O1 as appropriate; v0.9.1 history is T2/D1/O1; v1.0 training records T2/D2/O2. Comparison tooling only calls conditions fully matched when seed, selected track, all T/D/O revisions, and replayable-from-start provenance agree. Resetting an older brain clears old history and establishes a clean current-environment seeded run.
 
 ## Training tracks and clean starts
 
@@ -238,17 +256,15 @@ The v0.7 signed-progress reward/surface model remains in place:
 
 Exact track-direction alignment shown in the UI is human-facing telemetry only. The narrow edge strips repeat three distinct luminance tones in track-forward order. A forward view therefore sees one cyclic ordering of the three tones while a reversed view sees the opposite ordering, giving the vision policy a directional cue inside the rendered camera observation without an explicit track-direction input.
 
-The current physics is still heading + scalar speed. There is no separate lateral velocity, yaw rate, or true slip angle yet.
+The v1.0 world-velocity/yaw/slip state is the authoritative motion model. Slip/yaw telemetry is not itself rewarded; the learner still succeeds by making signed track progress while remaining on usable surfaces.
 
 ## Collision and audio
 
-Cars use oriented rectangular footprints and a separating-axis overlap test. Overlap is resolved even while collision damage is cooling down; new hard impacts compute severity from relative closing speed and remove substantial speed/damage.
+Cars use oriented rectangular footprints and a separating-axis overlap test. Overlap is resolved even during damage cooldown; hard impacts use relative `vx/vz` closing velocity to apply separating impulses, yaw damping, damage, and reward penalties.
 
-Track construction also records lightweight tree trunk colliders separately from their Three.js meshes. Physics tests each car's oriented footprint against those static circles, separates overlap, heavily scrubs speed, and applies damage/reward consequences on a new impact. This keeps scenery physics independent of rendering objects.
+Track construction records lightweight tree trunk colliders separately from their Three.js meshes. Tree hits separate the footprint, redirect and strongly damp the car's world velocity/yaw state, then apply damage/reward consequences. This keeps scenery physics independent of rendering objects.
 
-Impact particles are presentation-only. Car/car contact emits sparks, dark fragments, and smoke; tree strikes emit wood, leaves, and dust. The effect layer is hidden while neural POV render targets are captured and is suppressed/cleared during headless learning, so visual randomness cannot enter the policy observation or affect simulation state.
-
-Web Audio adds synthesized engine tone and collision transients. It reads speed, gear, throttle, surface, selected driver, and collision severity but does not write simulation state. Audio is therefore purely presentation.
+Impact particles are presentation-only and hidden from neural POV capture/headless learning. Web Audio derives engine pitch from RPM and tire scrub/skid noise from lateral grip use/slip, plus collision transients; none of those presentation layers write simulation state.
 
 ## Evaluation race
 
@@ -256,11 +272,9 @@ Evaluation freezes the active brain, switches to deterministic argmax actions, a
 
 Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately left for the Experiment Lab stage in [`TASKS.md`](TASKS.md).
 
-## Next controlled architecture/dynamics work
+## Next controlled work
 
-The living roadmap deliberately separates future changes:
+The major environment/observation change is now versioned and test-gated. The next experiment work remains deliberately separate:
 
 - **Experiment Lab:** CNN vision, ghost/tournament evaluation, curriculum; multi-brain arenas are deferred for now.
-- **Vehicle Dynamics:** true velocity/slip/yaw plus fair vehicle-local proprioception.
-
-That separation matters. It lets us answer whether a changed architecture helped before simultaneously changing the physical state the architecture is being asked to infer.
+- **Later controlled tests:** vision-only vs vehicle senses, wet/low-grip distribution shift, and other physics variants should use explicit environment revisions rather than silently changing an existing run.

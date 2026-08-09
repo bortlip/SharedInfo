@@ -13,9 +13,12 @@ test('initializes the full lab without browser errors', async ({ page }) => {
   const errors = collectBrowserErrors(page);
   await page.goto('/simulator.html', { waitUntil: 'networkidle' });
 
-  await expect(page.locator('[data-app-version]').first()).toHaveText(/^v\d+\.\d+\.\d+$/);
+  await expect(page.locator('[data-app-version]').first()).toHaveText('v1.0.0');
   await expect(page.locator('#bootError')).toBeHidden();
   await expect(page.locator('#scene canvas')).toHaveCount(1);
+  await expect(page.locator('#brainChip')).toContainText('650→48→15');
+  await expect(page.locator('#vehicleSpeedText')).toContainText('km/h');
+  await expect(page.locator('#slipText')).toContainText('°');
   await expect(page.locator('#driverCards .driver')).toHaveCount(4);
   await expect(page.locator('#brainInputCanvas')).toBeVisible();
   await expect(page.locator('#brainLibrary .brain-entry')).toHaveCount(1);

@@ -2,13 +2,27 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v0.9.1**
+Current release: **v1.0.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.0.0: sim-cade vehicle dynamics + local proprioception
+
+The car is no longer `heading + scalar speed`. Each driver now carries world-space `vx/vz`, chassis heading, yaw rate, steering angle, lateral/forward local velocity, slip angle, lateral/longitudinal acceleration, RPM, gear, shift state, tire-scrub intensity, and grip usage. Physics still advances on the same fixed 1/60-second scheduler, but the chassis can now rotate independently of its travel vector, so sideslip and recoverable slides are real state rather than a visual effect.
+
+The tire model is intentionally sim-cade rather than a full Pacejka implementation. Steering requests a kinematic yaw rate, available friction limits that yaw response, and lateral tire force tries to align world velocity with the chassis subject to the same surface grip ceiling. Longitudinal drive/braking and lateral cornering share a friction budget, so maximum braking/acceleration cannot coexist with unlimited cornering force. Road, shoulder, and grass have different friction, cornering response, yaw response, and rolling resistance; grass now changes the actual motion state rather than merely multiplying a steering scalar.
+
+A five-speed automatic transmission derives RPM from wheel speed, gear ratio, and final drive, shifts around the useful rev range, and modulates drive force through a simple torque curve plus a short shift interruption. Engine audio now follows actual RPM, while a filtered-noise tire layer follows lateral grip use and slip. Car/car and car/tree impacts act on world velocity vectors and yaw state rather than multiplying a scalar speed.
+
+The policy observation expands from image + 2 values to **image + 10 vehicle-local values**: legacy-compatible scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, and gear. These are all quantities available to a driver from the car itself; exact track tangent/center, future turn geometry, opponent coordinates, and world position remain hidden.
+
+Existing saved dense brains migrate automatically. Their image weights are copied unchanged, the old speed weight maps to the legacy-compatible speed slot, the old damage weight maps to damage, and the eight newly introduced input weights begin at zero. This preserves the learned network as closely as possible while allowing it to learn the new senses. Historical provenance remains **D1/O1**; new v1.0 training is **D2/O2**. Experiment comparison now matches seed, track, track-layout revision, vehicle-dynamics revision, and observation revision. Resetting an older brain clears its history and creates a clean replayable **T2/D2/O2** run from the same seed.
+
+The local Node gate now executes the pure vehicle model itself. It checks straight-line acceleration and shifting, braking to a stop, road-vs-grass steering response, sideslip recovery, bounded 10-value observations, long-run numerical stability, and the old 642→650 input-weight migration before a release can pass.
 
 ## v0.9.1: larger validated circuits + physical-distance progress
 
@@ -35,7 +49,7 @@ Trees now have lightweight trunk colliders rather than being scenery cars can pa
 
 ## v0.8.7: live connection graph + spectator cameras + PPO experiments
 
-The Brain Inspector now draws a representative sampled subgraph of the real active network. Node size/brightness reflects live activation; connection thickness reflects absolute learned weight strength; connection opacity reflects the current absolute contribution (`|weight × source activation|`); cyan/red connections indicate positive/negative signed contribution. Speed and damage inputs are always included in the sampled input nodes, while the large image input is sampled so dense networks remain legible.
+The Brain Inspector draws a representative sampled subgraph of the real active network. Node size/brightness reflects live activation; connection thickness reflects learned weight strength; connection opacity reflects current absolute contribution (`|weight × source activation|`); cyan/red connections indicate positive/negative contribution. v1.0 always includes all vehicle-local input nodes in the graph while sampling the large image input for legibility.
 
 Spectator viewing now includes Chase, Driver POV, High chase, Helicopter, Trackside, Overhead follow, and Whole track cameras. These are presentation-only and never alter the neural observation cameras.
 
@@ -84,22 +98,22 @@ Brains can now be exported or deleted directly from the library. The current ses
 
 v0.8 turns the simulator from a single fixed brain into an experiment lab. A **Lab Session** can contain multiple named brains with different visual inputs and dense-network shapes. Each brain keeps its own weights, training history, track exposure, and evaluation-race history.
 
-The baseline remains available unchanged in shape:
+The baseline dense preset remains one 48-neuron hidden layer; v1.0 expands its observation tail from 2 to 10 vehicle-local values:
 
-**32×20 grayscale + speed + damage → 48 tanh → 15-action policy + value**
+**32×20 grayscale + 10 local vehicle senses → 48 tanh → 15-action policy + value**
 
 Creating a different architecture creates a **new brain** rather than silently reshaping the one you already trained. Existing brains stay in the session and can be switched back in later.
 
 ### Vision presets
 
-| Vision | Visual values | Total inputs including speed + damage |
-|---|---:|---:|
-| 32×20 grayscale | 640 | 642 |
-| 64×40 grayscale | 2,560 | 2,562 |
-| 32×20 RGB | 1,920 | 1,922 |
-| 64×40 RGB | 7,680 | 7,682 |
+| Vision | Visual values | Vehicle-local values | Total inputs |
+|---|---:|---:|---:|
+| 32×20 grayscale | 640 | 10 | 650 |
+| 64×40 grayscale | 2,560 | 10 | 2,570 |
+| 32×20 RGB | 1,920 | 10 | 1,930 |
+| 64×40 RGB | 7,680 | 10 | 7,690 |
 
-RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. Speed and damage remain the only non-image inputs.
+RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. v1.0 appends ten normalized vehicle-local senses; none expose track geometry or world position.
 
 ### Dense-network presets
 
@@ -110,7 +124,7 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 
 The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
-Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. For example, **64×40 RGB + Wide is about 985,000 trainable parameters** and **64×40 RGB + Deep + wide is about 993,000**. The historical baseline PPO setup uses 512 experiences and three passes, while v0.8.7 also exposes controlled batch/pass experiments, so those combinations may spend substantial wall time in backpropagation. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
+Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the v1.0 vehicle-sense tail, **64×40 RGB + Wide has 986,512 trainable parameters** and **64×40 RGB + Deep + wide has 993,744**. The historical baseline PPO setup uses 512 experiences and three passes, while v0.8.7 also exposes controlled batch/pass experiments, so those combinations may spend substantial wall time in backpropagation. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
 
 ## Live Brain Inspector
 
@@ -178,15 +192,15 @@ The dashboard also shows best-ever run, off-road percentage, reward/experience, 
 
 ## World, direction, collisions, and sound
 
-Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Shoulder and grass reduce effective steering/acceleration/braking authority and scrub speed, with grass substantially worse.
+Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Road/shoulder/grass now select different physical friction, cornering/yaw response, and rolling resistance. Grass cannot generate road-level acceleration, braking, or lateral tire force.
 
-The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel. The edge strips repeat three distinct luminance tones in track-forward order, so their visible order reverses when a car faces the wrong way; this puts a direction clue in the actual camera image. Exact FORWARD / ACROSS / WRONG WAY alignment shown in the dashboard is human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel. The edge strips repeat three distinct luminance tones in track-forward order, so their visible order reverses when a car faces the wrong way; exact FORWARD / ACROSS / WRONG WAY alignment remains human-facing telemetry only.
 
-Cars use oriented rectangular collision footprints rather than a simple center-distance threshold, allowing close side-by-side running while detecting rear-end contact before substantial visual overlap. Trees use lightweight circular trunk colliders tested against the same oriented car footprint. Hard car/car and car/tree impacts cause damage and speed loss, with tree strikes producing the stronger stop.
+Cars use oriented rectangular collision footprints and now resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. Trees use lightweight circular trunk colliders against the same oriented car footprint and strongly redirect/scrub world velocity on impact.
 
-Optional Web Audio synthesizes engine tone from speed/gear/throttle and plays a short impact sound for collisions. Audio is presentation-only and never feeds the policy or simulation state.
+Optional Web Audio synthesizes engine tone from actual RPM and adds filtered tire scrub/skid noise from lateral grip demand and slip angle, plus collision transients. Audio remains presentation-only and never feeds or writes simulation state.
 
-The current vehicle dynamics still use heading + scalar speed. Shoulder/grass handling approximates traction loss, but there is **not yet true lateral velocity, slip angle, or recoverable oversteer**. Those are tracked as a later vehicle-dynamics stage and will be paired with fair vehicle-local proprioception rather than reintroducing partial observability.
+The v1.0 model is deliberately **sim-cade**: it has persistent world velocity, chassis yaw, slip angle, a shared friction budget, automatic gears/RPM, and recoverable sideslip, but it is not a four-wheel suspension/tire-temperature/aero simulation. That gives learning agents meaningful braking/corner-entry/traction tradeoffs without making a 50× browser lab prohibitively expensive.
 
 ## Safe speed and headless invariants
 
@@ -210,22 +224,23 @@ src/index.html        Direct modular-source preview.
 src/styles.css        UI and simulator styling.
 src/js/version.js     Visible/cache-busting release version.
 src/js/app.js         Three.js bootstrap, ordered module loading, error boundary.
+src/js/vehicle-dynamics.js Pure world-velocity/yaw/slip/transmission model and local sensor normalization.
 src/js/state.js       Configurable vision/network presets, constants, mutable state.
 src/js/track-layouts.js Pure rounded-waypoint circuit definitions, resampling, and geometry validation.
 src/js/scene.js       Three.js renderer, cameras, dynamic POV render targets.
 src/js/tracks.js      Rendered track surfaces, markings, scenery, and physical-distance metadata.
-src/js/cars.js        Car meshes, state, grid placement, direction telemetry.
-src/js/model.js       Configurable dense actor-critic networks and input gradients.
-src/js/perception.js  Configurable grayscale/RGB POV observations.
+src/js/cars.js        Car meshes, dynamic state, grid placement, direction telemetry.
+src/js/model.js       Configurable dense actor-critic networks, legacy-input migration, gradients.
+src/js/perception.js  Configurable grayscale/RGB POV plus vehicle-local observations.
 src/js/simulation.js  Policy decisions and experience collection.
-src/js/physics.js     Vehicle dynamics, rewards, surfaces, car/tree collisions.
+src/js/physics.js     Reward/surface integration plus car/tree collision impulses.
 src/js/effects.js     Presentation-only sparks, debris, smoke, dust, and tree fragments.
 src/js/session.js     Multiple brains, IndexedDB autosave, import/export, history.
 src/js/training.js    Generic dense PPO backprop and progress metrics.
 src/js/experiments.js Reproducible seed-aware matched-budget brain comparisons.
 src/js/race.js        Frozen-policy evaluation races and mode transitions.
 src/js/brain-viz.js   Hidden activations, policy display, saliency/sensitivity.
-src/js/audio.js       Presentation-only engine and collision audio.
+src/js/audio.js       Presentation-only RPM engine, tire scrub/skid, and collision audio.
 src/js/ui.js          Driver cards, charts, Brain Inspector, Session Manager.
 src/js/runtime.js     Chronological scheduler and control wiring.
 ```
