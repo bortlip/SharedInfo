@@ -29,7 +29,7 @@ function drawNetworkActivity(canvas,car){
   const out=car?.lastForward,obs=car?.lastObs;
   if(!out||!obs){ctx.fillStyle='#718493';ctx.font='12px system-ui';ctx.fillText('Network activity appears after the first policy decision.',16,h/2);return}
 
-  const inputIndices=sampledNodeIndices(INPUTS,14,[VISUAL_INPUTS,VISUAL_INPUTS+1]);
+  const vehicleIndices=Array.from({length:VEHICLE_SENSE_COUNT},(_,i)=>VISUAL_INPUTS+i),inputIndices=sampledNodeIndices(INPUTS,Math.min(24,VEHICLE_SENSE_COUNT+14),vehicleIndices);
   const layers=[{label:`${INPUTS} inputs`,indices:inputIndices,values:obs,type:'input'}];
   out.hidden.forEach((values,i)=>layers.push({label:`${values.length} tanh`,indices:sampledNodeIndices(values.length,18),values,type:'hidden',layerIndex:i}));
   layers.push({label:'15 policy + V',indices:Array.from({length:ACTIONS+1},(_,i)=>i),values:null,type:'output'});
@@ -67,7 +67,7 @@ function drawNetworkActivity(canvas,car){
         return;
       }
       const value=sourceActivation(layer,index),strength=Math.min(1,Math.abs(value)),radius=3+4*strength;ctx.fillStyle=value>=0?`rgba(85,219,234,${.22+.78*strength})`:`rgba(255,125,136,${.22+.78*strength})`;ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
-      if(layer.type==='input'&&(index===VISUAL_INPUTS||index===VISUAL_INPUTS+1)){ctx.fillStyle='#c8d2da';ctx.font='8px system-ui';ctx.textAlign='right';ctx.fillText(index===VISUAL_INPUTS?'speed':'damage',x-9,y+3);ctx.textAlign='center';ctx.font='10px system-ui'}
+      if(layer.type==='input'&&index>=VISUAL_INPUTS){const key=VEHICLE_SENSE_KEYS[index-VISUAL_INPUTS]||'vehicle';ctx.fillStyle='#c8d2da';ctx.font='7px system-ui';ctx.textAlign='right';ctx.fillText(key,x-9,y+3);ctx.textAlign='center';ctx.font='10px system-ui'}
     });
   });
   ctx.textAlign='left';ctx.font='9px system-ui';ctx.fillStyle='#718493';ctx.fillText('Sampled real connections · line width = |weight| · opacity = live |weight × activation| · cyan/red = signed contribution',12,h-15);

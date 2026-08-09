@@ -24,7 +24,7 @@ for (const file of jsFiles) {
 // appear as named window properties. The dangerous case is an earlier script reading a
 // name before the later script that declares the intended global has executed.
 const classicOrder = [
-  'version.js','state.js','track-layouts.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js',
+  'version.js','vehicle-dynamics.js','state.js','track-layouts.js','scene.js','tracks.js','cars.js','effects.js','model.js','perception.js',
   'simulation.js','physics.js','session.js','training.js','experiments.js','race.js','brain-viz.js',
   'audio.js','ui.js','runtime.js'
 ];
@@ -33,11 +33,39 @@ for (const name of classicOrder) {
   classicSources.set(name, await readFile(path.join(jsDir, name), 'utf8'));
 }
 
-// Training-affecting randomness must use the saved experiment streams. Presentation-only effects are intentionally excluded.
-for (const name of ['track-layouts.js','tracks.js','cars.js','model.js','simulation.js','physics.js','training.js']) {
+// Training-affecting randomness must use the saved experiment streams. Presentation-only effects/audio are intentionally excluded.
+for (const name of ['vehicle-dynamics.js','track-layouts.js','tracks.js','cars.js','model.js','simulation.js','physics.js','training.js']) {
   if (!/\bMath\.random\b/.test(classicSources.get(name))) continue;
   failed = true;
   console.error(`\nDeterminism violation: ${name} uses Math.random instead of experimentRandom().`);
+}
+
+// Execute the pure v1.0 sim-cade vehicle model: acceleration/shifts, braking, grip differences,
+// slide recovery, observation bounds, and long-run finite state.
+const vehicleDynamicsSource = classicSources.get('vehicle-dynamics.js');
+const vehicleContext = vm.createContext({});
+try {
+  vm.runInContext(`${vehicleDynamicsSource}
+function __car(speed=0){const s={x:0,z:0,heading:0,vx:0,vz:0,damage:0,gear:1,shiftTimer:0,actionSteer:0,actionThrottle:0};vehicleResetMotion(s,speed);return s}
+const straight=__car();for(let i=0;i<600;i++)stepVehicleDynamics(straight,{steer:0,throttle:1},'road',1/60);
+const accelerated={speed:straight.speed,gear:straight.gear,slip:straight.slipAngle,rpm:straight.rpm};
+for(let i=0;i<240;i++)stepVehicleDynamics(straight,{steer:0,throttle:-1},'road',1/60);const brakeSpeed=straight.speed;
+const road=__car(20),grass=__car(20);for(let i=0;i<120;i++){stepVehicleDynamics(road,{steer:1,throttle:0},'road',1/60);stepVehicleDynamics(grass,{steer:1,throttle:0},'grass',1/60)}
+const lowGear=__car(20),highGear=__car(20);lowGear.gear=2;highGear.gear=4;vehicleUpdateDerived(lowGear);vehicleUpdateDerived(highGear);for(let i=0;i<120;i++){stepVehicleDynamics(lowGear,{steer:0,throttle:0},'road',1/60);stepVehicleDynamics(highGear,{steer:0,throttle:0},'road',1/60)}
+const slide=__car();slide.vx=18;slide.vz=6;vehicleUpdateDerived(slide);const slipBefore=Math.abs(slide.slipAngle);for(let i=0;i<180;i++)stepVehicleDynamics(slide,{steer:0,throttle:0},'road',1/60);const slipAfter=Math.abs(slide.slipAngle);
+const observation=vehicleObservationValues(slide);
+const longRun=__car(8);for(let i=0;i<6000;i++){const phase=i%720,steer=phase<180?.65:phase<360?-.65:0,throttle=phase<540?1:0;stepVehicleDynamics(longRun,{steer,throttle},i%1200>980?'shoulder':'road',1/60)}
+globalThis.__vehicleProbe={accelerated,brakeSpeed,roadHeading:Math.abs(road.heading),grassHeading:Math.abs(grass.heading),roadSlip:Math.abs(road.slipAngle),grassSlip:Math.abs(grass.slipAngle),lowGearCoast:lowGear.speed,highGearCoast:highGear.speed,slipBefore,slipAfter,observation,longRun:[longRun.x,longRun.z,longRun.vx,longRun.vz,longRun.heading,longRun.speed,longRun.yawRate,longRun.slipAngle]};`, vehicleContext);
+  const p = vehicleContext.__vehicleProbe;
+  const obs = Array.from(p?.observation || []);
+  const finiteLongRun = Array.from(p?.longRun || []).every(Number.isFinite);
+  if (!p || p.accelerated.speed < 20 || p.accelerated.gear < 2 || Math.abs(p.accelerated.slip) > .03 || p.brakeSpeed > 1 || p.roadHeading <= p.grassHeading * 1.15 || !(p.lowGearCoast < p.highGearCoast-.25) || p.slipAfter >= p.slipBefore * .4 || obs.length !== 10 || obs.some(v => !Number.isFinite(v) || v < -1.000001 || v > 1.000001) || !finiteLongRun) {
+    failed = true;
+    console.error('\nVehicle-dynamics execution check failed:', p);
+  }
+} catch (error) {
+  failed = true;
+  console.error('\nVehicle-dynamics execution check threw:', error);
 }
 
 // Build every pure circuit definition and enforce the road-ribbon safety envelope.
@@ -58,37 +86,47 @@ try {
   console.error('\nTrack-layout execution check failed:', error);
 }
 
-// Shared display helpers used by several later scripts must live in the first shared layer.
+// Shared state and model checks run with the vehicle observation contract loaded first,
+// matching browser classic-script order.
 const stateSource = classicSources.get('state.js');
 const rngContext = vm.createContext({ performance });
 try {
-  vm.runInContext(`${stateSource}\nresetExperimentRng(123456789);const a=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const b=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const policyBefore=experimentRandom('policy');resetExperimentRng(123456789);for(let i=0;i<250;i++)experimentRandom('init');const policyAfter=experimentRandom('policy');globalThis.__rngProbe={a,b,policyBefore,policyAfter};`, rngContext);
+  vm.runInContext(`${vehicleDynamicsSource}\n${stateSource}\nresetExperimentRng(123456789);const a=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const b=[experimentRandom('init'),experimentRandom('policy'),experimentRandom('shuffle')];resetExperimentRng(123456789);const policyBefore=experimentRandom('policy');resetExperimentRng(123456789);for(let i=0;i<250;i++)experimentRandom('init');const policyAfter=experimentRandom('policy');globalThis.__rngProbe={a,b,policyBefore,policyAfter,inputs:INPUTS,senses:VEHICLE_SENSE_COUNT};`, rngContext);
   const probe = rngContext.__rngProbe;
-  if (!probe || probe.a.some((value,index) => value !== probe.b[index]) || probe.policyBefore !== probe.policyAfter) {
+  if (!probe || probe.inputs !== 650 || probe.senses !== 10 || probe.a.some((value,index) => value !== probe.b[index]) || probe.policyBefore !== probe.policyAfter) {
     failed = true;
-    console.error('\nDeterminism violation: seeded RNG streams did not replay independently.');
+    console.error('\nDeterminism/observation-contract violation:', probe);
   }
 } catch (error) {
   failed = true;
   console.error('\nSeeded RNG execution check failed:', error);
 }
+
 const modelContext = vm.createContext({ performance });
 try {
-  vm.runInContext(`${stateSource}\n${classicSources.get('model.js')}\nresetExperimentRng(424242);const n1=createNetwork();resetExperimentRng(424242);const n2=createNetwork();resetExperimentRng(424243);const n3=createNetwork();const w1=Array.from(n1.layers[0].w.slice(0,32)),w2=Array.from(n2.layers[0].w.slice(0,32)),w3=Array.from(n3.layers[0].w.slice(0,32));globalThis.__networkProbe={same:w1.every((v,i)=>v===w2[i]),different:w1.some((v,i)=>v!==w3[i])};`, modelContext);
-  if (!modelContext.__networkProbe?.same || !modelContext.__networkProbe?.different) {
+  vm.runInContext(`${vehicleDynamicsSource}\n${stateSource}\n${classicSources.get('model.js')}
+resetExperimentRng(424242);const n1=createNetwork();resetExperimentRng(424242);const n2=createNetwork();resetExperimentRng(424243);const n3=createNetwork();const w1=Array.from(n1.layers[0].w.slice(0,32)),w2=Array.from(n2.layers[0].w.slice(0,32)),w3=Array.from(n3.layers[0].w.slice(0,32));
+const visual=640,oldInputs=642,outputs=48,oldW=new Float32Array(oldInputs*outputs),oldB=new Float32Array(outputs);for(let j=0;j<outputs;j++){oldW[j*oldInputs+17]=17+j;oldW[j*oldInputs+visual]=100+j;oldW[j*oldInputs+visual+1]=200+j}
+const current=networkSnapshot(n1),legacy={kind:'mlp',config:{visionId:'gray32',networkId:'baseline'},layers:[{inputSize:oldInputs,outputSize:outputs,w:oldW,b:oldB}],policy:current.policy,value:current.value},migrated=networkFromSnapshot(legacy),first=migrated.layers[0];let migrationOk=first.inputSize===650;
+for(let j=0;j<outputs&&migrationOk;j++){const base=j*650;migrationOk=first.w[base+17]===17+j&&first.w[base+visual+VEHICLE_SENSE_INDEX.speed]===100+j&&first.w[base+visual+VEHICLE_SENSE_INDEX.damage]===200+j;for(let k=0;k<VEHICLE_SENSE_COUNT&&migrationOk;k++)if(k!==VEHICLE_SENSE_INDEX.speed&&k!==VEHICLE_SENSE_INDEX.damage)migrationOk=first.w[base+visual+k]===0}
+globalThis.__networkProbe={same:w1.every((v,i)=>v===w2[i]),different:w1.some((v,i)=>v!==w3[i]),migrationOk};`, modelContext);
+  if (!modelContext.__networkProbe?.same || !modelContext.__networkProbe?.different || !modelContext.__networkProbe?.migrationOk) {
     failed = true;
-    console.error('\nDeterminism violation: network initialization did not replay from the experiment seed.');
+    console.error('\nSeeded network / legacy-input migration check failed:', modelContext.__networkProbe);
   }
 } catch (error) {
   failed = true;
-  console.error('\nSeeded network initialization check failed:', error);
+  console.error('\nSeeded network / migration execution check failed:', error);
 }
+
+// Shared display helpers used by several later scripts must live in the first shared state layer.
 for (const helper of ['formatDuration','compactNumber','formatBytes','formatMs']) {
   const pattern = new RegExp(`function\\s+${helper}\\s*\\(`);
   if (pattern.test(stateSource)) continue;
   failed = true;
   console.error(`\nShared-helper load-order violation: ${helper} must be declared in state.js.`);
 }
+
 const declarations = new Map();
 const declaration = /^(?:function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*))/gm;
 for (const [index, name] of classicOrder.entries()) {
@@ -117,4 +155,4 @@ for (const htmlFile of htmlFiles) {
 }
 
 if (failed) process.exit(1);
-console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
+console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; vehicle dynamics + legacy network migration validated; all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);

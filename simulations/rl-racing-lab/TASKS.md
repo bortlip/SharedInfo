@@ -2,24 +2,17 @@
 
 This is the single living checklist for the lab. Keep it short, move finished work to **Done**, and update it with each release so the repository—not old chat history—is the source of truth.
 
-## Next — v0.9 Experiment Lab
+## Next — Experiment Lab
 
 - [ ] Add a small CNN vision brain so higher-resolution/color input can be compared with dense MLPs efficiently.
 - [ ] Add ghost comparison against an older checkpoint/brain.
 - [ ] Add tournament mode across saved brains and unseen tracks.
 - [ ] Add curriculum training: advance through selected tracks when performance thresholds are met.
 
-## Later — v1.0 Vehicle Dynamics
-
-- [ ] Restore true world velocity and lateral momentum rather than scalar-speed-only motion.
-- [ ] Add tire grip, slip angle, yaw rate, understeer/oversteer, recoverable slides, and meaningful grass/wet-surface grip.
-- [ ] Give the policy fair vehicle-local proprioception when those dynamics exist: speed, slip angle/lateral velocity, yaw rate, previous steering, previous throttle/brake, damage, possibly lateral acceleration.
-- [ ] Add tire scrub/skid audio and richer engine/gear behavior tied to the new dynamics.
-- [ ] Compare vision-only against vision + vehicle senses.
-
 ## Later experiments / fun
 
 - [ ] Distribution-shift tests: wet track, dusk/night, fog, changed scenery/markings.
+- [ ] Controlled comparison: vision-only vs vision + vehicle-local senses under the same T/D environment.
 - [ ] Generalization score across tracks the brain did not train on.
 - [ ] More track layouts and generated circuits.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
@@ -28,6 +21,17 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.0.0 Sim-cade vehicle dynamics
+
+- [x] Replace scalar-speed motion with persistent world `vx/vz`, chassis yaw rate, steering angle, local forward/lateral velocity, and recoverable slip angle.
+- [x] Add speed/grip-limited yaw response plus a shared lateral/longitudinal friction budget so braking, acceleration, and cornering compete for tire force.
+- [x] Make road, shoulder, and grass change actual friction, cornering/yaw response, and rolling resistance rather than only scaling controls.
+- [x] Add a five-speed automatic transmission, wheel-speed-derived RPM, simple torque curve, shift interruption, damage power loss, and RPM/tire-scrub audio.
+- [x] Expand policy proprioception to ten normalized local senses while keeping track/world geometry hidden.
+- [x] Migrate old dense first layers from image+2 to image+10 without changing visual weights; map old speed/damage weights and zero the eight new sensor weights.
+- [x] Version track/dynamics/observation environment provenance as T/D/O so old history and v1.0 continuation are not falsely treated as replay-equivalent.
+- [x] Apply car/tree impacts to world velocity/yaw and validate acceleration, braking, shifting, surface grip, slide recovery, observation bounds, long-run stability, and legacy migration in the local Node gate.
 
 ### v0.9.1 Larger validated circuit system
 
