@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.9.0 Design
+# POV RL Racing Lab — v0.9.1 Design
 
 ## Goal
 
@@ -202,6 +202,20 @@ Requested 1×/2×/4×/10×/50× speed changes only how much of this same sequenc
 
 Headless remains presentation-only. It suppresses spectator, driver-card, and Brain Inspector repainting, but summary metrics and both learning-progress charts remain live at the throttled headless dashboard cadence. It does not select another physics, observation, reward, experience, PPO, or reset path. Neural POV render targets still run because they are the observation.
 
+## Track layout v2: rounded circuits and physical arc distance
+
+v0.9.1 replaces the distorted trigonometric centerlines with pure data-driven waypoint circuits. Each waypoint has an explicit corner-rounding distance. Track construction trims the incoming/outgoing straights around that waypoint and joins the trim points with a quadratic curve whose endpoint tangents align with those straights. The resulting dense closed path is then resampled at approximately 1.5 m of physical arc length.
+
+The layout layer is renderer-independent (`track-layouts.js`) so the local Node source gate can execute every circuit without Three.js. A release fails if any circuit has a sampled centerline radius below 18 m, same-elevation non-adjacent centerline clearance below 15 m, or sample spacing outside an 8% envelope. This prevents the normal-offset asphalt/shoulder ribbons from folding through themselves at pathological corners.
+
+Approximate v2 lap lengths are 490 m Balanced Loop/Counterflow, 585 m Technical Circuit, 680 m Fast Sweepers, 525 m Figure Eight, and 980 m Grand Prix. The Figure Eight remains grade-separated; nonlocal-clearance validation ignores crossings only when their vertical separation exceeds the configured elevation threshold.
+
+`trackDistance[]` stores cumulative centerline arc distance at every sample. Forward/backward reward progress and race-position scoring use wrapped differences in this distance rather than `index delta × average segment`. Grid rows, trackside-camera lead, center dashes, and tree spacing are also expressed in meters and converted to sample counts from the current circuit spacing.
+
+The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
+
+Because circuit geometry is part of the environment, `TRACK_LAYOUT_VERSION = 2` is included in completed PPO metrics, training segments, races, and new-brain experiment provenance. Existing v0.9.0 history defaults to layout v1. Comparison tooling only calls conditions fully matched when seed, track, layout revision, and replayable-from-start provenance agree. Resetting an older brain clears its old history and establishes a clean v2 seeded run.
+
 ## Training tracks and clean starts
 
 Training remains manually selectable across Balanced Loop, Counterflow, Technical Circuit, Fast Sweepers, Figure Eight Overpass, and Grand Prix.
@@ -246,7 +260,7 @@ Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately
 
 The living roadmap deliberately separates future changes:
 
-- **Experiment Lab:** multi-brain training/racing arenas, CNN vision, ghost/tournament evaluation, curriculum.
+- **Experiment Lab:** CNN vision, ghost/tournament evaluation, curriculum; multi-brain arenas are deferred for now.
 - **Vehicle Dynamics:** true velocity/slip/yaw plus fair vehicle-local proprioception.
 
 That separation matters. It lets us answer whether a changed architecture helped before simultaneously changing the physical state the architecture is being asked to infer.

@@ -4,7 +4,6 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Next — v0.9 Experiment Lab
 
-- [ ] Add multi-brain arenas where cars can use different saved policies, both for frozen garage races and for independent co-training in the same physical world. Start with a common vision preset, then generalize heterogeneous observation shapes.
 - [ ] Add a small CNN vision brain so higher-resolution/color input can be compared with dense MLPs efficiently.
 - [ ] Add ghost comparison against an older checkpoint/brain.
 - [ ] Add tournament mode across saved brains and unseen tracks.
@@ -26,8 +25,18 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
 - [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, PPO entropy/KL/clip diagnostics.
 - [ ] Add advanced learning controls/diagnostics after the current experiment foundation: gamma, GAE lambda, exploration/temperature schedule, entropy bonus, value-loss weight, gradient-norm clipping, PPO KL/clip diagnostics.
+- [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v0.9.1 Larger validated circuit system
+
+- [x] Replace distorted parametric-ellipse tracks with intentional waypoint circuits using true straights and rounded tangent-continuous corners.
+- [x] Resample every centerline at roughly 1.5 m physical spacing and use cumulative arc distance for reward/progress and race position.
+- [x] Enforce minimum 18 m centerline turn radius, 15 m non-adjacent same-level clearance, and uniform spacing in the executable Node source gate.
+- [x] Expand circuits substantially: ~490 m Balanced/Counterflow, ~585 m Technical, ~680 m Sweepers, ~525 m Figure Eight, ~980 m Grand Prix.
+- [x] Make grid/camera/scenery spacing distance-based and make Whole Track frame the active circuit without changing neural POV fog.
+- [x] Stamp track-layout revision into experiment history so v0.9.0 geometry and v0.9.1 geometry are not treated as the same reproducible environment.
 
 ### v0.9.0 Reproducible experiment lab
 
