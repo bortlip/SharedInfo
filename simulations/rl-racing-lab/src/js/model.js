@@ -1,4 +1,4 @@
-// Configurable dense actor-critic network with transparent migration of pre-v1.0 vehicle inputs.
+// Configurable dense actor-critic network with transparent migration of earlier vehicle-input tails.
 function createDenseLayer(inputSize,outputSize){const scale=Math.sqrt(1/Math.max(1,inputSize));return{inputSize,outputSize,w:Float32Array.from({length:inputSize*outputSize},()=>randn()*scale),b:new Float32Array(outputSize)}}
 function createNetwork(){
   const sizes=[INPUTS,...HIDDEN_LAYERS],layers=[];for(let i=0;i<sizes.length-1;i++)layers.push(createDenseLayer(sizes[i],sizes[i+1]));const last=sizes.at(-1),scale=Math.sqrt(1/Math.max(1,last));
@@ -21,13 +21,17 @@ function visualInputCountForConfig(config){const c=normalizedBrainConfig(config)
 function migrateLegacyVehicleInputLayer(source,config,expectedInput,expectedOutput){
   const visual=visualInputCountForConfig(config),legacyInput=visual+2,inputSize=Number(source.inputSize),outputSize=Number(source.outputSize),oldW=Float32Array.from(source.w||[]),b=Float32Array.from(source.b||[]);
   if(inputSize!==legacyInput||expectedInput!==visual+VEHICLE_SENSE_COUNT||outputSize!==expectedOutput||oldW.length!==inputSize*outputSize||b.length!==outputSize)return null;
-  const w=new Float32Array(expectedInput*outputSize);for(let j=0;j<outputSize;j++){const oldBase=j*inputSize,newBase=j*expectedInput;w.set(oldW.subarray(oldBase,oldBase+visual),newBase);w[newBase+visual+VEHICLE_SENSE_INDEX.speed]=oldW[oldBase+visual];w[newBase+visual+VEHICLE_SENSE_INDEX.damage]=oldW[oldBase+visual+1]}
-  return{inputSize:expectedInput,outputSize,w,b,migratedVehicleInputs:true};
+  const w=new Float32Array(expectedInput*outputSize);for(let j=0;j<outputSize;j++){const oldBase=j*inputSize,newBase=j*expectedInput;w.set(oldW.subarray(oldBase,oldBase+visual),newBase);w[newBase+visual+VEHICLE_SENSE_INDEX.speed]=oldW[oldBase+visual];w[newBase+visual+VEHICLE_SENSE_INDEX.damage]=oldW[oldBase+visual+1]}return{inputSize:expectedInput,outputSize,w,b,migratedVehicleInputs:true};
+}
+function migratePreviousVehicleInputLayer(source,config,expectedInput,expectedOutput){
+  const visual=visualInputCountForConfig(config),previousInput=visual+VEHICLE_SENSE_COUNT-1,inputSize=Number(source.inputSize),outputSize=Number(source.outputSize),oldW=Float32Array.from(source.w||[]),b=Float32Array.from(source.b||[]);
+  if(inputSize!==previousInput||expectedInput!==previousInput+1||outputSize!==expectedOutput||oldW.length!==inputSize*outputSize||b.length!==outputSize)return null;
+  const w=new Float32Array(expectedInput*outputSize);for(let j=0;j<outputSize;j++){const oldBase=j*inputSize,newBase=j*expectedInput;w.set(oldW.subarray(oldBase,oldBase+inputSize),newBase)}return{inputSize:expectedInput,outputSize,w,b,migratedVehicleInputs:true};
 }
 function networkFromSnapshot(snapshot){
   if(snapshot?.kind!=='mlp'||!Array.isArray(snapshot.layers)||!snapshot.layers.length)throw new Error('Unsupported or incomplete brain network.');const config=normalizedBrainConfig(snapshot.config),expected=brainLayerSizes(config),expectedHidden=expected.slice(1,-1),restored={kind:'mlp',config,layers:[],policy:null,value:null};
   if(snapshot.layers.length!==expectedHidden.length)throw new Error('Brain hidden-layer count does not match its architecture preset.');
-  for(let l=0;l<snapshot.layers.length;l++){const source=snapshot.layers[l],inputSize=Number(source.inputSize),outputSize=Number(source.outputSize),expectedInput=l===0?expected[0]:expectedHidden[l-1],expectedOutput=expectedHidden[l],w=Float32Array.from(source.w||[]),b=Float32Array.from(source.b||[]);if(inputSize===expectedInput&&outputSize===expectedOutput&&w.length===inputSize*outputSize&&b.length===outputSize){restored.layers.push({inputSize,outputSize,w,b});continue}const migrated=l===0?migrateLegacyVehicleInputLayer(source,config,expectedInput,expectedOutput):null;if(migrated){restored.layers.push(migrated);continue}throw new Error('Brain hidden-layer arrays do not match the declared vision/network preset.')}
+  for(let l=0;l<snapshot.layers.length;l++){const source=snapshot.layers[l],inputSize=Number(source.inputSize),outputSize=Number(source.outputSize),expectedInput=l===0?expected[0]:expectedHidden[l-1],expectedOutput=expectedHidden[l],w=Float32Array.from(source.w||[]),b=Float32Array.from(source.b||[]);if(inputSize===expectedInput&&outputSize===expectedOutput&&w.length===inputSize*outputSize&&b.length===outputSize){restored.layers.push({inputSize,outputSize,w,b});continue}const migrated=l===0?(migratePreviousVehicleInputLayer(source,config,expectedInput,expectedOutput)||migrateLegacyVehicleInputLayer(source,config,expectedInput,expectedOutput)):null;if(migrated){restored.layers.push(migrated);continue}throw new Error('Brain hidden-layer arrays do not match the declared vision/network preset.')}
   const last=restored.layers.at(-1).outputSize,pw=Float32Array.from(snapshot.policy?.w||[]),pb=Float32Array.from(snapshot.policy?.b||[]),vw=Float32Array.from(snapshot.value?.w||[]);if(pw.length!==ACTIONS*last||pb.length!==ACTIONS||vw.length!==last)throw new Error('Brain output arrays do not match the network shape.');restored.policy={w:pw,b:pb};restored.value={w:vw,b:Number(snapshot.value?.b)||0};return restored;
 }
 function inputGradientForAction(obs,action,network=net){

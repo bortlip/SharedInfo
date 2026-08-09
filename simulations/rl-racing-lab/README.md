@@ -2,13 +2,25 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v1.0.1**
+Current release: **v1.1.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.1.0: learning-contract correctness
+
+This release tightens the full learning contract after reviewing the new tracks, vehicle dynamics, and wide POV together. Lap completion now requires a full track length of accumulated signed net progress from the spawn; crossing the finish seam by itself does nothing, and the old +15 lap reward is removed. That closes the finish-line rocking exploit in both learning and evaluation races while leaving forward meters as the primary objective.
+
+Reward revision **R2** pays 0.075 per forward road meter, 45% of that rate on shoulder, and no positive progress reward on grass; shoulder/grass retain their time penalties, backward progress keeps the stronger 0.16-per-meter penalty, and collisions keep their severity penalties. A failure terminal now applies its -5 penalty exactly once, freezes the vehicle until the 10 Hz transition is recorded, and no-progress detection uses velocity along the local track tangent rather than raw world speed.
+
+Observation revision **O4** appends actual physical steering angle as an eleventh vehicle-local sense and normalizes scalar speed across the current 40 m/s physical range. Baseline input is therefore **651 → 48 → 15 + value**. Existing O3 image+10 networks migrate 650→651 by copying every old first-layer weight and zeroing only the new steering-angle weight; older image+2 networks still migrate with their historical speed/damage mapping.
+
+Trainer revision **A2** makes exploration temperature a function of total experience instead of PPO update number and changes synchronized clean starts to 2,048/4,096/8,192/16,384-experience budgets, all divisible by the supported 256/512/1024 PPO batches. Temperature is evaluated for each real action and stored with that transition; PPO replays the sample at the same temperature and includes the required `1 / temperature` policy-gradient factor. PPO boundaries no longer sample/discard unused actions, eliminating another update-count-dependent RNG draw. Training history also records policy entropy, approximate KL, clip fraction, value RMSE/explained variance, no-progress time, collision rate, per-surface forward meters, backtracking, and reward-component totals.
+
+Current fresh runs are stamped **T2/D2/O4/R2/A2**. Experiment comparison requires all five revisions plus seed/track/replayable provenance to agree before calling conditions matched.
 
 ## v1.0.1: wide neural POV at the same input cost
 
@@ -106,7 +118,7 @@ v0.8 turns the simulator from a single fixed brain into an experiment lab. A **L
 
 The baseline dense preset remains one 48-neuron hidden layer; v1.0 expands its observation tail from 2 to 10 vehicle-local values:
 
-**40×16 grayscale + 10 local vehicle senses → 48 tanh → 15-action policy + value**
+**40×16 grayscale + 11 local vehicle senses → 48 tanh → 15-action policy + value**
 
 Creating a different architecture creates a **new brain** rather than silently reshaping the one you already trained. Existing brains stay in the session and can be switched back in later.
 
@@ -114,12 +126,12 @@ Creating a different architecture creates a **new brain** rather than silently r
 
 | Vision | Visual values | Vehicle-local values | Total inputs |
 |---|---:|---:|---:|
-| 40×16 grayscale | 640 | 10 | 650 |
-| 80×32 grayscale | 2,560 | 10 | 2,570 |
-| 40×16 RGB | 1,920 | 10 | 1,930 |
-| 80×32 RGB | 7,680 | 10 | 7,690 |
+| 40×16 grayscale | 640 | 11 | 651 |
+| 80×32 grayscale | 2,560 | 11 | 2,571 |
+| 40×16 RGB | 1,920 | 11 | 1,931 |
+| 80×32 RGB | 7,680 | 11 | 7,691 |
 
-RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. v1.0.1 reshapes every vision preset to a 2.5:1 racing view while preserving its visual-value count, then appends the same ten normalized vehicle-local senses; none expose track geometry or world position.
+RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. The current O4 tail appends eleven normalized vehicle-local senses—including actual physical steering angle—while still exposing no track geometry or world position.
 
 ### Dense-network presets
 
@@ -130,7 +142,7 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 
 The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
-Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the v1.0 vehicle-sense tail, **80×32 RGB + Wide has 986,512 trainable parameters** and **80×32 RGB + Deep + wide has 993,744**. The visual-value counts are unchanged from the former 64×40 geometry, so this wide-camera reshaping does not increase network size or PPO cost. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
+Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the current O4 vehicle-sense tail, **80×32 RGB + Wide has 986,640 trainable parameters** and **80×32 RGB + Deep + wide has 993,872**. The visual-value counts are unchanged from the former 64×40 geometry, so the wide-camera reshaping itself does not increase image cost; O4 adds one local input. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
 
 ## Live Brain Inspector
 
@@ -172,8 +184,8 @@ In **Learning** mode:
 - four drivers share the active brain;
 - the selected track supplies observations and reward;
 - PPO updates after the active brain's selected 256/512/1024 combined-experience batch;
-- Adaptive clean starts begin at every PPO update and can relax to every 2, 4, and 8 updates as performance improves;
-- fixed 1/2/4/8-update clean starts or failures-only running remain available.
+- Adaptive clean starts begin every 2,048 experiences and can relax to 4,096, 8,192, and 16,384 experiences as run distance improves;
+- fixed 2,048/4,096/8,192/16,384-experience clean starts or failures-only running remain available, independent of PPO batch size.
 
 In **Evaluation Race** mode:
 
@@ -194,13 +206,13 @@ Two charts answer different questions:
 
 Run distance is peak **net** forward progress from a spawn. Driving backward first reduces net progress, so rocking forward and backward cannot inflate the metric by repeatedly counting the same meters.
 
-The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real training time, simulated training time, action mix, clean-start cadence, and achieved simulation speed.
+The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start experience budget, and achieved simulation speed. The v1.1 diagnostics line adds forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
 
 ## World, direction, collisions, and sound
 
 Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Road/shoulder/grass now select different physical friction, cornering/yaw response, and rolling resistance. Grass cannot generate road-level acceleration, braking, or lateral tire force.
 
-The policy still receives no hidden track-center or track-tangent oracle. Signed track progress rewards forward travel and penalizes backward travel. The edge strips repeat three distinct luminance tones in track-forward order, so their visible order reverses when a car faces the wrong way; exact FORWARD / ACROSS / WRONG WAY alignment remains human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Under R2, signed track progress pays the full forward reward on road, 45% on shoulder, zero positive progress reward on grass, and a larger-magnitude penalty for backward travel. Lap completion is measured from full accumulated net track progress rather than raw finish-line crossings, so crossing the seam repeatedly cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
 
 Cars use oriented rectangular collision footprints and now resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. Trees use lightweight circular trunk colliders against the same oriented car footprint and strongly redirect/scrub world velocity on impact.
 
@@ -231,6 +243,7 @@ src/styles.css        UI and simulator styling.
 src/js/version.js     Visible/cache-busting release version.
 src/js/app.js         Three.js bootstrap, ordered module loading, error boundary.
 src/js/vehicle-dynamics.js Pure world-velocity/yaw/slip/transmission model and local sensor normalization.
+src/js/learning-contract.js Pure reward, exploration-temperature, and clean-reset contract.
 src/js/state.js       Configurable vision/network presets, constants, mutable state.
 src/js/track-layouts.js Pure rounded-waypoint circuit definitions, resampling, and geometry validation.
 src/js/scene.js       Three.js renderer, cameras, dynamic POV render targets.

@@ -1,8 +1,8 @@
-# POV RL Racing Lab — v1.0.1 Design
+# POV RL Racing Lab — v1.1.0 Design
 
 ## Goal
 
-v1.0 keeps the configurable experiment platform and replaces its final major scalar-speed simplification with a bounded sim-cade world-velocity/yaw/slip model.
+v1.1 keeps the configurable experiment platform and v1.0 sim-cade vehicle model, then tightens the observation/reward/trainer contracts so experiments measure the intended driving problem rather than reward or scheduling artifacts.
 
 The causal chain remains:
 
@@ -38,19 +38,19 @@ Presentation-only randomness is excluded from the learning contract. Impact-part
 
 The comparison UI derives rows from the brains already stored in the current session. **Matched experience budget** chooses the smallest latest completed experience count among trained brains and, for each brain, displays the closest completed PPO metric to that common target. **Latest completed update each** instead shows every brain at its own latest checkpoint. The displayed actual experience count remains visible, so differing PPO batch sizes are not falsely represented as an exact match.
 
-Comparison rows include architecture, seed/provenance, update/experience, track, average/best run, reward/experience, off-road percentage, measured PPO time, and PPO configuration. A run is called fully matched only when seed, selected track, track-layout revision, vehicle-dynamics revision, vehicle-observation revision, and replayable-from-start provenance all agree.
+Comparison rows include architecture, seed/provenance, update/experience, track, average/best run, reward/experience, off-road percentage, measured PPO time, and PPO configuration. A run is called fully matched only when seed, selected track, track-layout revision, vehicle-dynamics revision, vehicle-observation revision, reward-contract revision, trainer revision, and replayable-from-start provenance all agree.
 ## Vision presets
 
 Every POV render target is recreated when the active brain changes configuration. v1.0.1 uses a 2.5:1 neural view for every preset: the low-resolution geometry is 40×16 and the high-resolution geometry is 80×32. This preserves the previous visual-value counts while reallocating pixels from vertical sky coverage to lateral racing context.
 
 | Preset | Image channels | Visual inputs | Vehicle-local inputs | Total inputs |
 |---|---:|---:|---:|---:|
-| 40×16 grayscale | 1 | 640 | 10 | 650 |
-| 80×32 grayscale | 1 | 2,560 | 10 | 2,570 |
-| 40×16 RGB | 3 | 1,920 | 10 | 1,930 |
-| 80×32 RGB | 3 | 7,680 | 10 | 7,690 |
+| 40×16 grayscale | 1 | 640 | 11 | 651 |
+| 80×32 grayscale | 1 | 2,560 | 11 | 2,571 |
+| 40×16 RGB | 3 | 1,920 | 11 | 1,931 |
+| 80×32 RGB | 3 | 7,680 | 11 | 7,691 |
 
-The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. The observer camera uses a 52° vertical FOV, which is about 101° horizontally at the 2.5:1 aspect ratio, and aims slightly downward toward the road. Grayscale uses luminance; RGB keeps normalized R/G/B channels. The ten normalized local values are legacy-compatible scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering, previous throttle/brake, damage, RPM, and gear.
+The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. The observer camera uses a 52° vertical FOV, which is about 101° horizontally at the 2.5:1 aspect ratio, and aims slightly downward toward the road. Grayscale uses luminance; RGB keeps normalized R/G/B channels. O4 uses eleven normalized local values: scalar speed over the full 40 m/s physical range, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual rate-limited steering angle.
 
 The AI still does **not** receive lateral track position, centerline distance, track tangent, next-turn geometry, opponent coordinates, world position, or other world-oracle features.
 
@@ -73,18 +73,18 @@ Each brain has:
 
 The baseline therefore remains:
 
-**650 → 48 tanh → 15-action policy + value**
+**651 → 48 tanh → 15-action policy + value**
 
-The hidden shape, action encoding, reward, and historical PPO preset remain available; v1.0 changes the physical environment and appends fair vehicle-local state needed to make that environment observable.
+The hidden shapes and 15-action encoding remain unchanged. v1.1 changes only the local observation tail plus the reward/trainer contracts; the vision geometry and D2 physical environment remain stable.
 
 Example parameter counts:
 
 | Vision | Baseline 48 | Wide 128 | Deep 96→48 | Deep+Wide 128→64 |
 |---|---:|---:|---:|---:|
-| 40×16 gray | 32,032 | 85,392 | 67,936 | 92,624 |
-| 80×32 gray | 124,192 | 331,152 | 252,256 | 338,384 |
-| 40×16 RGB | 93,472 | 249,232 | 190,816 | 256,464 |
-| 80×32 RGB | 369,952 | 986,512 | 743,776 | 993,744 |
+| 40×16 gray | 32,080 | 85,520 | 68,032 | 92,752 |
+| 80×32 gray | 124,240 | 331,280 | 252,352 | 338,512 |
+| 40×16 RGB | 93,520 | 249,360 | 190,912 | 256,592 |
+| 80×32 RGB | 370,000 | 986,640 | 743,872 | 993,872 |
 
 The large dense combinations are intentionally exposed as experiments, not claimed to be efficient designs. Their cost is a useful demonstration of why spatial architectures such as CNNs matter. A small CNN is tracked for the next architecture stage.
 
@@ -96,9 +96,13 @@ Training still uses:
 - decisions every 0.10 simulated seconds;
 - γ = 0.985;
 - GAE λ = 0.92;
-- exploration temperature 1.35 decaying toward 0.72.
+- exploration temperature starts at 1.35, decays from total collected experience on the historical 512-experience scale, and floors at 0.72.
 
 Four PPO update parameters are now controlled per brain with discrete experiment-safe options. The historical baseline remains **512 experiences / 3 passes / learning rate 0.00055 / clip 0.18**. Available options are batch 256/512/1024, passes 1/3/5, learning rate 0.00025/0.00055/0.001, and clip 0.10/0.18/0.25. Changing one discards only the unfinished experience batch so a single optimizer update never mixes configurations.
+
+A2 removes two batch-size confounds: exploration temperature no longer depends on PPO update count, and synchronized clean starts use experience budgets divisible by every supported batch size. Temperature is derived from total experience for each real action and stored with its transition, so PPO recomputes that sample's probability at the same temperature and applies the corresponding `1 / temperature` derivative to the unscaled policy weights. When a PPO batch becomes full, transitions are collected first and the optimizer starts before any next actions are sampled, so update boundaries no longer consume policy RNG for actions that never execute.
+
+Each completed update also records collection-time policy entropy, approximate KL, clip fraction, value RMSE/explained variance, reward components, per-surface progress, backtracking, stagnation, and collision rate. These are diagnostics, not additional reward terms.
 
 Forward propagation stores every hidden activation. Backpropagation computes the policy/value gradient into the final hidden layer, then walks the configured tanh layers backward. Hidden deltas are computed before weights are updated, preserving the normal feed-forward backprop dependency.
 
@@ -212,13 +216,13 @@ After chassis yaw advances, lateral tire acceleration opposes chassis-frame late
 
 The drivetrain is a lightweight five-speed automatic. Wheel speed, gear ratio, final drive, and wheel radius produce RPM; shift thresholds select gears; a bounded torque curve changes drive acceleration across the rev range; and a short shift timer cuts drive force during the shift. Damage reduces available power and maximum speed. This is a sim-cade mechanism, not a clutch/differential/turbo or per-wheel driveline model.
 
-The neural observation tail contains ten normalized vehicle-local values: scalar speed (kept for legacy compatibility), signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, and gear. Local senses make the new hidden motion state observable without revealing track geometry or world coordinates.
+The neural observation tail contains eleven normalized vehicle-local values: scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual steering angle. The last value matters because physical steering is rate-limited, so the requested command is not sufficient to reconstruct wheel angle in a memoryless MLP. Local senses make hidden vehicle motion state observable without revealing track geometry or world coordinates.
 
-Saved pre-v1.0 dense networks are migrated at load time. Their visual first-layer weights are copied unchanged; the historical speed and damage weights are mapped to those matching slots in the new tail; all eight new sensor weights start at zero. The migrated tensor is then saved in current shape, but its historical experiment provenance remains D1/O1. v1.0.0 introduced D2/O2; the v1.0.1 wide camera keeps the same tensor widths but changes pixel semantics, so Reset establishes a clean D2/O3 seeded run.
+Saved pre-v1.0 image+2 dense networks still migrate by preserving visual weights, mapping historical speed/damage into their matching slots, and zeroing every newly introduced sense. O3 image+10 networks migrate 650→651 by copying their entire existing first-layer row and zeroing only the appended steering-angle weight. Historical provenance is not rewritten by tensor migration; Reset establishes a clean current O4/R2/A2 seeded run.
 
-`VEHICLE_DYNAMICS_VERSION = 2` and current `VEHICLE_OBSERVATION_VERSION = 3` are stored beside track-layout revision in completed PPO metrics, training segments, evaluation races, and new-brain experiment provenance. O3 denotes the 2.5:1 wide/lower neural camera plus the same ten vehicle-local values; a comparison is fully matched only when seed, track, T/D/O revisions, and seeded-from-start status all agree.
+`VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 4` denotes the wide neural camera plus eleven vehicle-local values. Learning metrics additionally stamp `REWARD_CONTRACT_VERSION = 2` and `TRAINER_VERSION = 2`; comparison is fully matched only when seed, track, T/D/O/R/A revisions, and seeded-from-start provenance all agree.
 
-The local executable gate runs this pure model for acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, bounded local observations, long-run finite integration, and legacy network migration. Presentation-only tire/engine audio is intentionally outside the deterministic learning path.
+The local executable gate runs the pure learning contract plus vehicle model: it validates R2 reward/reset math, A2 batch-neutral schedules and PPO-temperature guardrails, O4 observation bounds and 642/650→651 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, track geometry, determinism, and classic-script load order. Presentation-only tire/engine audio remains outside the deterministic learning path.
 
 ## Track layout v2: rounded circuits and physical arc distance
 
@@ -232,7 +236,7 @@ Approximate v2 lap lengths are 490 m Balanced Loop/Counterflow, 585 m Technical 
 
 The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
 
-Because circuit geometry is part of the environment, `TRACK_LAYOUT_VERSION = 2` remains explicit provenance beside the D/O revisions. Existing v0.9.0 history defaults to T1/D1/O1 as appropriate; v0.9.1 history is T2/D1/O1; the v1.0.0 physics candidate recorded T2/D2/O2; current v1.0.1 training records **T2/D2/O3**. Comparison tooling only calls conditions fully matched when seed, selected track, all T/D/O revisions, and replayable-from-start provenance agree. Resetting an older brain clears old history and establishes a clean current-environment seeded run.
+Circuit geometry remains `TRACK_LAYOUT_VERSION = 2` and vehicle dynamics remain D2. Learning provenance now also versions the observation, reward, and trainer contracts: current v1.1.0 fresh training records **T2/D2/O4/R2/A2**. Older missing R/A fields default to R1/A1 rather than being silently relabeled. Comparison tooling only calls conditions fully matched when seed, selected track, all T/D/O/R/A revisions, and replayable-from-start provenance agree. Resetting an older brain clears old history and establishes a clean current-contract seeded run.
 
 ## Training tracks and clean starts
 
@@ -240,19 +244,19 @@ Training remains manually selectable across Balanced Loop, Counterflow, Technica
 
 Changing track preserves the active brain but discards an unfinished PPO batch, creates a clean grid, and resets recent-driving telemetry. Track exposure is recorded in the active brain/session.
 
-PPO update batch size is selected per brain (256/512/1024, baseline 512). Full-grid clean starts are controlled independently with Adaptive, fixed 1/2/4/8-update intervals, or failures-only running. Individual failures still respawn immediately.
+PPO update batch size is selected per brain (256/512/1024, baseline 512). Under A2, full-grid clean starts are controlled independently by experience budget: 2,048/4,096/8,192/16,384 experiences, adaptive progression through those budgets, or failures-only running. The base 2,048 is divisible by all supported batch sizes, so changing PPO batch size no longer changes clean-start timing. Individual failures still respawn immediately.
 
 ## Reward, surfaces, and direction
 
-The v0.7 signed-progress reward/surface model remains in place:
+Reward contract R2 is deliberately centered on useful track progress rather than checkpoint bonuses:
 
-- forward progress earns reward;
-- backward progress produces a larger-magnitude per-meter penalty;
-- shoulder and grass add penalties and reduce effective control/grip;
-- grass is substantially worse than shoulder;
-- laps earn a bonus;
-- prolonged off-road/stuck state or 100 damage terminates an episode;
-- collisions penalize both participants.
+- forward road progress earns 0.075 reward per meter;
+- shoulder progress earns 45% of the road rate and retains a -0.07/sec surface penalty;
+- grass earns no positive progress reward and retains a -0.18/sec surface penalty;
+- backward progress costs 0.16 reward per meter regardless of surface;
+- a lap is one full track length of accumulated signed net progress from the spawn and has no separate reward bonus;
+- prolonged off-road state, insufficient useful velocity along the local track tangent, or 100 damage terminates an episode;
+- the terminal -5 applies once, the car is frozen until the next policy boundary records the terminal transition, and collisions retain severity-based penalties.
 
 Exact track-direction alignment shown in the UI is human-facing telemetry only. The narrow edge strips repeat three distinct luminance tones in track-forward order. A forward view therefore sees one cyclic ordering of the three tones while a reversed view sees the opposite ordering, giving the vision policy a directional cue inside the rendered camera observation without an explicit track-direction input.
 

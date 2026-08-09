@@ -16,11 +16,22 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Generalization score across tracks the brain did not train on.
 - [ ] More track layouts and generated circuits.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
-- [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, PPO entropy/KL/clip diagnostics.
-- [ ] Add advanced learning controls/diagnostics after the current experiment foundation: gamma, GAE lambda, exploration/temperature schedule, entropy bonus, value-loss weight, gradient-norm clipping, PPO KL/clip diagnostics.
+- [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, and richer historical plots for the diagnostics now recorded by the trainer.
+- [ ] After fresh R2/A2 training evidence, compare GAE lambda / entropy bonus / value-loss weight / gradient clipping under matched seeds rather than changing them by intuition.
+- [ ] Test a collision curriculum: ghost training traffic while basic road following is learned, then enable physical car/car interaction.
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.1.0 Learning-contract correctness
+
+- [x] Make laps require a full track length of signed net progress and remove the exploitable/redundant +15 finish-line reward.
+- [x] Apply terminal failure penalty exactly once, freeze pending-terminal cars, and detect stagnation from useful along-track velocity rather than raw speed.
+- [x] Introduce R2 surface-aware progress reward: full road value, 45% shoulder value, zero positive grass progress, with backward/surface/collision penalties retained.
+- [x] Add actual steering angle as O4's eleventh local sense, normalize scalar speed across the current 40 m/s range, and migrate O3 650-input networks to 651 without changing old weights.
+- [x] Introduce A2 experience-based exploration and 2,048/4,096/8,192/16,384-experience clean-start budgets so PPO batch size no longer changes those schedules.
+- [x] Correct PPO's policy-gradient temperature derivative and record entropy, KL, clip fraction, value diagnostics, reward components, surface progress, backtracking, stagnation, and collision rate.
+- [x] Extend experiment provenance/comparison to T/D/O/R/A and execute learning-contract, observation, migration, track, dynamics, determinism, and load-order checks in the local Node gate.
 
 ### v1.0.1 Wide neural POV
 
