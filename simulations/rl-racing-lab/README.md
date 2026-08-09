@@ -2,13 +2,19 @@
 
 A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
 
-Current release: **v1.0.0**
+Current release: **v1.0.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.0.1: wide neural POV at the same input cost
+
+All four vision presets are reshaped from 1.6:1 to **2.5:1** without adding image values: 32×20 becomes 40×16, and 64×40 becomes 80×32, with grayscale/RGB channel counts unchanged. The internal preset ids stay stable, so saved dense networks keep the same tensor dimensions and parameter counts.
+
+The neural camera now uses a 52° vertical field of view (about 101° horizontally at 2.5:1) and aims lower toward the road. That spends fewer pixels on sky while exposing more shoulder, neighboring cars, and lateral context—especially useful now that D2 supports real sideslip. Because the same weight index now corresponds to different camera geometry, this is observation revision **O3** even though tensor shapes remain compatible.
 
 ## v1.0.0: sim-cade vehicle dynamics + local proprioception
 
@@ -20,7 +26,7 @@ A five-speed automatic transmission derives RPM from wheel speed, gear ratio, an
 
 The policy observation expands from image + 2 values to **image + 10 vehicle-local values**: legacy-compatible scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, and gear. These are all quantities available to a driver from the car itself; exact track tangent/center, future turn geometry, opponent coordinates, and world position remain hidden.
 
-Existing saved dense brains migrate automatically. Their image weights are copied unchanged, the old speed weight maps to the legacy-compatible speed slot, the old damage weight maps to damage, and the eight newly introduced input weights begin at zero. This preserves the learned network as closely as possible while allowing it to learn the new senses. Historical provenance remains **D1/O1**; new v1.0 training is **D2/O2**. Experiment comparison now matches seed, track, track-layout revision, vehicle-dynamics revision, and observation revision. Resetting an older brain clears its history and creates a clean replayable **T2/D2/O2** run from the same seed.
+Existing saved dense brains migrate automatically. Their image weights are copied unchanged, the old speed weight maps to the legacy-compatible speed slot, the old damage weight maps to damage, and the eight newly introduced input weights begin at zero. Historical provenance remains **D1/O1**; the v1.0.0 physics candidate introduced **D2/O2**. v1.0.1 keeps D2 and advances the neural-camera observation contract to **O3**. Experiment comparison matches seed, track, track-layout revision, vehicle-dynamics revision, and observation revision. Resetting an older brain now creates a clean replayable **T2/D2/O3** run from the same seed.
 
 The local Node gate now executes the pure vehicle model itself. It checks straight-line acceleration and shifting, braking to a stop, road-vs-grass steering response, sideslip recovery, bounded 10-value observations, long-run numerical stability, and the old 642→650 input-weight migration before a release can pass.
 
@@ -100,7 +106,7 @@ v0.8 turns the simulator from a single fixed brain into an experiment lab. A **L
 
 The baseline dense preset remains one 48-neuron hidden layer; v1.0 expands its observation tail from 2 to 10 vehicle-local values:
 
-**32×20 grayscale + 10 local vehicle senses → 48 tanh → 15-action policy + value**
+**40×16 grayscale + 10 local vehicle senses → 48 tanh → 15-action policy + value**
 
 Creating a different architecture creates a **new brain** rather than silently reshaping the one you already trained. Existing brains stay in the session and can be switched back in later.
 
@@ -108,12 +114,12 @@ Creating a different architecture creates a **new brain** rather than silently r
 
 | Vision | Visual values | Vehicle-local values | Total inputs |
 |---|---:|---:|---:|
-| 32×20 grayscale | 640 | 10 | 650 |
-| 64×40 grayscale | 2,560 | 10 | 2,570 |
-| 32×20 RGB | 1,920 | 10 | 1,930 |
-| 64×40 RGB | 7,680 | 10 | 7,690 |
+| 40×16 grayscale | 640 | 10 | 650 |
+| 80×32 grayscale | 2,560 | 10 | 2,570 |
+| 40×16 RGB | 1,920 | 10 | 1,930 |
+| 80×32 RGB | 7,680 | 10 | 7,690 |
 
-RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. v1.0 appends ten normalized vehicle-local senses; none expose track geometry or world position.
+RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. v1.0.1 reshapes every vision preset to a 2.5:1 racing view while preserving its visual-value count, then appends the same ten normalized vehicle-local senses; none expose track geometry or world position.
 
 ### Dense-network presets
 
@@ -124,7 +130,7 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 
 The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
-Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the v1.0 vehicle-sense tail, **64×40 RGB + Wide has 986,512 trainable parameters** and **64×40 RGB + Deep + wide has 993,744**. The historical baseline PPO setup uses 512 experiences and three passes, while v0.8.7 also exposes controlled batch/pass experiments, so those combinations may spend substantial wall time in backpropagation. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
+Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the v1.0 vehicle-sense tail, **80×32 RGB + Wide has 986,512 trainable parameters** and **80×32 RGB + Deep + wide has 993,744**. The visual-value counts are unchanged from the former 64×40 geometry, so this wide-camera reshaping does not increase network size or PPO cost. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
 
 ## Live Brain Inspector
 
