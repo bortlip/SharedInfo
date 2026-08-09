@@ -15,7 +15,7 @@ function forwardWithNetwork(obs,network=net,temperature=sim.temperature){
 }
 function forward(obs,temperature=sim.temperature){return forwardWithNetwork(obs,net,temperature)}
 function argmax(probs){let best=0;for(let i=1;i<probs.length;i++)if(probs[i]>probs[best])best=i;return best}
-function sampleAction(probs){let r=Math.random(),s=0;for(let a=0;a<probs.length;a++){s+=probs[a];if(r<=s)return a}return probs.length-1}
+function sampleAction(probs){let r=experimentRandom('policy'),s=0;for(let a=0;a<probs.length;a++){s+=probs[a];if(r<=s)return a}return probs.length-1}
 function networkSnapshot(network=net){return{kind:'mlp',config:{...network.config},layers:network.layers.map(l=>({inputSize:l.inputSize,outputSize:l.outputSize,w:new Float32Array(l.w),b:new Float32Array(l.b)})),policy:{w:new Float32Array(network.policy.w),b:new Float32Array(network.policy.b)},value:{w:new Float32Array(network.value.w),b:Number(network.value.b)||0}}}
 function networkFromSnapshot(snapshot){
   if(snapshot?.kind!=='mlp'||!Array.isArray(snapshot.layers)||!snapshot.layers.length)throw new Error('Unsupported or incomplete brain network.');const config=normalizedBrainConfig(snapshot.config),expected=brainLayerSizes(config),expectedHidden=expected.slice(1,-1),restored={kind:'mlp',config,layers:[],policy:null,value:null};

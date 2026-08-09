@@ -4,12 +4,10 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 
 ## Next — v0.9 Experiment Lab
 
-- [ ] Add a small CNN vision brain so higher-resolution/color input can be compared with dense MLPs efficiently.
-- [ ] Add side-by-side experiment comparison across saved brains and training runs.
 - [ ] Add multi-brain arenas where cars can use different saved policies, both for frozen garage races and for independent co-training in the same physical world. Start with a common vision preset, then generalize heterogeneous observation shapes.
+- [ ] Add a small CNN vision brain so higher-resolution/color input can be compared with dense MLPs efficiently.
 - [ ] Add ghost comparison against an older checkpoint/brain.
 - [ ] Add tournament mode across saved brains and unseen tracks.
-- [ ] Add explicit experiment seeds/reproducible RNG so architecture comparisons can use matched random conditions.
 - [ ] Add curriculum training: advance through selected tracks when performance thresholds are met.
 
 ## Later — v1.0 Vehicle Dynamics
@@ -27,8 +25,17 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] More track layouts and generated circuits.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
 - [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, PPO entropy/KL/clip diagnostics.
+- [ ] Add advanced learning controls/diagnostics after the current experiment foundation: gamma, GAE lambda, exploration/temperature schedule, entropy bonus, value-loss weight, gradient-norm clipping, PPO KL/clip diagnostics.
 
 ## Done
+
+### v0.9.0 Reproducible experiment lab
+
+- [x] Add visible per-brain experiment seeds with independent deterministic initialization, policy-sampling, and PPO-shuffle streams.
+- [x] Persist/restore RNG continuation state, make Reset replay a v0.9 brain from its original seed, and mark older brains as deterministic-continuation-only rather than falsely replayable.
+- [x] Add side-by-side experiment comparison from canonical saved brain histories at a matched experience budget or each brain's latest completed PPO update.
+- [x] Show seed/config/performance/PPO-cost provenance and flag when compared brains do not share matched seeded-from-start conditions.
+- [x] Reject direct `Math.random()` in training-affecting modules with the local source checker.
 
 ### v0.8.8 Direction cue + scenery impacts
 
@@ -43,7 +50,6 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Keep both progress charts and summary metrics live during headless training while suppressing expensive spectator/driver-card/inspector repainting.
 - [x] Add per-brain PPO batch size, backprop pass count, learning rate, and clip-range experiment controls with historical defaults preserved.
 - [x] Persist/restore PPO settings with each brain and record the active settings in update history/session events.
-- [ ] Consider advanced learning controls after we have comparison tooling: gamma, GAE lambda, exploration/temperature schedule, value-loss weight, entropy bonus, and gradient-norm clipping.
 
 ### v0.8.6 UI stability
 

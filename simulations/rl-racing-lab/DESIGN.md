@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v0.8.8 Design
+# POV RL Racing Lab — v0.9.0 Design
 
 ## Goal
 
@@ -20,6 +20,25 @@ Architecture-sensitive controls do not mutate an already-trained network. Choosi
 
 A brain may also be duplicated, which creates a child experiment beginning from the same current weights/history. This is useful for branching an already-learned policy into different future training regimes.
 
+## Reproducible experiment identity
+
+A v0.9 brain is also the canonical training-run record; no parallel experiment entity duplicates its weights/history. A new brain stores a visible unsigned 32-bit experiment seed plus the current continuation state of three independently derived random streams:
+
+- `init` — network weight initialization;
+- `policy` — stochastic policy/action sampling;
+- `shuffle` — PPO batch shuffling.
+
+Separating the streams matters for architecture experiments: a wider/deeper network consumes more initialization draws, but that must not shift its later action-sampling or PPO-shuffle sequence merely because initialization was larger. The stream states are included in each training snapshot, IndexedDB brain record, and portable export, so switching/reloading a checkpoint resumes the same stochastic continuation. **Reset active brain** intentionally restarts all three streams from the brain's original seed and rebuilds its network, making a v0.9 seeded-from-start run replayable under the same simulator/configuration.
+
+Brains created before v0.9 cannot retroactively become reproducible. On first v0.9 load they receive a persisted continuation seed/RNG state and `seededFromStart = false`; future continuation is deterministic, while comparison UI explicitly marks that their earlier history is not replayable from that assigned seed.
+
+Presentation-only randomness is excluded from the learning contract. Impact particle randomness may remain nondeterministic because the effect layer is hidden during neural POV capture and does not write simulation state. A static source check rejects direct `Math.random()` usage in training-affecting track/car/model/simulation/physics/training modules.
+
+## Experiment comparison
+
+The comparison UI derives rows from the brains already stored in the current session. **Matched experience budget** chooses the smallest latest completed experience count among trained brains and, for each brain, displays the closest completed PPO metric to that common target. **Latest completed update each** instead shows every brain at its own latest checkpoint. The displayed actual experience count remains visible, so differing PPO batch sizes are not falsely represented as an exact match.
+
+Comparison rows include architecture, seed/provenance, update/experience, track, average and best run distance, reward per experience, off-road percentage, measured average PPO wall time, and PPO configuration. Seed status is called out separately because matched training budget without matched stochastic conditions is not a controlled A/B test.
 ## Vision presets
 
 Every POV render target is recreated when the active brain changes configuration.
@@ -227,7 +246,7 @@ Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately
 
 The living roadmap deliberately separates future changes:
 
-- **Experiment Lab:** CNN vision, matched-seed comparisons, brain-vs-brain races, tournaments, curriculum.
+- **Experiment Lab:** multi-brain training/racing arenas, CNN vision, ghost/tournament evaluation, curriculum.
 - **Vehicle Dynamics:** true velocity/slip/yaw plus fair vehicle-local proprioception.
 
 That separation matters. It lets us answer whether a changed architecture helped before simultaneously changing the physical state the architecture is being asked to infer.
