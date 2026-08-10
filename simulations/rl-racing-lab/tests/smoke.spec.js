@@ -26,6 +26,10 @@ test('initializes the full lab without browser errors', async ({ page }) => {
   await expect(page.locator('#brainInputCanvas')).toBeVisible();
   await expect(page.locator('#brainLibrary .brain-entry')).toHaveCount(1);
   await expect(page.locator('#storageStatus')).not.toContainText('Starting local storage');
+  await expect(page.locator('#avgLapTime')).toHaveText('—');
+  await expect(page.locator('#bestLapTime')).toHaveText('—');
+  await expect(page.locator('#lapTimeChart')).toBeVisible();
+
   await expect(page.locator('#trainingCarCount')).toHaveValue('1');
   await expect(page.locator('#resetMode')).toHaveValue('never');
   await expect(page.locator('#trainingStaggered')).toBeChecked();

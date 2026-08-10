@@ -20,6 +20,8 @@ Trainer revision **A3** fixes nonterminal rollout bootstrapping at PPO boundarie
 
 Track revision **T3** adds **Endurance Ring** and **Long Run Circuit**, plus a deterministic **Mirror track** option that flips circuit geometry left/right without reversing travel direction. **Auto-switch tracks** can rotate through circuits at complete PPO boundaries after each 8,192-experience interval, preventing a single optimizer update from mixing environments. Mirrored exposure and the complete learning setup—population, physical/ghost traffic, stagger/grid placement, reset cadence, and rotation—are persisted per brain and included in experiment matching.
 
+Lap time is now a first-class **diagnostic, not a reward**. Each learner times the simulated seconds required to accumulate one full track length of net forward progress from its current spawn, so staggered starts remain comparable on the same circuit. Driver cards show the current lap clock and last completed lap; PPO history records average/best completed lap times; the dashboard adds a lower-is-better lap-time timeline; and matched experiment comparison exposes the same pace metrics. Timeline lines break across different track/mirror variants because raw lap times from unlike circuits are not directly comparable.
+
 Fresh v1.2 runs are stamped **T3/D2/O4/R3/A3**. Older histories remain intact but are not silently treated as replay-equivalent to the new learning contract.
 
 ## v1.1.0: learning-contract correctness

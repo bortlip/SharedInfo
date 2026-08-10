@@ -33,6 +33,7 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Add deterministic left/right track mirroring plus Endurance Ring and Long Run Circuit under T3 geometry provenance.
 - [x] Add opt-in deterministic track rotation at safe PPO boundaries after experience intervals, with per-brain persistence/history.
 - [x] Extend experiment comparison and diagnostics to include population, collisions, placement, reset strategy, mirror variant, and track rotation.
+- [x] Add diagnostic full-track lap timing per learner, PPO average/best lap metrics, driver clocks, a lower-is-better history chart, and matched-comparison pace columns without changing R3 reward.
 
 ### v1.1.0 Learning-contract correctness
 

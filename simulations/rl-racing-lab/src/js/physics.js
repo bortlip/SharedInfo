@@ -12,6 +12,7 @@ function recordForwardSurfaceMeters(surface,progress){
   else if(surface==='shoulder')sim.batchShoulderForwardMeters+=progress;
   else sim.batchGrassForwardMeters+=progress;
 }
+function recordCompletedLap(car){const now=sim.simClock,start=Number(car.lapStartedAt),lapTime=Math.max(0,now-(Number.isFinite(start)?start:now));car.lapStartedAt=now;car.lastLapTime=lapTime;if(sim.mode==='learn'){sim.batchLapTimeTotal+=lapTime;sim.batchLapTimeCount++;sim.batchBestLapTime=sim.batchBestLapTime>0?Math.min(sim.batchBestLapTime,lapTime):lapTime}return lapTime}
 function simulateCar(car,dt){
   if(car.pendingDone)return;
   car.collisionCooldown=Math.max(0,car.collisionCooldown-dt);
@@ -27,7 +28,7 @@ function simulateCar(car,dt){
   if(surface==='grass')car.offTime+=dt;else if(surface==='shoulder')car.offTime+=dt*.55;else car.offTime=Math.max(0,car.offTime-dt*1.5);
   const tangent=tangents[near.index],usefulSpeed=tangent?car.vx*tangent.x+car.vz*tangent.z:0;if(usefulSpeed>.75)car.stuckTime=Math.max(0,car.stuckTime-dt*2);else{car.stuckTime+=dt;sim.batchNoProgressSeconds+=dt}
 
-  while(car.episodeNetProgress+1e-6>=car.nextLapProgress){car.lap++;car.nextLapProgress+=trackLength;if(sim.mode==='learn'){sim.batchLaps++;log(`Driver ${car.id+1} completed lap ${car.lap}.`)}else if(car.lap>=sim.raceLaps){markRaceFinished(car);break}}
+  while(car.episodeNetProgress+1e-6>=car.nextLapProgress){const lapTime=recordCompletedLap(car);car.lap++;car.nextLapProgress+=trackLength;if(sim.mode==='learn'){sim.batchLaps++;log(`Driver ${car.id+1} completed lap ${car.lap} in ${lapTime.toFixed(1)} s.`)}else if(car.lap>=sim.raceLaps){markRaceFinished(car);break}}
   if(car.raceStatus==='racing'&&(car.offTime>3||car.stuckTime>4.5||car.damage>=100))markCarTerminal(car);
   syncCarMesh(car);
 }

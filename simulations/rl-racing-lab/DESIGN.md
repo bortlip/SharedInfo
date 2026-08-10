@@ -104,7 +104,7 @@ A2's experience-based exploration remains in A3: temperature is derived from tot
 
 A3 fixes the rollout-end value bootstrap. After the final real transition in a nonterminal rollout, PPO captures the car's **actual post-transition observation** and evaluates its scalar value without sampling an action. GAE therefore begins with `V(s[t+1])` rather than incorrectly reusing the previous action state's `V(s[t])`. Terminal rollouts bootstrap with zero as usual.
 
-Each completed update records collection-time policy entropy, approximate KL, clip fraction, value RMSE/explained variance, reward components, per-surface progress, backtracking, stagnation, collision rate, and the complete learning-environment setup. These are diagnostics/provenance, not additional reward terms.
+Each completed update records collection-time policy entropy, approximate KL, clip fraction, value RMSE/explained variance, reward components, per-surface progress, backtracking, stagnation, collision rate, **average/best completed lap time**, and the complete learning-environment setup. Lap timing uses simulated seconds from spawn/prior lap until one full track length of net progress is accumulated; failures discard the unfinished attempt. These are diagnostics/provenance, not additional reward terms.
 
 Forward propagation stores every hidden activation. Backpropagation computes the policy/value gradient into the final hidden layer, then walks the configured tanh layers backward. Hidden deltas are computed before weights are updated, preserving the normal feed-forward backprop dependency.
 
