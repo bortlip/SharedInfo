@@ -2,13 +2,19 @@
 
 A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras and vehicle-local senses; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.2.2**
+Current release: **v1.2.3**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.3: make leaving the track immediately unprofitable
+
+Reward revision **R5** addresses a failure mode seen after long training: policies could enter bends too fast, wash onto the shoulder, and continue earning positive forward reward while waiting several seconds for a terminal failure. Shoulder forward progress now earns **zero** reward instead of 45% of the road rate; shoulder time penalty increases from -0.07/sec to **-0.20/sec**, and grass increases from -0.18/sec to **-0.50/sec**. Road progress (+0.075/m), backward penalty (-0.16/m), lap bonus (+10), terminal failure (-15), collision rewards, episode termination timing, PPO/GAE, observations, and D2 vehicle physics are unchanged.
+
+This gives the learner an immediate negative signal as soon as it leaves asphalt while still allowing recovery. Fresh/reset runs are stamped **T3/D2/O4/R5/A3**; continued R4 brains retain their earlier R4 history and begin a distinct R5 segment.
 
 ## v1.2.2: startup hotfix
 
@@ -237,7 +243,7 @@ The dashboard also shows best-ever run, off-road percentage, reward/experience, 
 
 Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Road/shoulder/grass now select different physical friction, cornering/yaw response, and rolling resistance. Grass cannot generate road-level acceleration, braking, or lateral tire force.
 
-The policy still receives no hidden track-center or track-tangent oracle. Under R4, signed **continuous projected centerline progress** still pays the full 0.075-per-meter forward reward on road, 45% on shoulder, zero positive progress reward on grass, and a larger-magnitude 0.16-per-meter penalty for backward travel. A legitimate completed lap—one full track length of accumulated signed net progress from the current spawn/prior lap—adds +10 reward, while terminal episode failure costs -15 once. Crossing the finish seam repeatedly still cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Under R5, signed **continuous projected centerline progress** pays 0.075 per forward road meter and **zero positive progress reward once the car leaves asphalt**. Shoulder time costs -0.20/sec and grass costs -0.50/sec, while backward travel still costs 0.16 per meter regardless of surface. A legitimate completed lap—one full track length of accumulated signed net progress from the current spawn/prior lap—adds +10 reward, while terminal episode failure costs -15 once. Crossing the finish seam repeatedly still cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
 
 Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 
