@@ -231,6 +231,8 @@ The policy still receives no hidden track-center or track-tangent oracle. Under 
 
 Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 
+Persistent spectator skid marks accumulate along the two rear-tire paths when the physical tire-scrub signal indicates a real slide on road or shoulder. They survive ordinary driver failures, clean starts, laps, and PPO updates, and clear only when the circuit geometry is rebuilt. Marks are batched for long-run rendering, stop accumulating during Headless learning, and are explicitly hidden from every neural POV capture, so they cannot become an observation shortcut.
+
 Optional Web Audio synthesizes engine tone from actual RPM and adds filtered tire scrub/skid noise from lateral grip demand and slip angle, plus collision transients. Audio remains presentation-only and never feeds or writes simulation state.
 
 The v1.0 model is deliberately **sim-cade**: it has persistent world velocity, chassis yaw, slip angle, a shared friction budget, automatic gears/RPM, and recoverable sideslip, but it is not a four-wheel suspension/tire-temperature/aero simulation. That gives learning agents meaningful braking/corner-entry/traction tradeoffs without making a 50× browser lab prohibitively expensive.

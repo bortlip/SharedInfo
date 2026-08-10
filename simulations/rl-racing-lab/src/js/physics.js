@@ -19,7 +19,7 @@ function simulateCar(car,dt){
   const nearBefore=nearestTrackPositionFor(car),before=nearBefore.index,beforeArc=nearBefore.arc,surfaceBefore=surfaceZone(nearBefore.distance);
   stepVehicleDynamics(car,{steer:car.actionSteer,throttle:car.actionThrottle},surfaceBefore,dt);
   const near=nearestTrackPositionFor(car),progress=progressArcDelta(beforeArc,near.arc),surface=surfaceZone(near.distance),onRoad=surface==='road';car.trackArc=near.arc;
-  car.surface=surface;car.directionAlignment=headingAlignment(car,near.index);car.lastTrackIndex=before;car.episodeNetProgress+=progress;car.episodePeakProgress=Math.max(car.episodePeakProgress,car.episodeNetProgress);sim.batchDriverSeconds+=dt;if(!onRoad)sim.batchOffRoadSeconds+=dt;
+  car.surface=surface;car.directionAlignment=headingAlignment(car,near.index);car.lastTrackIndex=before;car.episodeNetProgress+=progress;car.episodePeakProgress=Math.max(car.episodePeakProgress,car.episodeNetProgress);sim.batchDriverSeconds+=dt;if(!onRoad)sim.batchOffRoadSeconds+=dt;if(typeof updateSkidMarks==='function')updateSkidMarks(car);
 
   const progressTerm=progress>=0?forwardProgressReward(progress,surface):backwardProgressPenalty(progress),surfaceTerm=surfaceTimePenalty(surface,dt);
   car.pendingReward+=progressTerm+surfaceTerm;sim.batchProgressReward+=progressTerm;sim.batchSurfacePenalty+=surfaceTerm;

@@ -224,7 +224,7 @@ Saved pre-v1.0 image+2 dense networks still migrate by preserving visual weights
 
 `VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 4` denotes the wide neural camera plus eleven vehicle-local values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 3`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
 
-The local executable source gate is designed to validate R3 reward/reset math, A3 bootstrap/temperature guardrails, O4 observation bounds and 642/650→651 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, all T3 track geometries and mirroring, deterministic RNG streams, and classic-script load order. Presentation-only tire/engine audio remains outside the deterministic learning path.
+The local executable source gate is designed to validate R3 reward/reset math, A3 bootstrap/temperature guardrails, O4 observation bounds and 642/650→651 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, all T3 track geometries and mirroring, deterministic RNG streams, and classic-script load order. Presentation-only skid marks, impact effects, and tire/engine audio remain outside the deterministic learning path.
 
 ## Track layout v3: larger/mirrored circuits and continuous arc distance
 
@@ -271,6 +271,8 @@ The v1.0 world-velocity/yaw/slip state remains the authoritative motion model. S
 Cars use oriented rectangular footprints and a separating-axis overlap test. Overlap is resolved even during damage cooldown; hard impacts use relative `vx/vz` closing velocity to apply separating impulses, yaw damping, damage, and reward penalties.
 
 Track construction records lightweight tree trunk colliders separately from their Three.js meshes. Tree hits separate the footprint, redirect and strongly damp the car's world velocity/yaw state, then apply damage/reward consequences. This keeps scenery physics independent of rendering objects.
+
+Persistent skid marks are also presentation-only. When `tireScrub >= 0.48`, speed is at least 4 m/s, and the car is on road/shoulder, the renderer samples the two rear tire-contact paths about every 0.55 m into chunked `LineSegments` buffers. Existing marks survive vehicle respawns, PPO updates, and clean starts; they are cleared with a track rebuild, capped at 240,000 line segments per circuit instance, and new marks are skipped during Headless learning. Neural observation capture temporarily hides the entire skid group, so previous driving history cannot leak into the policy image.
 
 Impact particles are presentation-only and hidden from neural POV capture/headless learning. Web Audio derives engine pitch from RPM and tire scrub/skid noise from lateral grip use/slip, plus collision transients; none of those presentation layers write simulation state.
 

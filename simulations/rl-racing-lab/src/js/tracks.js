@@ -19,7 +19,7 @@ function buildTrack(id='mixed',mirror=false){
   activeTrackId=id in TRACK_DEFS?id:'mixed';activeTrackMirror=!!mirror;track=makeTrackPoints(activeTrackId,activeTrackMirror);TRACK_N=track.length;tangents=[];normals=[];segLen=[];trackDistance=[];trackLength=0;
   for(let i=0;i<TRACK_N;i++){trackDistance.push(trackLength);const prev=track[mod(i-1,TRACK_N)],next=track[mod(i+1,TRACK_N)],t=next.clone().sub(prev).normalize();tangents.push(t);const horiz=new THREE.Vector3(t.x,0,t.z).normalize();normals.push(new THREE.Vector3(-horiz.z,0,horiz.x));const len=track[i].distanceTo(track[mod(i+1,TRACK_N)]);segLen.push(len);trackLength+=len}
   avgSeg=trackLength/TRACK_N;finishIndex=2;updateTrackBounds();
-  if(typeof clearImpactEffects==='function')clearImpactEffects();
+  if(typeof clearImpactEffects==='function')clearImpactEffects();if(typeof clearSkidMarks==='function')clearSkidMarks();
   if(trackGroup){scene.remove(trackGroup);trackGroup.traverse(o=>{o.geometry?.dispose?.();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose?.());else o.material.dispose?.()}})}
   trackGroup=new THREE.Group();treeColliders=[];scene.add(trackGroup);
   const shoulderMat=new THREE.MeshStandardMaterial({color:0x716a5e,roughness:1,metalness:0,side:THREE.DoubleSide}),roadMat=new THREE.MeshStandardMaterial({color:0x252b30,roughness:.96,metalness:.02,side:THREE.DoubleSide});
