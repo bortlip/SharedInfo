@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v1.2.1 Design
+# POV RL Racing Lab — v1.2.2 Design
 
 ## Goal
 
