@@ -1,8 +1,8 @@
 // Pure learning/reward contract shared by browser runtime and executable source checks.
-const REWARD_CONTRACT_VERSION=4,TRAINER_VERSION=3;
+const REWARD_CONTRACT_VERSION=5,TRAINER_VERSION=3;
 const ROAD_PROGRESS_REWARD_PER_METER=.075,BACKWARD_PROGRESS_PENALTY_PER_METER=.16,TERMINAL_FAILURE_PENALTY=15,LAP_COMPLETION_REWARD=10;
 const CLEAN_RESET_BASE_EXPERIENCES=2048,EXPLORATION_BASE_BATCH=512;
-const LEARNING_SURFACE_REWARD={road:{forwardScale:1,timePenalty:0},shoulder:{forwardScale:.45,timePenalty:.07},grass:{forwardScale:0,timePenalty:.18}};
+const LEARNING_SURFACE_REWARD={road:{forwardScale:1,timePenalty:0},shoulder:{forwardScale:0,timePenalty:.20},grass:{forwardScale:0,timePenalty:.50}};
 function learningSurfaceRewardProfile(surface){return LEARNING_SURFACE_REWARD[surface]||LEARNING_SURFACE_REWARD.grass}
 function forwardProgressReward(progress,surface){return Math.max(0,Number(progress)||0)*ROAD_PROGRESS_REWARD_PER_METER*learningSurfaceRewardProfile(surface).forwardScale}
 function backwardProgressPenalty(progress){return Math.min(0,Number(progress)||0)*BACKWARD_PROGRESS_PENALTY_PER_METER}

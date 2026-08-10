@@ -17,11 +17,18 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Add generated/procedural circuits and unseen-track suites beyond the expanded hand-authored T3 catalog.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
 - [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, and richer historical plots for the diagnostics now recorded by the trainer.
-- [ ] After fresh R4/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
+- [ ] After fresh R5/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
 - [ ] Run matched collision-curriculum experiments with the new ghost/physical traffic control, then consider automatic performance-threshold traffic enablement.
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.2.3 Immediate off-track incentive
+
+- [x] Advance to R5 without changing D2/O4/A3, braking, steering, transmission, lap/terminal values, collision penalties, or episode termination timing.
+- [x] Remove all positive forward-progress reward from shoulder and grass so leaving asphalt cannot remain profitable merely by continuing around the centerline.
+- [x] Strengthen continuous shoulder penalty from -0.07/sec to -0.20/sec and grass from -0.18/sec to -0.50/sec so the bad outcome reaches credit assignment immediately.
+- [x] Extend the executable learning-contract probe to enforce the new R5 surface values while retaining +10 lap and -15 one-time terminal checks.
 
 ### v1.2.1 Reward outcome shaping
 
