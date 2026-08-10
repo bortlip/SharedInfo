@@ -231,9 +231,9 @@ The policy still receives no hidden track-center or track-tangent oracle. Under 
 
 Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 
-Persistent spectator skid marks accumulate along the two rear-tire paths when the physical tire-scrub signal indicates a real slide on road or shoulder. They survive ordinary driver failures, clean starts, laps, and PPO updates, and clear only when the circuit geometry is rebuilt. Marks are batched for long-run rendering, stop accumulating during Headless learning, and are explicitly hidden from every neural POV capture, so they cannot become an observation shortcut.
+Persistent spectator skid marks accumulate along the two rear-tire paths only after meaningful physical sideslip develops; ordinary high lateral-grip usage by itself no longer counts as a skid. Each rear tire is independently projected onto the nearby road/shoulder ribbon, so a tire over grass cannot paint rubber. Segment color varies from faint to near-black with slide strength and speed. Marks survive ordinary driver failures, clean starts, laps, and PPO updates, clear only when circuit geometry is rebuilt, stop accumulating during Headless learning, and remain explicitly hidden from every neural POV capture.
 
-Optional Web Audio synthesizes engine tone from actual RPM and adds filtered tire scrub/skid noise from lateral grip demand and slip angle, plus collision transients. Audio remains presentation-only and never feeds or writes simulation state.
+Optional Web Audio synthesizes engine tone from actual RPM and adds filtered tire scrub/skid noise from the same slip-based scrub signal, plus collision transients. Audio and skid rendering remain presentation-only and never feed or write learning state; road/shoulder/grass friction coefficients are unchanged by this visual refinement.
 
 The v1.0 model is deliberately **sim-cade**: it has persistent world velocity, chassis yaw, slip angle, a shared friction budget, automatic gears/RPM, and recoverable sideslip, but it is not a four-wheel suspension/tire-temperature/aero simulation. That gives learning agents meaningful braking/corner-entry/traction tradeoffs without making a 50× browser lab prohibitively expensive.
 
@@ -270,7 +270,7 @@ src/js/model.js       Configurable dense actor-critic networks, legacy-input mig
 src/js/perception.js  Configurable grayscale/RGB POV plus vehicle-local observations.
 src/js/simulation.js  Policy decisions and experience collection.
 src/js/physics.js     Reward/surface integration plus car/tree collision impulses.
-src/js/effects.js     Presentation-only sparks, debris, smoke, dust, and tree fragments.
+src/js/effects.js     Presentation-only persistent skid marks plus sparks, debris, smoke, dust, and tree fragments.
 src/js/session.js     Multiple brains, IndexedDB autosave, import/export, history.
 src/js/training.js    Generic dense PPO backprop and progress metrics.
 src/js/experiments.js Reproducible seed-aware matched-budget brain comparisons.

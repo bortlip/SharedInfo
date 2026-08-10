@@ -34,7 +34,7 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [x] Add opt-in deterministic track rotation at safe PPO boundaries after experience intervals, with per-brain persistence/history.
 - [x] Extend experiment comparison and diagnostics to include population, collisions, placement, reset strategy, mirror variant, and track rotation.
 - [x] Add diagnostic full-track lap timing per learner, PPO average/best lap metrics, driver clocks, a lower-is-better history chart, and matched-comparison pace columns without changing R3 reward.
-- [x] Add persistent rear-tire skid marks driven by physical tire scrub, batched for long runs, retained across car resets/PPO updates, cleared on track rebuild, and hidden from neural POV observations.
+- [x] Add persistent rear-tire skid marks with per-tire pavement checks, real-slip rather than lateral-load triggering, speed/slide-dependent darkness, batched long-run rendering, track-scoped persistence, and neural-POV exclusion without changing D2 friction.
 
 ### v1.1.0 Learning-contract correctness
 

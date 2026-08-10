@@ -272,9 +272,11 @@ Cars use oriented rectangular footprints and a separating-axis overlap test. Ove
 
 Track construction records lightweight tree trunk colliders separately from their Three.js meshes. Tree hits separate the footprint, redirect and strongly damp the car's world velocity/yaw state, then apply damage/reward consequences. This keeps scenery physics independent of rendering objects.
 
-Persistent skid marks are also presentation-only. When `tireScrub >= 0.48`, speed is at least 4 m/s, and the car is on road/shoulder, the renderer samples the two rear tire-contact paths about every 0.55 m into chunked `LineSegments` buffers. Existing marks survive vehicle respawns, PPO updates, and clean starts; they are cleared with a track rebuild, capped at 240,000 line segments per circuit instance, and new marks are skipped during Headless learning. Neural observation capture temporarily hides the entire skid group, so previous driving history cannot leak into the policy image.
+Persistent skid marks are presentation-only. The D2 motion equations and surface friction coefficients are unchanged; only the derived `tireScrub` display/audio signal is refined so roughly the first 2.6° of sideslip is treated as normal tire compliance rather than a skid, with stronger real slip, grip stress, and speed increasing scrub intensity. Rendering begins only once that slip-based signal is meaningful.
 
-Impact particles are presentation-only and hidden from neural POV capture/headless learning. Web Audio derives engine pitch from RPM and tire scrub/skid noise from lateral grip use/slip, plus collision transients; none of those presentation layers write simulation state.
+Each rear tire is independently projected onto nearby track segments before drawing. A tire over grass breaks its trail immediately; road/shoulder contact uses the projected surface height. Chunked `LineSegments` carry per-vertex grayscale colors so mild slides leave faint rubber and harder/faster slides leave darker rubber. Existing marks survive vehicle respawns, PPO updates, and clean starts; they are cleared with a track rebuild, capped at 240,000 line segments per circuit instance, and skipped during Headless learning. Neural observation capture hides the entire skid group, so previous driving history cannot leak into the policy image.
+
+Impact particles are presentation-only and hidden from neural POV capture/headless learning. Web Audio derives engine pitch from RPM and tire skid noise from the same slip-based scrub signal, plus collision transients; none of those presentation layers write learning state.
 
 ## Evaluation race
 
