@@ -13,7 +13,7 @@ test('initializes the full lab without browser errors', async ({ page }) => {
   const errors = collectBrowserErrors(page);
   await page.goto('/simulator.html', { waitUntil: 'networkidle' });
 
-  await expect(page.locator('[data-app-version]').first()).toHaveText('v1.2.0');
+  await expect(page.locator('[data-app-version]').first()).toHaveText('v1.2.1');
   await expect(page.locator('#bootError')).toBeHidden();
   await expect(page.locator('#scene canvas')).toHaveCount(1);
   await expect(page.locator('#visionChip')).toContainText('40×16');

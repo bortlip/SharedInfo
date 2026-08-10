@@ -2,13 +2,19 @@
 
 A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras and vehicle-local senses; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.2.0**
+Current release: **v1.2.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.1: finish the lap, don't just survive most of it
+
+Reward revision **R4** keeps R3's dense continuous progress and all existing surface/backward/collision rates, but strengthens episode outcome incentives. A legitimate full-net-progress lap now earns **+10**, while terminal failure costs **-15** instead of -5. On the ~490 m Balanced Loop, the failure penalty therefore erases about 200 m of clean road progress rather than only ~67 m, and completing the full lap is materially better than driving aggressively through most of it and crashing near the end.
+
+Lap **time** remains diagnostic rather than directly rewarded: faster safe driving still wins naturally by collecting progress sooner and completing more +10 laps. PPO/GAE, vehicle dynamics, observations, track geometry, and lap-detection rules are unchanged. Reward diagnostics now expose the lap-completion contribution separately from progress, surface, collision, and terminal terms. Fresh/reset runs are stamped **T3/D2/O4/R4/A3**; continued R3 brains retain their historical R3 provenance and begin distinct R4 training segments.
 
 ## v1.2.0: cleaner learning environment + curriculum controls
 
@@ -22,7 +28,7 @@ Track revision **T3** adds **Endurance Ring** and **Long Run Circuit**, plus a d
 
 Lap time is now a first-class **diagnostic, not a reward**. Each learner times the simulated seconds required to accumulate one full track length of net forward progress from its current spawn, so staggered starts remain comparable on the same circuit. Driver cards show the current lap clock and last completed lap; PPO history records average/best completed lap times; the dashboard adds a lower-is-better lap-time timeline; and matched experiment comparison exposes the same pace metrics. Timeline lines break across different track/mirror variants because raw lap times from unlike circuits are not directly comparable.
 
-Fresh v1.2 runs are stamped **T3/D2/O4/R3/A3**. Older histories remain intact but are not silently treated as replay-equivalent to the new learning contract.
+Fresh v1.2.0 runs are stamped **T3/D2/O4/R3/A3**. Older histories remain intact but are not silently treated as replay-equivalent to that release's learning contract.
 
 ## v1.1.0: learning-contract correctness
 
@@ -227,7 +233,7 @@ The dashboard also shows best-ever run, off-road percentage, reward/experience, 
 
 Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Road/shoulder/grass now select different physical friction, cornering/yaw response, and rolling resistance. Grass cannot generate road-level acceleration, braking, or lateral tire force.
 
-The policy still receives no hidden track-center or track-tangent oracle. Under R3, signed **continuous projected centerline progress** pays the full 0.075-per-meter forward reward on road, 45% on shoulder, zero positive progress reward on grass, and a larger-magnitude 0.16-per-meter penalty for backward travel. Lap completion is measured from full accumulated net track progress rather than raw finish-line crossings, so crossing the seam repeatedly cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Under R4, signed **continuous projected centerline progress** still pays the full 0.075-per-meter forward reward on road, 45% on shoulder, zero positive progress reward on grass, and a larger-magnitude 0.16-per-meter penalty for backward travel. A legitimate completed lap—one full track length of accumulated signed net progress from the current spawn/prior lap—adds +10 reward, while terminal episode failure costs -15 once. Crossing the finish seam repeatedly still cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
 
 Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 

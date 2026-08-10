@@ -2,7 +2,7 @@
 function markCarTerminal(car){
   if(car.pendingDone)return false;
   car.pendingDone=true;car.actionSteer=0;car.actionThrottle=0;vehicleStopMotion(car);
-  if(sim.mode==='learn'){car.pendingReward-=TERMINAL_FAILURE_PENALTY;sim.batchTerminalPenalty-=TERMINAL_FAILURE_PENALTY}
+  if(sim.mode==='learn'){const penalty=terminalFailurePenalty();car.pendingReward-=penalty;sim.batchTerminalPenalty-=penalty}
   return true;
 }
 function recordForwardSurfaceMeters(surface,progress){
@@ -28,7 +28,7 @@ function simulateCar(car,dt){
   if(surface==='grass')car.offTime+=dt;else if(surface==='shoulder')car.offTime+=dt*.55;else car.offTime=Math.max(0,car.offTime-dt*1.5);
   const tangent=tangents[near.index],usefulSpeed=tangent?car.vx*tangent.x+car.vz*tangent.z:0;if(usefulSpeed>.75)car.stuckTime=Math.max(0,car.stuckTime-dt*2);else{car.stuckTime+=dt;sim.batchNoProgressSeconds+=dt}
 
-  while(car.episodeNetProgress+1e-6>=car.nextLapProgress){const lapTime=recordCompletedLap(car);car.lap++;car.nextLapProgress+=trackLength;if(sim.mode==='learn'){sim.batchLaps++;log(`Driver ${car.id+1} completed lap ${car.lap} in ${lapTime.toFixed(1)} s.`)}else if(car.lap>=sim.raceLaps){markRaceFinished(car);break}}
+  while(car.episodeNetProgress+1e-6>=car.nextLapProgress){const lapTime=recordCompletedLap(car);car.lap++;car.nextLapProgress+=trackLength;if(sim.mode==='learn'){const lapReward=lapCompletionReward();car.pendingReward+=lapReward;sim.batchLapCompletionReward+=lapReward;sim.batchLaps++;log(`Driver ${car.id+1} completed lap ${car.lap} in ${lapTime.toFixed(1)} s · +${lapReward.toFixed(0)} reward.`)}else if(car.lap>=sim.raceLaps){markRaceFinished(car);break}}
   if(car.raceStatus==='racing'&&(car.offTime>3||car.stuckTime>4.5||car.damage>=100))markCarTerminal(car);
   syncCarMesh(car);
 }

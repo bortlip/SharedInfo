@@ -17,11 +17,19 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Add generated/procedural circuits and unseen-track suites beyond the expanded hand-authored T3 catalog.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
 - [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, and richer historical plots for the diagnostics now recorded by the trainer.
-- [ ] After fresh R3/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
+- [ ] After fresh R4/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
 - [ ] Run matched collision-curriculum experiments with the new ghost/physical traffic control, then consider automatic performance-threshold traffic enablement.
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.2.1 Reward outcome shaping
+
+- [x] Advance to R4 while preserving R3 continuous progress, surface, backward, and collision terms unchanged.
+- [x] Increase one-time terminal failure penalty from -5 to -15 so failure erases about 200 m of clean road progress rather than ~67 m.
+- [x] Add +10 reward for a legitimate lap only after one full track length of signed net progress, retaining the anti-finish-line-rocking rule.
+- [x] Record lap-completion reward as its own batch/history/live diagnostic and keep lap time itself diagnostic-only.
+- [x] Keep D2/O4/A3 unchanged so the reward revision is a controlled experiment, with continued R3 brains segmented from fresh R4 metrics by provenance.
 
 ### v1.2.0 Cleaner learning environment + curriculum controls
 
