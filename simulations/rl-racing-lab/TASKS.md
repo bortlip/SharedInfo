@@ -14,14 +14,27 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Distribution-shift tests: wet track, dusk/night, fog, changed scenery/markings.
 - [ ] Controlled comparison: vision-only vs vision + vehicle-local senses under the same T/D environment.
 - [ ] Generalization score across tracks the brain did not train on.
-- [ ] More track layouts and generated circuits.
+- [ ] Add generated/procedural circuits and unseen-track suites beyond the expanded hand-authored T3 catalog.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
 - [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, and richer historical plots for the diagnostics now recorded by the trainer.
-- [ ] After fresh R2/A2 training evidence, compare GAE lambda / entropy bonus / value-loss weight / gradient clipping under matched seeds rather than changing them by intuition.
-- [ ] Test a collision curriculum: ghost training traffic while basic road following is learned, then enable physical car/car interaction.
+- [ ] After fresh R3/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
+- [ ] Run matched collision-curriculum experiments with the new ghost/physical traffic control, then consider automatic performance-threshold traffic enablement.
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.2.0 Cleaner learning environment + curriculum controls
+
+- [x] Correct nonterminal PPO rollout bootstrapping to evaluate the actual post-transition state value at update boundaries.
+- [x] Replace sample-index progress reward with continuous projected centerline arc progress and fix total-forward telemetry.
+- [x] Make learning population configurable from 1–10 shared-policy drivers while keeping evaluation at four physical cars.
+- [x] Add staggered training placement and optional physical car/car interaction so clean ghost training and traffic training are separate treatments.
+- [x] Make Failures only the fresh-session baseline while preserving adaptive/fixed synchronized clean-start experiments.
+- [x] Add deterministic left/right track mirroring plus Endurance Ring and Long Run Circuit under T3 geometry provenance.
+- [x] Add opt-in deterministic track rotation at safe PPO boundaries after experience intervals, with per-brain persistence/history.
+- [x] Extend experiment comparison and diagnostics to include population, collisions, placement, reset strategy, mirror variant, and track rotation.
+- [x] Add diagnostic full-track lap timing per learner, PPO average/best lap metrics, driver clocks, a lower-is-better history chart, and matched-comparison pace columns without changing R3 reward.
+- [x] Add persistent rear-tire skid marks driven by physical tire scrub, batched for long runs, retained across car resets/PPO updates, cleared on track rebuild, and hidden from neural POV observations.
 
 ### v1.1.0 Learning-contract correctness
 

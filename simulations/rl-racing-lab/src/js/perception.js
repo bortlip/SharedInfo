@@ -1,7 +1,7 @@
 // Per-car configurable grayscale/RGB POV cameras plus fair vehicle-local dynamics senses.
 function configurePOVCamera(car,camera){const f=new THREE.Vector3(Math.cos(car.heading),0,Math.sin(car.heading)),roadY=surfaceHeightForCar(car);camera.position.set(car.x+f.x*.7,roadY+NEURAL_CAMERA_HEIGHT,car.z+f.z*.7);camera.lookAt(car.x+f.x*NEURAL_CAMERA_LOOK_AHEAD,roadY+NEURAL_CAMERA_LOOK_HEIGHT,car.z+f.z*NEURAL_CAMERA_LOOK_AHEAD)}
 function captureObservation(car){
-  const camera=observerCameras[car.id],rt=renderTargets[car.id];configurePOVCamera(car,camera);const wasVisible=car.mesh.visible,effectsWereVisible=impactEffectsGroup?.visible??false;car.mesh.visible=false;setImpactEffectsVisible(false);renderer.setRenderTarget(rt);renderer.render(scene,camera);renderer.readRenderTargetPixels(rt,0,0,RENDER_W,RENDER_H,pixelBuffer);renderer.setRenderTarget(null);setImpactEffectsVisible(effectsWereVisible);car.mesh.visible=wasVisible;
+  const camera=observerCameras[car.id],rt=renderTargets[car.id];configurePOVCamera(car,camera);const wasVisible=car.mesh.visible,effectsWereVisible=impactEffectsGroup?.visible??false,skidsWereVisible=skidMarksGroup?.visible??false;car.mesh.visible=false;setImpactEffectsVisible(false);setSkidMarksVisible(false);renderer.setRenderTarget(rt);renderer.render(scene,camera);renderer.readRenderTargetPixels(rt,0,0,RENDER_W,RENDER_H,pixelBuffer);renderer.setRenderTarget(null);setSkidMarksVisible(skidsWereVisible);setImpactEffectsVisible(effectsWereVisible);car.mesh.visible=wasVisible;
   const obs=new Float32Array(INPUTS),needed=OBS_W*OBS_H*4;if(!car.latestRGBA||car.latestRGBA.length!==needed)car.latestRGBA=new Uint8ClampedArray(needed);const rgba=car.latestRGBA,area=OBS_SCALE*OBS_SCALE;
   for(let y=0;y<OBS_H;y++)for(let x=0;x<OBS_W;x++){
     let r=0,g=0,b=0;for(let oy=0;oy<OBS_SCALE;oy++)for(let ox=0;ox<OBS_SCALE;ox++){const renderY=RENDER_H-1-(y*OBS_SCALE+oy),renderX=x*OBS_SCALE+ox,src=(renderY*RENDER_W+renderX)*4;r+=pixelBuffer[src];g+=pixelBuffer[src+1];b+=pixelBuffer[src+2]}r/=255*area;g/=255*area;b/=255*area;const pixel=y*OBS_W+x,dst=pixel*4;
@@ -9,5 +9,5 @@ function captureObservation(car){
   }
   const senses=vehicleObservationValues(car);for(let i=0;i<VEHICLE_SENSE_COUNT;i++)obs[VISUAL_INPUTS+i]=senses[i];return obs;
 }
-function primeObservations(){for(const car of drivers)captureObservation(car)}
+function primeObservations(){for(const car of activeDrivers())captureObservation(car)}
 function drawPreview(canvas,rgba){if(!canvas||!rgba)return;canvas.width=OBS_W;canvas.height=OBS_H;const ctx=canvas.getContext('2d'),image=ctx.createImageData(OBS_W,OBS_H);image.data.set(rgba);ctx.putImageData(image,0,0)}

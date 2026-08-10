@@ -1,5 +1,5 @@
 // Pure track-layout definitions and geometry generation. No renderer/browser state is required here.
-const TRACK_LAYOUT_VERSION=2;
+const TRACK_LAYOUT_VERSION=3;
 const HALF_WIDTH=5.4,SHOULDER_WIDTH=1.25;
 const TRACK_SAMPLE_SPACING=1.5,TRACK_DENSE_STEP=.45,TRACK_MIN_RADIUS=18,TRACK_MIN_CLEARANCE=15,TRACK_NONLOCAL_ARC_SKIP=40,TRACK_ELEVATION_CLEARANCE=2.5;
 const trackWaypoint=(x,z,round=28,y=0)=>({x,y,z,round});
@@ -9,7 +9,9 @@ const TRACK_DEFS={
   technical:{name:'Technical Circuit',startHint:[-20,-55],waypoints:[trackWaypoint(-105,-55,30),trackWaypoint(10,-55,26),trackWaypoint(75,-48,28),trackWaypoint(112,-15,26),trackWaypoint(105,32,24),trackWaypoint(70,55,22),trackWaypoint(30,48,20),trackWaypoint(2,72,20),trackWaypoint(-45,72,25),trackWaypoint(-92,45,28),trackWaypoint(-118,5,28)]},
   sweepers:{name:'Fast Sweepers',startHint:[0,-55],waypoints:[trackWaypoint(-125,-55,35),trackWaypoint(90,-55,40),trackWaypoint(135,-15,42),trackWaypoint(126,48,40),trackWaypoint(70,78,45),trackWaypoint(-80,78,45),trackWaypoint(-135,35,42)]},
   figure8:{name:'Figure Eight Overpass',startHint:[-62,-48],waypoints:[trackWaypoint(0,0,24,0),trackWaypoint(-62,-48,30,0),trackWaypoint(-108,0,34,0),trackWaypoint(-62,48,30,0),trackWaypoint(0,0,24,6),trackWaypoint(62,-48,30,6),trackWaypoint(108,0,34,6),trackWaypoint(62,48,30,6)]},
-  grandprix:{name:'Grand Prix',startHint:[0,-70],waypoints:[trackWaypoint(-170,-70,38),trackWaypoint(95,-70,45),trackWaypoint(155,-55,38),trackWaypoint(192,-20,36),trackWaypoint(195,30,36),trackWaypoint(168,68,36),trackWaypoint(118,90,36),trackWaypoint(62,96,30),trackWaypoint(22,80,24),trackWaypoint(-8,62,24),trackWaypoint(-42,82,24),trackWaypoint(-92,94,32),trackWaypoint(-148,76,38),trackWaypoint(-190,40,40),trackWaypoint(-208,-8,38),trackWaypoint(-198,-45,34)]}
+  grandprix:{name:'Grand Prix',startHint:[0,-70],waypoints:[trackWaypoint(-170,-70,38),trackWaypoint(95,-70,45),trackWaypoint(155,-55,38),trackWaypoint(192,-20,36),trackWaypoint(195,30,36),trackWaypoint(168,68,36),trackWaypoint(118,90,36),trackWaypoint(62,96,30),trackWaypoint(22,80,24),trackWaypoint(-8,62,24),trackWaypoint(-42,82,24),trackWaypoint(-92,94,32),trackWaypoint(-148,76,38),trackWaypoint(-190,40,40),trackWaypoint(-208,-8,38),trackWaypoint(-198,-45,34)]},
+  endurance:{name:'Endurance Ring',startHint:[0,-110],waypoints:[trackWaypoint(-260,-110,52),trackWaypoint(160,-110,58),trackWaypoint(265,-72,54),trackWaypoint(318,18,52),trackWaypoint(305,132,58),trackWaypoint(222,208,60),trackWaypoint(72,238,62),trackWaypoint(-112,232,58),trackWaypoint(-238,178,58),trackWaypoint(-310,82,56),trackWaypoint(-322,-22,52)]},
+  longrun:{name:'Long Run Circuit',startHint:[0,-145],waypoints:[trackWaypoint(-340,-145,68),trackWaypoint(185,-145,72),trackWaypoint(335,-96,68),trackWaypoint(395,18,64),trackWaypoint(382,164,72),trackWaypoint(272,274,74),trackWaypoint(82,320,78),trackWaypoint(-124,304,74),trackWaypoint(-282,224,70),trackWaypoint(-392,102,68),trackWaypoint(-425,-32,64)]}
 };
 function trackPointDistance(a,b){return Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z)}
 function trackPointDistanceXZ(a,b){return Math.hypot(b.x-a.x,b.z-a.z)}
@@ -36,7 +38,8 @@ function resampleClosedTrack(dense,spacing=TRACK_SAMPLE_SPACING){
   return samples;
 }
 function rotateTrackSamples(samples,hint){if(!hint)return samples;let best=0,bestDistance=Infinity;for(let i=0;i<samples.length;i++){const d=Math.hypot(samples[i].x-hint[0],samples[i].z-hint[1]);if(d<bestDistance){best=i;bestDistance=d}}return samples.slice(best).concat(samples.slice(0,best))}
-function buildTrackSamples(id){const def=resolvedTrackDefinition(id),dense=roundedTrackDensePoints(def.waypoints);let samples=rotateTrackSamples(resampleClosedTrack(dense),def.startHint);if(def.reverse&&samples.length>1)samples=[samples[0],...samples.slice(1).reverse()];return samples}
+function mirrorTrackSamples(samples){return samples.map(p=>({...p,x:-p.x}))}
+function buildTrackSamples(id,mirror=false){const def=resolvedTrackDefinition(id),dense=roundedTrackDensePoints(def.waypoints);let samples=rotateTrackSamples(resampleClosedTrack(dense),def.startHint);if(def.reverse&&samples.length>1)samples=[samples[0],...samples.slice(1).reverse()];if(mirror)samples=mirrorTrackSamples(samples);return samples}
 function localTrackRadius(a,b,c){const ab=trackPointDistanceXZ(a,b),bc=trackPointDistanceXZ(b,c),ca=trackPointDistanceXZ(c,a),cross=Math.abs((b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x));return cross<1e-8?Infinity:ab*bc*ca/(2*cross)}
 function trackGeometryStats(samples){
   const n=samples.length,segments=new Array(n),distances=new Array(n+1).fill(0);let length=0,minSegment=Infinity,maxSegment=0,maxGrade=0;

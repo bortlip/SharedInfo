@@ -1,5 +1,18 @@
-// Presentation-only impact debris, sparks, dust, and smoke.
+// Presentation-only persistent skid marks plus impact debris, sparks, dust, and smoke.
 let impactEffectsGroup=null,impactParticles=[];
+const SKID_MARK_SCRUB_THRESHOLD=.48,SKID_MARK_MIN_SPEED=4,SKID_MARK_SAMPLE_DISTANCE=.55,SKID_MARK_MAX_SEGMENTS=240000,SKID_MARK_CHUNK_SEGMENTS=2048;
+let skidMarksGroup=null,skidMarkMaterial=null,skidMarkChunks=[],skidMarkSegmentCount=0;
+const skidTrailStates=Array.from({length:DRIVER_COUNT},()=>({left:null,right:null}));
+
+function ensureSkidMarksGroup(){if(skidMarksGroup)return skidMarksGroup;skidMarksGroup=new THREE.Group();skidMarksGroup.name='persistent-skid-marks';scene.add(skidMarksGroup);return skidMarksGroup}
+function ensureSkidMarkMaterial(){if(!skidMarkMaterial)skidMarkMaterial=new THREE.LineBasicMaterial({color:0x090b0d,transparent:true,opacity:.82,depthWrite:false});return skidMarkMaterial}
+function newSkidMarkChunk(){const geometry=new THREE.BufferGeometry(),positions=new Float32Array(SKID_MARK_CHUNK_SEGMENTS*6),attribute=new THREE.BufferAttribute(positions,3);attribute.setUsage(THREE.DynamicDrawUsage);geometry.setAttribute('position',attribute);geometry.setDrawRange(0,0);const lines=new THREE.LineSegments(geometry,ensureSkidMarkMaterial());lines.frustumCulled=false;lines.renderOrder=3;ensureSkidMarksGroup().add(lines);const chunk={geometry,attribute,positions,lines,count:0};skidMarkChunks.push(chunk);return chunk}
+function appendSkidMarkSegment(a,b){if(skidMarkSegmentCount>=SKID_MARK_MAX_SEGMENTS)return false;let chunk=skidMarkChunks.at(-1);if(!chunk||chunk.count>=SKID_MARK_CHUNK_SEGMENTS)chunk=newSkidMarkChunk();const offset=chunk.count*6;chunk.positions[offset]=a.x;chunk.positions[offset+1]=a.y;chunk.positions[offset+2]=a.z;chunk.positions[offset+3]=b.x;chunk.positions[offset+4]=b.y;chunk.positions[offset+5]=b.z;chunk.count++;skidMarkSegmentCount++;chunk.geometry.setDrawRange(0,chunk.count*2);chunk.attribute.needsUpdate=true;return true}
+function skidContactPoints(car){const fx=Math.cos(car.heading),fz=Math.sin(car.heading),rx=-fz,rz=fx,rearX=car.x-fx*1.05,rearZ=car.z-fz*1.05,halfTrack=.72,y=surfaceHeightForCar(car)+.055;return{left:{x:rearX+rx*halfTrack,y,z:rearZ+rz*halfTrack},right:{x:rearX-rx*halfTrack,y,z:rearZ-rz*halfTrack}}}
+function resetSkidTrailForCar(car){const state=skidTrailStates[car?.id];if(state){state.left=null;state.right=null}}
+function clearSkidMarks(){if(skidMarksGroup){for(const child of[...skidMarksGroup.children]){skidMarksGroup.remove(child);child.geometry?.dispose?.()}}skidMarkChunks=[];skidMarkSegmentCount=0;for(const state of skidTrailStates){state.left=null;state.right=null}}
+function setSkidMarksVisible(visible){if(skidMarksGroup)skidMarksGroup.visible=visible}
+function updateSkidMarks(car){const state=skidTrailStates[car?.id];if(!state)return;if(sim.headless&&sim.mode==='learn'){state.left=null;state.right=null;return}const marking=(Number(car.tireScrub)||0)>=SKID_MARK_SCRUB_THRESHOLD&&(Number(car.speed)||0)>=SKID_MARK_MIN_SPEED&&(car.surface==='road'||car.surface==='shoulder');if(!marking||skidMarkSegmentCount>=SKID_MARK_MAX_SEGMENTS){state.left=null;state.right=null;return}const current=skidContactPoints(car);if(!state.left||!state.right){state.left=current.left;state.right=current.right;return}const distance=Math.hypot(current.left.x-state.left.x,current.left.z-state.left.z);if(distance<SKID_MARK_SAMPLE_DISTANCE)return;if(distance>2.2){state.left=current.left;state.right=current.right;return}appendSkidMarkSegment(state.left,current.left);appendSkidMarkSegment(state.right,current.right);state.left=current.left;state.right=current.right}
 
 function ensureImpactEffectsGroup(){
   if(impactEffectsGroup)return impactEffectsGroup;

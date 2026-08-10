@@ -6,6 +6,6 @@ function chooseAction(car){
 }
 function recordEpisodeFailure(car){sim.batchResets++;sim.batchEpisodes++;sim.batchEpisodeDistance+=car.episodePeakProgress;sim.batchBestRunDistance=Math.max(sim.batchBestRunDistance,car.episodePeakProgress)}
 function decisionStep(){
-  if(sim.learning)return;if(sim.mode==='race'){for(const car of drivers){if(car.raceStatus!=='racing')continue;if(car.pendingDone){markRaceDNF(car);continue}chooseAction(car)}checkRaceComplete();return}
-  updatePositionTelemetry();for(const car of drivers){if(car.pendingDone){finishTransition(car,true);recordEpisodeFailure(car);resetDriver(car,car.id)}else finishTransition(car,false)}if(sim.experience>=sim.ppoBatchTarget&&!sim.learning){performLearningUpdate();return}drivers.forEach(chooseAction);
+  if(sim.learning)return;const cars=activeDrivers();if(sim.mode==='race'){for(const car of cars){if(car.raceStatus!=='racing')continue;if(car.pendingDone){markRaceDNF(car);continue}chooseAction(car)}checkRaceComplete();return}
+  updatePositionTelemetry();for(const car of cars){if(car.pendingDone){finishTransition(car,true);recordEpisodeFailure(car);resetDriver(car,car.id)}else finishTransition(car,false)}if(sim.experience>=sim.ppoBatchTarget&&!sim.learning){performLearningUpdate();return}cars.forEach(chooseAction);
 }
