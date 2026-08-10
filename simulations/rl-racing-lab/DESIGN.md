@@ -1,4 +1,4 @@
-# POV RL Racing Lab — v1.2.0 Design
+# POV RL Racing Lab — v1.2.1 Design
 
 ## Goal
 
@@ -220,11 +220,11 @@ The drivetrain is a lightweight five-speed automatic. Wheel speed, gear ratio, f
 
 The neural observation tail contains eleven normalized vehicle-local values: scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual steering angle. The last value matters because physical steering is rate-limited, so the requested command is not sufficient to reconstruct wheel angle in a memoryless MLP. Local senses make hidden vehicle motion state observable without revealing track geometry or world coordinates.
 
-Saved pre-v1.0 image+2 dense networks still migrate by preserving visual weights, mapping historical speed/damage into their matching slots, and zeroing every newly introduced sense. O3 image+10 networks migrate 650→651 by copying their entire existing first-layer row and zeroing only the appended steering-angle weight. Historical provenance is not rewritten by tensor migration; Reset establishes a clean current O4/R3/A3 seeded run.
+Saved pre-v1.0 image+2 dense networks still migrate by preserving visual weights, mapping historical speed/damage into their matching slots, and zeroing every newly introduced sense. O3 image+10 networks migrate 650→651 by copying their entire existing first-layer row and zeroing only the appended steering-angle weight. Historical provenance is not rewritten by tensor migration; Reset establishes a clean current O4/R4/A3 seeded run.
 
-`VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 4` denotes the wide neural camera plus eleven vehicle-local values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 3`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
+`VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 4` denotes the wide neural camera plus eleven vehicle-local values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 4`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
 
-The local executable source gate is designed to validate R3 reward/reset math, A3 bootstrap/temperature guardrails, O4 observation bounds and 642/650→651 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, all T3 track geometries and mirroring, deterministic RNG streams, and classic-script load order. Presentation-only skid marks, impact effects, and tire/engine audio remain outside the deterministic learning path.
+The local executable source gate is designed to validate R4 reward/reset math—including +10 legitimate lap completion and -15 terminal failure—A3 bootstrap/temperature guardrails, O4 observation bounds and 642/650→651 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, all T3 track geometries and mirroring, deterministic RNG streams, and classic-script load order. Presentation-only skid marks, impact effects, and tire/engine audio remain outside the deterministic learning path.
 
 ## Track layout v3: larger/mirrored circuits and continuous arc distance
 
@@ -232,11 +232,11 @@ T3 retains the rounded waypoint system introduced in v0.9.1: explicit straight/c
 
 The circuit catalog now includes the original six layouts plus **Endurance Ring** and **Long Run Circuit**, giving experiments substantially longer horizons. Any generated circuit can also be mirrored left/right as a deterministic geometry transform; this is a separate track variant in history/comparison rather than silently being treated as the same exposure.
 
-`trackDistance[]` still stores cumulative distance at samples for geometry and placement, but R3 reward no longer quantizes motion to those samples. Runtime progress projects each car onto the nearby centerline segment and interpolates a continuous arc coordinate inside that segment. Grid rows, trackside-camera lead, center dashes, and tree spacing remain meter-based.
+`trackDistance[]` still stores cumulative distance at samples for geometry and placement. R4 retains R3's continuous progress mechanism: runtime projects each car onto the nearby centerline segment and interpolates a continuous arc coordinate inside that segment rather than quantizing reward to ~1.5 m samples. Grid rows, trackside-camera lead, center dashes, and tree spacing remain meter-based.
 
 The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
 
-Current v1.2 fresh training records **T3/D2/O4/R3/A3**. Older missing revision fields retain their historical defaults rather than being silently relabeled; resetting an older brain clears its old training history and establishes a fresh current-contract seeded run.
+Current v1.2.1 fresh training records **T3/D2/O4/R4/A3**. Older missing revision fields retain their historical defaults rather than being silently relabeled; continuing an older brain preserves its earlier revision-stamped history while new metrics/segments use the current contract, and Reset establishes a fresh current-contract seeded run.
 
 ## Training environment, tracks, and clean starts
 
@@ -252,15 +252,15 @@ PPO update batch size remains selected per brain (256/512/1024, baseline 512). S
 
 ## Reward, surfaces, and direction
 
-Reward contract R3 preserves the R2 objective but makes progress genuinely dense. Each physics step projects the car onto the nearest nearby centerline segment and computes its continuous wrapped arc coordinate; signed reward uses the difference between consecutive continuous arc positions instead of waiting for the nearest ~1.5 m sample index to change:
+Reward contract R4 keeps R3's dense continuous progress and existing surface/backward/collision rates, then strengthens episode outcome shaping so almost-finishing-and-crashing is materially worse than completing the circuit. Each physics step still projects the car onto the nearest nearby centerline segment and computes its continuous wrapped arc coordinate:
 
 - forward road progress earns 0.075 reward per meter;
 - shoulder progress earns 45% of the road rate and retains a -0.07/sec surface penalty;
 - grass earns no positive progress reward and retains a -0.18/sec surface penalty;
 - backward progress costs 0.16 reward per meter regardless of surface;
-- a lap is one full track length of accumulated signed net progress from the spawn and has no separate reward bonus;
+- a lap is one full track length of accumulated signed net progress from the spawn/prior lap and earns a +10 completion reward;
 - prolonged off-road state, insufficient useful velocity along the local track tangent, or 100 damage terminates an episode;
-- the terminal -5 applies once, the car is frozen until the next policy boundary records the terminal transition, and collisions retain severity-based penalties when physical interaction is enabled.
+- the terminal -15 applies once, the car is frozen until the next policy boundary records the terminal transition, and collisions retain severity-based penalties when physical interaction is enabled.
 
 Exact track-direction alignment shown in the UI is human-facing telemetry only. The narrow edge strips repeat three distinct luminance tones in track-forward order. A forward view therefore sees one cyclic ordering of the three tones while a reversed view sees the opposite ordering, giving the vision policy a directional cue inside the rendered camera observation without an explicit track-direction input.
 
@@ -289,5 +289,5 @@ Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately
 v1.2 deliberately stops after cleaning the environment/reward/bootstrap contract. Architecture and optimizer changes remain separate experiments so their effect is measurable:
 
 - **Experiment Lab:** small CNN vision brain, ghost/checkpoint comparison, tournament evaluation, and performance-threshold curriculum on top of the new manual/periodic environment controls.
-- **Trainer experiments:** compare GAE λ, entropy regularization, value-loss weight, Adam/minibatching, KL stopping, and global gradient clipping under matched T3/D2/O4/R3/A3 seeds rather than changing several at once.
+- **Trainer experiments:** compare GAE λ, entropy regularization, value-loss weight, Adam/minibatching, KL stopping, and global gradient clipping under matched T3/D2/O4/R4/A3 seeds rather than changing several at once.
 - **Later controlled tests:** vision-only vs vehicle senses, wet/low-grip distribution shift, and other physics variants should use explicit environment revisions rather than silently changing an existing run.
