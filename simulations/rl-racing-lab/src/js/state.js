@@ -16,6 +16,10 @@ function compactNumber(n){return n>=1e6?`${(n/1e6).toFixed(n>=1e7?1:2)}M`:n>=1e3
 function formatBytes(bytes){bytes=Math.max(0,Number(bytes)||0);if(bytes>=1024**3)return`${(bytes/1024**3).toFixed(2)} GiB`;if(bytes>=1024**2)return`${(bytes/1024**2).toFixed(2)} MiB`;if(bytes>=1024)return`${(bytes/1024).toFixed(bytes>=1024*100?0:1)} KiB`;return`${Math.round(bytes)} B`}
 function formatMs(ms){ms=Number(ms)||0;if(ms<=0)return'—';return ms>=1000?`${(ms/1000).toFixed(ms>=10000?1:2)} s`:`${ms.toFixed(ms>=100?0:1)} ms`}
 
+const TRACK_CONTEXT_IDS=['mixed','reverse','technical','sweepers','figure8','grandprix','endurance','longrun'];
+const TRACK_CONTEXT_INDEX=Object.fromEntries(TRACK_CONTEXT_IDS.map((id,index)=>[id,index]));
+const TRACK_CONTEXT_KEYS=[...TRACK_CONTEXT_IDS.map(id=>`track:${id}`),'mirror','lapSin','lapCos'],TRACK_CONTEXT_COUNT=TRACK_CONTEXT_KEYS.length,POLICY_AUX_INPUT_COUNT=VEHICLE_SENSE_COUNT+TRACK_CONTEXT_COUNT;
+function trackContextObservationValues(trackId,mirror,arc,length){const values=new Float32Array(TRACK_CONTEXT_COUNT),trackIndex=TRACK_CONTEXT_INDEX[trackId];if(Number.isInteger(trackIndex))values[trackIndex]=1;const mirrorIndex=TRACK_CONTEXT_IDS.length;values[mirrorIndex]=mirror?1:-1;const lapLength=Math.max(0,Number(length)||0),normalized=lapLength>0?mod(Number(arc)||0,lapLength)/lapLength:0,angle=normalized*Math.PI*2;values[mirrorIndex+1]=Math.sin(angle);values[mirrorIndex+2]=Math.cos(angle);return values}
 const NEURAL_CAMERA_VERTICAL_FOV=52,NEURAL_CAMERA_HEIGHT=1.38,NEURAL_CAMERA_LOOK_AHEAD=14,NEURAL_CAMERA_LOOK_HEIGHT=.05;
 const VISION_PRESETS={
   gray32:{id:'gray32',label:'40×16 grayscale',w:40,h:16,channels:1,renderScale:2,color:false},
@@ -30,15 +34,15 @@ const NETWORK_PRESETS={
   deepwide:{id:'deepwide',label:'Deep + wide · 128 → 64',hidden:[128,64]}
 };
 let brainConfig={visionId:'gray32',networkId:'baseline'};
-let OBS_W=40,OBS_H=16,OBS_SCALE=2,CHANNELS=1,RENDER_W=80,RENDER_H=32,PIXELS=640,VISUAL_INPUTS=640,INPUTS=640+VEHICLE_SENSE_COUNT,HIDDEN_LAYERS=[48];
+let OBS_W=40,OBS_H=16,OBS_SCALE=2,CHANNELS=1,RENDER_W=80,RENDER_H=32,PIXELS=640,VISUAL_INPUTS=640,INPUTS=640+POLICY_AUX_INPUT_COUNT,HIDDEN_LAYERS=[48];
 function normalizedBrainConfig(config={}){return{visionId:config.visionId in VISION_PRESETS?config.visionId:'gray32',networkId:config.networkId in NETWORK_PRESETS?config.networkId:'baseline'}}
 function applyBrainConfiguration(config){
   brainConfig=normalizedBrainConfig(config);const v=VISION_PRESETS[brainConfig.visionId],n=NETWORK_PRESETS[brainConfig.networkId];
-  OBS_W=v.w;OBS_H=v.h;OBS_SCALE=v.renderScale;CHANNELS=v.channels;RENDER_W=OBS_W*OBS_SCALE;RENDER_H=OBS_H*OBS_SCALE;PIXELS=OBS_W*OBS_H;VISUAL_INPUTS=PIXELS*CHANNELS;INPUTS=VISUAL_INPUTS+VEHICLE_SENSE_COUNT;HIDDEN_LAYERS=[...n.hidden];return brainConfig;
+  OBS_W=v.w;OBS_H=v.h;OBS_SCALE=v.renderScale;CHANNELS=v.channels;RENDER_W=OBS_W*OBS_SCALE;RENDER_H=OBS_H*OBS_SCALE;PIXELS=OBS_W*OBS_H;VISUAL_INPUTS=PIXELS*CHANNELS;INPUTS=VISUAL_INPUTS+POLICY_AUX_INPUT_COUNT;HIDDEN_LAYERS=[...n.hidden];return brainConfig;
 }
 function brainConfigSnapshot(){return{visionId:brainConfig.visionId,networkId:brainConfig.networkId}}
 function brainConfigLabel(config=brainConfig){const c=normalizedBrainConfig(config);return`${VISION_PRESETS[c.visionId].label} · ${NETWORK_PRESETS[c.networkId].label}`}
-function brainLayerSizes(config=brainConfig){const c=normalizedBrainConfig(config),v=VISION_PRESETS[c.visionId],n=NETWORK_PRESETS[c.networkId],inputs=v.w*v.h*v.channels+VEHICLE_SENSE_COUNT;return[inputs,...n.hidden,15]}
+function brainLayerSizes(config=brainConfig){const c=normalizedBrainConfig(config),v=VISION_PRESETS[c.visionId],n=NETWORK_PRESETS[c.networkId],inputs=v.w*v.h*v.channels+POLICY_AUX_INPUT_COUNT;return[inputs,...n.hidden,15]}
 function parameterCountForConfig(config=brainConfig){const sizes=brainLayerSizes(config);let total=0;for(let i=0;i<sizes.length-2;i++)total+=sizes[i]*sizes[i+1]+sizes[i+1];const last=sizes[sizes.length-2];return total+last*15+15+last+1}
 function forwardMacCountForConfig(config=brainConfig){const sizes=brainLayerSizes(config),hidden=sizes.slice(1,-1);let previous=sizes[0],total=0;for(const size of hidden){total+=previous*size;previous=size}return total+previous*ACTIONS+previous}
 function modelTensorBytesForConfig(config=brainConfig){return parameterCountForConfig(config)*4}

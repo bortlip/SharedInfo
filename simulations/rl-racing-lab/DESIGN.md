@@ -1,14 +1,14 @@
-# POV RL Racing Lab — v1.2.3 Design
+# POV RL Racing Lab — v1.2.4 Design
 
 ## Goal
 
-v1.2 keeps the configurable dense-brain experiment platform and D2 sim-cade vehicle model, then removes avoidable learning noise: correct next-state PPO bootstrapping, continuous signed progress, a clean one-car baseline, configurable ghost/physical traffic and staggered population, mirrored/larger circuits, and deterministic periodic track rotation.
+v1.2 keeps the configurable dense-brain experiment platform and D2 sim-cade vehicle model, then removes avoidable learning noise while adding an explicit known-track memorization treatment: correct next-state PPO bootstrapping, continuous signed progress, a clean one-car baseline, configurable ghost/physical traffic and staggered population, mirrored/larger circuits, deterministic periodic track rotation, and O5 circuit/position context.
 
-The causal chain remains:
+The causal chain is now:
 
-**rendered POV + vehicle-local dynamics senses → policy → steering/drive action → world velocity/yaw/tire response → reward → PPO/backprop → updated policy**
+**rendered POV + vehicle-local dynamics senses + memorized track identity/position context → policy → steering/drive action → world velocity/yaw/tire response → reward → PPO/backprop → updated policy**
 
-Configuration, visualization, persistence, and sound are built around that chain. Hidden track knowledge is still not supplied as a model input.
+O5 intentionally supplies which circuit/variant the car is on and its absolute circular position around that circuit. Exact track tangent, centerline offset, future turn geometry, opponent coordinates, and world X/Z are still not supplied.
 
 The current roadmap is kept in one living file: [`TASKS.md`](TASKS.md).
 
@@ -43,16 +43,16 @@ Comparison rows include architecture, seed/provenance, update/experience, track/
 
 Every POV render target is recreated when the active brain changes configuration. v1.0.1 uses a 2.5:1 neural view for every preset: the low-resolution geometry is 40×16 and the high-resolution geometry is 80×32. This preserves the previous visual-value counts while reallocating pixels from vertical sky coverage to lateral racing context.
 
-| Preset | Image channels | Visual inputs | Vehicle-local inputs | Total inputs |
-|---|---:|---:|---:|---:|
-| 40×16 grayscale | 1 | 640 | 11 | 651 |
-| 80×32 grayscale | 1 | 2,560 | 11 | 2,571 |
-| 40×16 RGB | 3 | 1,920 | 11 | 1,931 |
-| 80×32 RGB | 3 | 7,680 | 11 | 7,691 |
+| Preset | Image channels | Visual inputs | Vehicle-local | Track context | Total inputs |
+|---|---:|---:|---:|---:|---:|
+| 40×16 grayscale | 1 | 640 | 11 | 11 | 662 |
+| 80×32 grayscale | 1 | 2,560 | 11 | 11 | 2,582 |
+| 40×16 RGB | 3 | 1,920 | 11 | 11 | 1,942 |
+| 80×32 RGB | 3 | 7,680 | 11 | 11 | 7,702 |
 
-The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. The observer camera uses a 52° vertical FOV, which is about 101° horizontally at the 2.5:1 aspect ratio, and aims slightly downward toward the road. Grayscale uses luminance; RGB keeps normalized R/G/B channels. O4 uses eleven normalized local values: scalar speed over the full 40 m/s physical range, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual rate-limited steering angle.
+The offscreen render is twice the configured observation size in each dimension and is averaged down 2×2. The observer camera uses a 52° vertical FOV, which is about 101° horizontally at the 2.5:1 aspect ratio, and aims slightly downward toward the road. Grayscale uses luminance; RGB keeps normalized R/G/B channels. O5 retains eleven normalized vehicle-local values—scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual rate-limited steering angle—then appends eleven memorized-track values: eight-way one-hot circuit identity, normal/mirrored variant, and sine/cosine of absolute lap position.
 
-The AI still does **not** receive lateral track position, centerline distance, track tangent, next-turn geometry, opponent coordinates, world position, or other world-oracle features.
+Absolute position comes from the same continuous projected track arc used by progress telemetry, normalized over the full lap. Sine/cosine encoding removes the artificial 100%→0% discontinuity at the finish seam, and using absolute arc rather than progress since spawn means staggered learners agree on where a given corner is. The AI still does **not** receive lateral centerline offset, exact track tangent, future-turn geometry, opponent coordinates, or world position.
 
 ## Dense actor-critic presets
 
@@ -71,20 +71,20 @@ Each brain has:
 2. a 15-action softmax policy head;
 3. one scalar value head.
 
-The baseline therefore remains:
+The baseline therefore becomes:
 
-**651 → 48 tanh → 15-action policy + value**
+**662 → 48 tanh → 15-action policy + value**
 
-The hidden shapes and 15-action encoding remain unchanged. v1.1 changes only the local observation tail plus the reward/trainer contracts; the vision geometry and D2 physical environment remain stable.
+The hidden shapes, 15-action encoding, POV geometry, and D2 physical environment remain unchanged; O5 changes only the auxiliary observation tail.
 
 Example parameter counts:
 
 | Vision | Baseline 48 | Wide 128 | Deep 96→48 | Deep+Wide 128→64 |
 |---|---:|---:|---:|---:|
-| 40×16 gray | 32,080 | 85,520 | 68,032 | 92,752 |
-| 80×32 gray | 124,240 | 331,280 | 252,352 | 338,512 |
-| 40×16 RGB | 93,520 | 249,360 | 190,912 | 256,592 |
-| 80×32 RGB | 370,000 | 986,640 | 743,872 | 993,872 |
+| 40×16 gray | 32,608 | 86,928 | 69,088 | 94,160 |
+| 80×32 gray | 124,768 | 332,688 | 253,408 | 339,920 |
+| 40×16 RGB | 94,048 | 250,768 | 191,968 | 258,000 |
+| 80×32 RGB | 370,528 | 988,048 | 744,928 | 995,280 |
 
 The large dense combinations are intentionally exposed as experiments, not claimed to be efficient designs. Their cost is a useful demonstration of why spatial architectures such as CNNs matter. A small CNN is tracked for the next architecture stage.
 
@@ -134,7 +134,7 @@ For grayscale, the absolute input gradient is displayed per pixel. For RGB, abso
 
 This answers a limited mathematical question—**where would a small input change most strongly change this action score locally?** It must not be described as consciousness or literal visual attention.
 
-Inspector work is presentation-only. It is throttled and skipped in headless display mode so it cannot become part of the agent-environment timing contract. The network activity view samples a legible subset of real nodes/connections: node intensity/size encodes live activation, connection width encodes absolute learned weight strength, and connection opacity/color encodes the current signed `weight × source activation` contribution.
+Inspector work is presentation-only. It is throttled and skipped in headless display mode so it cannot become part of the agent-environment timing contract. The network activity view always includes all 22 non-image O5 inputs—eleven vehicle senses plus eleven track-context values—then samples image nodes for legibility; node intensity/size encodes live activation, connection width encodes absolute learned weight strength, and connection opacity/color encodes the current signed `weight × source activation` contribution.
 
 ## Sessions and persistent experiment history
 
@@ -218,13 +218,13 @@ After chassis yaw advances, lateral tire acceleration opposes chassis-frame late
 
 The drivetrain is a lightweight five-speed automatic. Wheel speed, gear ratio, final drive, and wheel radius produce RPM; shift thresholds select gears; a bounded torque curve changes drive acceleration across the rev range; and a short shift timer cuts drive force during the shift. Damage reduces available power and maximum speed. This is a sim-cade mechanism, not a clutch/differential/turbo or per-wheel driveline model.
 
-The neural observation tail contains eleven normalized vehicle-local values: scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual steering angle. The last value matters because physical steering is rate-limited, so the requested command is not sufficient to reconstruct wheel angle in a memoryless MLP. Local senses make hidden vehicle motion state observable without revealing track geometry or world coordinates.
+The neural observation tail contains eleven normalized vehicle-local values: scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual steering angle. O5 appends eleven explicit memorized-track values: eight one-hot circuit identity values, a normal/mirrored variant flag, and sine/cosine of absolute lap position. The position comes from continuous projected track arc, so staggered spawns share the same location code for the same physical corner and the finish seam remains continuous.
 
-Saved pre-v1.0 image+2 dense networks still migrate by preserving visual weights, mapping historical speed/damage into their matching slots, and zeroing every newly introduced sense. O3 image+10 networks migrate 650→651 by copying their entire existing first-layer row and zeroing only the appended steering-angle weight. Historical provenance is not rewritten by tensor migration; Reset establishes a clean current O4/R5/A3 seeded run.
+Saved pre-v1.0 image+2 dense networks, O3 image+10 networks, and O4 image+11 networks all migrate directly to the O5 input size. Every historical weight is preserved in its original input slot; only inputs that did not previously exist are zero-initialized. Historical provenance is not rewritten by tensor migration, so continuation keeps prior O revisions in old history while new updates form O5 segments. Reset establishes a fresh current O5/R5/A3 seeded run.
 
-`VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 4` denotes the wide neural camera plus eleven vehicle-local values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 5`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
+`VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 5` denotes the POV + eleven vehicle senses + eleven memorized-track context values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 5`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
 
-The local executable source gate is designed to validate R5 reward/reset math—including zero positive shoulder/grass progress, -0.20/sec shoulder, -0.50/sec grass, +10 legitimate lap completion, and -15 terminal failure—A3 bootstrap/temperature guardrails, O4 observation bounds and 642/650→651 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, all T3 track geometries and mirroring, deterministic RNG streams, and classic-script load order. Presentation-only skid marks, impact effects, and tire/engine audio remain outside the deterministic learning path.
+The local executable source gate is designed to validate R5 reward/reset math—including zero positive shoulder/grass progress, -0.20/sec shoulder, -0.50/sec grass, +10 legitimate lap completion, and -15 terminal failure—A3 bootstrap/temperature guardrails, O5's 662-input shape, circuit/variant/circular-position semantics, 642/650/651→662 migrations, acceleration/automatic shifting, braking, surface-dependent steering, deliberate-slide recovery, long-run finite integration, all T3 track geometries and mirroring, deterministic RNG streams, and classic-script load order. Presentation-only skid marks, impact effects, and tire/engine audio remain outside the deterministic learning path.
 
 ## Track layout v3: larger/mirrored circuits and continuous arc distance
 
@@ -232,11 +232,11 @@ T3 retains the rounded waypoint system introduced in v0.9.1: explicit straight/c
 
 The circuit catalog now includes the original six layouts plus **Endurance Ring** and **Long Run Circuit**, giving experiments substantially longer horizons. Any generated circuit can also be mirrored left/right as a deterministic geometry transform; this is a separate track variant in history/comparison rather than silently being treated as the same exposure.
 
-`trackDistance[]` still stores cumulative distance at samples for geometry and placement. R5 retains R3/R4's continuous progress mechanism: runtime projects each car onto the nearby centerline segment and interpolates a continuous arc coordinate inside that segment rather than quantizing reward to ~1.5 m samples. Grid rows, trackside-camera lead, center dashes, and tree spacing remain meter-based.
+`trackDistance[]` still stores cumulative distance at samples for geometry and placement. R5 retains R3/R4's continuous progress mechanism: runtime projects each car onto the nearby centerline segment and interpolates a continuous arc coordinate inside that segment rather than quantizing reward to ~1.5 m samples. O5 also normalizes that absolute arc around the lap and supplies its sine/cosine to the policy as location context. Grid rows, trackside-camera lead, center dashes, and tree spacing remain meter-based.
 
 The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
 
-Current v1.2.3 fresh training records **T3/D2/O4/R5/A3**. Older missing revision fields retain their historical defaults rather than being silently relabeled; continuing an older brain preserves its earlier revision-stamped history while new metrics/segments use the current contract, and Reset establishes a fresh current-contract seeded run.
+Current v1.2.4 fresh training records **T3/D2/O5/R5/A3**. Older missing revision fields retain their historical defaults rather than being silently relabeled; continuing an older brain preserves its earlier revision-stamped history while new metrics/segments use the current contract, and Reset establishes a fresh current-contract seeded run.
 
 ## Training environment, tracks, and clean starts
 
@@ -289,5 +289,5 @@ Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately
 v1.2 deliberately stops after cleaning the environment/reward/bootstrap contract. Architecture and optimizer changes remain separate experiments so their effect is measurable:
 
 - **Experiment Lab:** small CNN vision brain, ghost/checkpoint comparison, tournament evaluation, and performance-threshold curriculum on top of the new manual/periodic environment controls.
-- **Trainer experiments:** compare GAE λ, entropy regularization, value-loss weight, Adam/minibatching, KL stopping, and global gradient clipping under matched T3/D2/O4/R5/A3 seeds rather than changing several at once.
-- **Later controlled tests:** vision-only vs vehicle senses, wet/low-grip distribution shift, and other physics variants should use explicit environment revisions rather than silently changing an existing run.
+- **Trainer experiments:** compare GAE λ, entropy regularization, value-loss weight, Adam/minibatching, KL stopping, and global gradient clipping under matched T3/D2/O5/R5/A3 seeds rather than changing several at once.
+- **Later controlled tests:** compare POV-only versus explicit O5 memorized-track context, then explore recurrent memory, wet/low-grip distribution shift, and other physics variants using explicit observation/environment revisions rather than silently changing an existing run.

@@ -1,3 +1,3 @@
 'use strict';
-window.RL_RACING_LAB_VERSION = '1.2.3';
+window.RL_RACING_LAB_VERSION = '1.2.4';
 document.querySelectorAll('[data-app-version]').forEach(node => {node.textContent = `v${window.RL_RACING_LAB_VERSION}`;});

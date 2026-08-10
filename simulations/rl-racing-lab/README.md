@@ -1,14 +1,20 @@
 # POV RL Racing Lab
 
-A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras and vehicle-local senses; a separate four-car evaluation mode freezes that policy and races it without learning.
+A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras, vehicle-local senses, and explicit memorized-track context; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.2.3**
+Current release: **v1.2.4**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.4: explicit track memory context
+
+Observation revision **O5** gives the policy the circuit identity and absolute position information needed to memorize known tracks instead of re-identifying every braking point from a tiny memoryless POV frame. The 11-value track-context tail contains an **8-way one-hot circuit ID**, a **normal/mirrored flag**, and **sin/cos of absolute lap position**. Circular sin/cos encoding avoids a discontinuity when position wraps from the end of a lap back to the start, and absolute track arc means staggered training spawns still identify the same corner consistently.
+
+The existing eleven vehicle-local senses and POV pixels are unchanged; baseline input grows from **651 to 662**. O4 651-input brains, O3 650-input brains, and legacy image+2 brains migrate by preserving every learned old weight and zero-initializing only the newly introduced inputs. Continuing an older brain preserves its historical provenance and begins O5 segments; Reset establishes a fresh **T3/D2/O5/R5/A3** run. The Brain Inspector exposes all 22 non-image inputs, and driver cards show track-position percentage for human verification. Physics, rewards, PPO/GAE, action space, and track geometry are unchanged.
 
 ## v1.2.3: make leaving the track immediately unprofitable
 
@@ -97,7 +103,7 @@ Trees now have lightweight trunk colliders rather than being scenery cars can pa
 
 ## v0.8.7: live connection graph + spectator cameras + PPO experiments
 
-The Brain Inspector draws a representative sampled subgraph of the real active network. Node size/brightness reflects live activation; connection thickness reflects learned weight strength; connection opacity reflects current absolute contribution (`|weight × source activation|`); cyan/red connections indicate positive/negative contribution. v1.0 always includes all vehicle-local input nodes in the graph while sampling the large image input for legibility.
+The Brain Inspector draws a representative sampled subgraph of the real active network. Node size/brightness reflects live activation; connection thickness reflects learned weight strength; connection opacity reflects current absolute contribution (`|weight × source activation|`); cyan/red connections indicate positive/negative contribution. O5 always includes all 22 non-image input nodes—eleven vehicle senses plus eleven track-context values—while sampling the large image input for legibility.
 
 Spectator viewing now includes Chase, Driver POV, High chase, Helicopter, Trackside, Overhead follow, and Whole track cameras. These are presentation-only and never alter the neural observation cameras.
 
@@ -146,22 +152,22 @@ Brains can now be exported or deleted directly from the library. The current ses
 
 v0.8 turns the simulator from a single fixed brain into an experiment lab. A **Lab Session** can contain multiple named brains with different visual inputs and dense-network shapes. Each brain keeps its own weights, training history, track exposure, and evaluation-race history.
 
-The baseline dense preset remains one 48-neuron hidden layer; v1.0 expands its observation tail from 2 to 10 vehicle-local values:
+The baseline dense preset remains one 48-neuron hidden layer. The current O5 observation combines the POV image, eleven vehicle-local values, and eleven memorized-track values:
 
-**40×16 grayscale + 11 local vehicle senses → 48 tanh → 15-action policy + value**
+**40×16 grayscale + 11 local vehicle senses + 11 track-context values → 48 tanh → 15-action policy + value**
 
 Creating a different architecture creates a **new brain** rather than silently reshaping the one you already trained. Existing brains stay in the session and can be switched back in later.
 
 ### Vision presets
 
-| Vision | Visual values | Vehicle-local values | Total inputs |
-|---|---:|---:|---:|
-| 40×16 grayscale | 640 | 11 | 651 |
-| 80×32 grayscale | 2,560 | 11 | 2,571 |
-| 40×16 RGB | 1,920 | 11 | 1,931 |
-| 80×32 RGB | 7,680 | 11 | 7,691 |
+| Vision | Visual values | Vehicle-local values | Track context | Total inputs |
+|---|---:|---:|---:|---:|
+| 40×16 grayscale | 640 | 11 | 11 | 662 |
+| 80×32 grayscale | 2,560 | 11 | 11 | 2,582 |
+| 40×16 RGB | 1,920 | 11 | 11 | 1,942 |
+| 80×32 RGB | 7,680 | 11 | 11 | 7,702 |
 
-RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. The current O4 tail appends eleven normalized vehicle-local senses—including actual physical steering angle—while still exposing no track geometry or world position.
+RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. O5 keeps the eleven normalized vehicle-local senses and appends eleven memorized-track values: an eight-way one-hot circuit ID, a normal/mirrored flag, and sine/cosine of absolute lap position so the finish seam is continuous.
 
 ### Dense-network presets
 
@@ -172,7 +178,7 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 
 The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
-Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the current O4 vehicle-sense tail, **80×32 RGB + Wide has 986,640 trainable parameters** and **80×32 RGB + Deep + wide has 993,872**. The visual-value counts are unchanged from the former 64×40 geometry, so the wide-camera reshaping itself does not increase image cost; O4 adds one local input. A small convolutional vision brain is therefore the next architecture item in [TASKS.md](TASKS.md).
+Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the current O5 22-value auxiliary tail, **80×32 RGB + Wide has 988,048 trainable parameters** and **80×32 RGB + Deep + wide has 995,280**. The 11 added O5 track-context values are tiny compared with the image tensor; a small convolutional vision brain is still the next architecture item in [TASKS.md](TASKS.md).
 
 ## Live Brain Inspector
 
@@ -237,13 +243,13 @@ Two charts answer different questions:
 
 Run distance is peak **net** forward progress from a spawn. Driving backward first reduces net progress, so rocking forward and backward cannot inflate the metric by repeatedly counting the same meters.
 
-The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start status, and achieved simulation speed. The diagnostics line records the active learning environment plus forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
+The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start status, and achieved simulation speed. Driver cards now also show absolute track-position percentage, matching the circular position supplied to O5. The diagnostics line records the active learning environment plus forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
 
 ## World, direction, collisions, and sound
 
 Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Road/shoulder/grass now select different physical friction, cornering/yaw response, and rolling resistance. Grass cannot generate road-level acceleration, braking, or lateral tire force.
 
-The policy still receives no hidden track-center or track-tangent oracle. Under R5, signed **continuous projected centerline progress** pays 0.075 per forward road meter and **zero positive progress reward once the car leaves asphalt**. Shoulder time costs -0.20/sec and grass costs -0.50/sec, while backward travel still costs 0.16 per meter regardless of surface. A legitimate completed lap—one full track length of accumulated signed net progress from the current spawn/prior lap—adds +10 reward, while terminal episode failure costs -15 once. Crossing the finish seam repeatedly still cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
+Under O5 the policy intentionally receives circuit identity, normal/mirrored variant, and absolute circular lap position so it can memorize braking/turn behavior for known tracks; it still receives no exact track tangent, centerline offset, future-turn geometry, opponent coordinates, or world X/Z. Under R5, signed **continuous projected centerline progress** pays 0.075 per forward road meter and **zero positive progress reward once the car leaves asphalt**. Shoulder time costs -0.20/sec and grass costs -0.50/sec, while backward travel still costs 0.16 per meter regardless of surface. A legitimate completed lap—one full track length of accumulated signed net progress from the current spawn/prior lap—adds +10 reward, while terminal episode failure costs -15 once. Crossing the finish seam repeatedly still cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
 
 Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 
@@ -283,7 +289,7 @@ src/js/scene.js       Three.js renderer, cameras, dynamic POV render targets.
 src/js/tracks.js      Rendered track surfaces, markings, scenery, and physical-distance metadata.
 src/js/cars.js        Car meshes, dynamic state, grid placement, direction telemetry.
 src/js/model.js       Configurable dense actor-critic networks, legacy-input migration, gradients.
-src/js/perception.js  Configurable grayscale/RGB POV plus vehicle-local observations.
+src/js/perception.js  Configurable grayscale/RGB POV plus vehicle-local and O5 track-context observations.
 src/js/simulation.js  Policy decisions and experience collection.
 src/js/physics.js     Reward/surface integration plus car/tree collision impulses.
 src/js/effects.js     Presentation-only persistent skid marks plus sparks, debris, smoke, dust, and tree fragments.

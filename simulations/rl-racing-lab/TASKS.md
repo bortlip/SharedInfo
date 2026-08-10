@@ -12,16 +12,24 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 ## Later experiments / fun
 
 - [ ] Distribution-shift tests: wet track, dusk/night, fog, changed scenery/markings.
-- [ ] Controlled comparison: vision-only vs vision + vehicle-local senses under the same T/D environment.
+- [ ] Controlled comparison: POV-only versus explicit O5 memorized-track context under the same T3/D2/R5/A3 environment; later compare recurrent memory.
 - [ ] Generalization score across tracks the brain did not train on.
 - [ ] Add generated/procedural circuits and unseen-track suites beyond the expanded hand-authored T3 catalog.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
 - [ ] More interpretability views where useful: CNN feature maps, weight-change summaries, and richer historical plots for the diagnostics now recorded by the trainer.
-- [ ] After fresh R5/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
+- [ ] After fresh O5/R5/A3 evidence, compare GAE lambda / entropy bonus / value-loss weight / Adam+minibatching / KL stopping / global gradient clipping under matched seeds rather than changing them by intuition.
 - [ ] Run matched collision-curriculum experiments with the new ghost/physical traffic control, then consider automatic performance-threshold traffic enablement.
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.2.4 Explicit memorized-track context
+
+- [x] Advance O4→O5 with an eight-way one-hot circuit ID, normal/mirrored variant flag, and circular sine/cosine absolute lap position.
+- [x] Expand the auxiliary observation tail from 11 to 22 values, making the baseline 40×16 grayscale network 662→48→15 + value.
+- [x] Use absolute projected track arc so staggered spawns share the same corner location code, while retaining no exact tangent, centerline offset, future-turn geometry, or world X/Z input.
+- [x] Migrate supported 642/650/651-input brains to 662 by preserving every existing first-layer weight and zero-initializing only newly introduced values; keep old history provenance and use O5 for new segments/reset runs.
+- [x] Expose all 22 non-image inputs in the Brain Inspector, show track-position percentage on driver cards, and guard O5 encoding/migration/wiring in the executable source checks.
 
 ### v1.2.3 Immediate off-track incentive
 
