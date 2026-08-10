@@ -9,5 +9,5 @@ function captureObservation(car){
   }
   const senses=vehicleObservationValues(car);for(let i=0;i<VEHICLE_SENSE_COUNT;i++)obs[VISUAL_INPUTS+i]=senses[i];return obs;
 }
-function primeObservations(){for(const car of drivers)captureObservation(car)}
+function primeObservations(){for(const car of activeDrivers())captureObservation(car)}
 function drawPreview(canvas,rgba){if(!canvas||!rgba)return;canvas.width=OBS_W;canvas.height=OBS_H;const ctx=canvas.getContext('2d'),image=ctx.createImageData(OBS_W,OBS_H);image.data.set(rgba);ctx.putImageData(image,0,0)}

@@ -1,14 +1,26 @@
 # POV RL Racing Lab
 
-A browser-based reinforcement-learning racing laboratory. Four cars share an actor-critic policy, see the world through rendered POV cameras, and learn steering plus throttle/brake behavior from reward using clipped PPO-style backpropagation.
+A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras and vehicle-local senses; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.1.0**
+Current release: **v1.2.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.0: cleaner learning environment + curriculum controls
+
+v1.2 separates **learning to drive** from **learning in traffic**. Fresh sessions now start with one learner, staggered placement enabled, physical training-car collisions disabled, and **Failures only** resets. Learning population is configurable from 1–10 copies of the same policy; higher counts can gather more varied experience, while a separate checkbox turns physical car/car interaction back on when traffic is the experiment. Evaluation remains a fixed four-car physical race.
+
+Reward revision **R3** keeps the same R2 reward rates but removes the roughly 1.5 m centerline-sample quantization from credit assignment. Each physics step now projects the car onto the nearby centerline segment and computes wrapped continuous arc-length progress, so even small correct movements can produce proportionate signed-meter reward. The total-forward diagnostic also now includes road, shoulder, and grass progress instead of accidentally counting road meters only.
+
+Trainer revision **A3** fixes nonterminal rollout bootstrapping at PPO boundaries. GAE now evaluates the actual post-transition observation to obtain `V(s[t+1])`; it no longer reuses the previous action state's `V(s[t])` for the last live transition in each driver rollout. This changes return/advantage targets without consuming an extra policy-RNG action draw.
+
+Track revision **T3** adds **Endurance Ring** and **Long Run Circuit**, plus a deterministic **Mirror track** option that flips circuit geometry left/right without reversing travel direction. **Auto-switch tracks** can rotate through circuits at complete PPO boundaries after each 8,192-experience interval, preventing a single optimizer update from mixing environments. Mirrored exposure and the complete learning setup—population, physical/ghost traffic, stagger/grid placement, reset cadence, and rotation—are persisted per brain and included in experiment matching.
+
+Fresh v1.2 runs are stamped **T3/D2/O4/R3/A3**. Older histories remain intact but are not silently treated as replay-equivalent to the new learning contract.
 
 ## v1.1.0: learning-contract correctness
 
@@ -181,11 +193,12 @@ Learning and Evaluation Race remain explicit modes.
 
 In **Learning** mode:
 
-- four drivers share the active brain;
-- the selected track supplies observations and reward;
+- 1–10 active drivers can share the active brain; fresh sessions start with one;
+- staggered starts can distribute parallel learners around the circuit instead of concentrating them on the race grid;
+- training-car collisions can be disabled for ghost traffic or enabled for physical multi-car learning;
+- the selected track may be mirrored, and optional automatic rotation moves to the next circuit only after a complete PPO update once the configured experience interval has elapsed;
 - PPO updates after the active brain's selected 256/512/1024 combined-experience batch;
-- Adaptive clean starts begin every 2,048 experiences and can relax to 4,096, 8,192, and 16,384 experiences as run distance improves;
-- fixed 2,048/4,096/8,192/16,384-experience clean starts or failures-only running remain available, independent of PPO batch size.
+- **Failures only** is the fresh-session reset baseline; adaptive or fixed 2,048/4,096/8,192/16,384-experience synchronized clean starts remain available, while individual failures always respawn immediately.
 
 In **Evaluation Race** mode:
 
@@ -201,20 +214,20 @@ The Learning button also stays logically consistent through PPO. While backpropa
 
 Two charts answer different questions:
 
-- **Recent driving:** the last 60 simulated seconds, one line per driver, useful for seeing what the cars are doing right now.
-- **Complete training timeline:** average and best net run distance by PPO update from update 0, including training-track change markers.
+- **Recent driving:** the last 60 simulated seconds, one line per active learner, useful for seeing what the selected training population is doing right now.
+- **Complete training timeline:** average and best net run distance by PPO update from update 0, including training-track and mirror-variant change markers.
 
 Run distance is peak **net** forward progress from a spawn. Driving backward first reduces net progress, so rocking forward and backward cannot inflate the metric by repeatedly counting the same meters.
 
-The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start experience budget, and achieved simulation speed. The v1.1 diagnostics line adds forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
+The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start status, and achieved simulation speed. The diagnostics line records the active learning environment plus forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
 
 ## World, direction, collisions, and sound
 
 Tracks use dark asphalt, warning-edge paint, three-tone directional edge strips, shoulder, grass, center markings, and roadside scenery. Road/shoulder/grass now select different physical friction, cornering/yaw response, and rolling resistance. Grass cannot generate road-level acceleration, braking, or lateral tire force.
 
-The policy still receives no hidden track-center or track-tangent oracle. Under R2, signed track progress pays the full forward reward on road, 45% on shoulder, zero positive progress reward on grass, and a larger-magnitude penalty for backward travel. Lap completion is measured from full accumulated net track progress rather than raw finish-line crossings, so crossing the seam repeatedly cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
+The policy still receives no hidden track-center or track-tangent oracle. Under R3, signed **continuous projected centerline progress** pays the full 0.075-per-meter forward reward on road, 45% on shoulder, zero positive progress reward on grass, and a larger-magnitude 0.16-per-meter penalty for backward travel. Lap completion is measured from full accumulated net track progress rather than raw finish-line crossings, so crossing the seam repeatedly cannot create reward or fake laps. The edge strips remain a visual direction cue; exact FORWARD / ACROSS / WRONG WAY alignment is human-facing telemetry only.
 
-Cars use oriented rectangular collision footprints and now resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. Trees use lightweight circular trunk colliders against the same oriented car footprint and strongly redirect/scrub world velocity on impact.
+Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 
 Optional Web Audio synthesizes engine tone from actual RPM and adds filtered tire scrub/skid noise from lateral grip demand and slip angle, plus collision transients. Audio remains presentation-only and never feeds or writes simulation state.
 
