@@ -2,13 +2,17 @@
 
 A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras and vehicle-local senses; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.2.1**
+Current release: **v1.2.2**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.2: startup hotfix
+
+Fixes an unterminated `trackSurfaceAtPoint()` helper in `tracks.js` that caused the deployed v1.2.1 simulator to fail during startup with `SyntaxError: Unexpected end of input`. Asset query strings are bumped to v1.2.2 so browsers fetch the corrected script instead of a cached v1.2.1 copy.
 
 ## v1.2.1: finish the lap, don't just survive most of it
 
