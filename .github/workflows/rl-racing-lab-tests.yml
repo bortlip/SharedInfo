@@ -1,0 +1,48 @@
+name: RL Racing Lab tests
+
+on:
+  pull_request:
+    paths:
+      - 'simulations/rl-racing-lab/**'
+      - '.github/workflows/rl-racing-lab-tests.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'simulations/rl-racing-lab/**'
+      - '.github/workflows/rl-racing-lab-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: simulations/rl-racing-lab
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install test dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run source and browser tests
+        run: npm test
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rl-racing-lab-playwright-report
+          path: simulations/rl-racing-lab/playwright-report/
+          if-no-files-found: ignore
