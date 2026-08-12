@@ -1,13 +1,14 @@
 // Pure sim-cade vehicle dynamics and vehicle-local observation contract. No Three.js/browser state required.
-const VEHICLE_DYNAMICS_VERSION=2,VEHICLE_OBSERVATION_VERSION=6;
+const VEHICLE_DYNAMICS_VERSION=3,VEHICLE_OBSERVATION_VERSION=6;
 const VEHICLE_SENSE_KEYS=['speed','forwardSpeed','lateralSpeed','yawRate','slipAngle','steerCommand','throttleCommand','damage','rpm','gear','steerAngle'];
 const VEHICLE_SENSE_INDEX=Object.fromEntries(VEHICLE_SENSE_KEYS.map((key,index)=>[key,index])),VEHICLE_SENSE_COUNT=VEHICLE_SENSE_KEYS.length;
-const VEHICLE_GRAVITY=9.81,VEHICLE_WHEELBASE=2.55,VEHICLE_WHEEL_RADIUS=.32,VEHICLE_FINAL_DRIVE=4.1,VEHICLE_IDLE_RPM=1050,VEHICLE_REDLINE_RPM=7200,VEHICLE_MAX_SPEED=40;
+const VEHICLE_GRAVITY=9.81,VEHICLE_WHEELBASE=2.55,VEHICLE_WHEEL_RADIUS=.32,VEHICLE_FINAL_DRIVE=4.1,VEHICLE_IDLE_RPM=1050,VEHICLE_REDLINE_RPM=7200,VEHICLE_MAX_SPEED=40,VEHICLE_MAX_STEER=.58,VEHICLE_STEER_GRIP_FRACTION=.95,VEHICLE_ROAD_MU=1.08;
 const VEHICLE_GEAR_RATIOS=[3.15,2.20,1.65,1.30,1.05];
 const vehicleClamp=(value,min,max)=>Math.max(min,Math.min(max,value));
-function vehicleSurfaceProfile(surface){if(surface==='grass')return{mu:.38,cornering:2.45,yawResponse:2.8,rolling:1.25};if(surface==='shoulder')return{mu:.72,cornering:4.35,yawResponse:4.4,rolling:.52};return{mu:1.08,cornering:6.4,yawResponse:6.2,rolling:.16}}
+function vehicleSurfaceProfile(surface){if(surface==='grass')return{mu:.38,cornering:2.45,yawResponse:2.8,rolling:1.25};if(surface==='shoulder')return{mu:.72,cornering:4.35,yawResponse:4.4,rolling:.52};return{mu:VEHICLE_ROAD_MU,cornering:6.4,yawResponse:6.2,rolling:.16}}
 function vehicleLocalVelocity(state){const c=Math.cos(state.heading||0),s=Math.sin(state.heading||0),vx=Number(state.vx)||0,vz=Number(state.vz)||0;return{forward:vx*c+vz*s,lateral:-vx*s+vz*c}}
 function vehicleSlipAngleFromLocal(forward,lateral){return Math.atan2(lateral,Math.max(2,Math.abs(forward)))}
+function vehicleMaxSteerAngle(speed){const v=Math.max(1,Math.abs(Number(speed)||0)),roadGrip=VEHICLE_ROAD_MU*VEHICLE_GRAVITY,gripLimited=Math.atan(VEHICLE_WHEELBASE*roadGrip*VEHICLE_STEER_GRIP_FRACTION/(v*v));return Math.min(VEHICLE_MAX_STEER,gripLimited)}
 function vehicleRpmForGear(forwardSpeed,gear){const ratio=VEHICLE_GEAR_RATIOS[vehicleClamp(Math.trunc(gear||1),1,VEHICLE_GEAR_RATIOS.length)-1],wheelRpm=Math.abs(forwardSpeed)/(2*Math.PI*VEHICLE_WHEEL_RADIUS)*60;return vehicleClamp(wheelRpm*ratio*VEHICLE_FINAL_DRIVE,VEHICLE_IDLE_RPM,VEHICLE_REDLINE_RPM)}
 function vehicleTorqueFactor(rpm){const normalized=(vehicleClamp(rpm,VEHICLE_IDLE_RPM,VEHICLE_REDLINE_RPM)-4300)/3300;return vehicleClamp(.62+.38*(1-normalized*normalized),.46,1)}
 function vehicleUpdateDerived(state){const local=vehicleLocalVelocity(state);state.forwardSpeed=local.forward;state.lateralSpeed=local.lateral;state.speed=Math.hypot(Number(state.vx)||0,Number(state.vz)||0);state.slipAngle=vehicleSlipAngleFromLocal(local.forward,local.lateral);state.gear=vehicleClamp(Math.trunc(state.gear||1),1,VEHICLE_GEAR_RATIOS.length);state.rpm=vehicleRpmForGear(local.forward,state.gear);return state}
@@ -31,7 +32,7 @@ function stepVehicleDynamics(state,controls,surface,dt){
   dt=vehicleClamp(Number(dt)||0,0,.05);if(dt<=0)return vehicleUpdateDerived(state);
   const profile=vehicleSurfaceProfile(surface),throttle=vehicleClamp(Number(controls?.throttle)||0,-1,1),steer=vehicleClamp(Number(controls?.steer)||0,-1,1),damage=vehicleClamp((Number(state.damage)||0)/100,0,1);
   let local=vehicleLocalVelocity(state),forward=local.forward,speed=Math.hypot(Number(state.vx)||0,Number(state.vz)||0);
-  const maxSteer=.58/(1+speed*.018),targetSteer=-steer*maxSteer,steerStep=3.25*dt;state.steerAngle=(Number(state.steerAngle)||0)+vehicleClamp(targetSteer-(Number(state.steerAngle)||0),-steerStep,steerStep);
+  const maxSteer=vehicleMaxSteerAngle(speed),targetSteer=-steer*maxSteer,steerStep=3.25*dt;state.steerAngle=(Number(state.steerAngle)||0)+vehicleClamp(targetSteer-(Number(state.steerAngle)||0),-steerStep,steerStep);
   const rpm=vehicleUpdateTransmission(state,forward,throttle,dt),grip=profile.mu*VEHICLE_GRAVITY,maxYaw=grip/Math.max(4,Math.abs(forward)),balance=throttle<0?1.07:throttle>0?.93:1,kinematicYaw=forward/VEHICLE_WHEELBASE*Math.tan(state.steerAngle),targetYaw=vehicleClamp(kinematicYaw,-maxYaw*balance,maxYaw*balance),yawBlend=vehicleClamp(profile.yawResponse*dt,0,1);
   state.yawRate=(Number(state.yawRate)||0)+(targetYaw-(Number(state.yawRate)||0))*yawBlend;if(speed<1)state.yawRate*=Math.max(0,1-dt*4);state.heading=(Number(state.heading)||0)+state.yawRate*dt;
   local=vehicleLocalVelocity(state);forward=local.forward;const lateral=local.lateral,lateralRequest=-lateral*profile.cornering,lateralAccel=vehicleClamp(lateralRequest,-grip*.98,grip*.98),ratio=VEHICLE_GEAR_RATIOS[state.gear-1],gearFactor=Math.pow(ratio/VEHICLE_GEAR_RATIOS[0],.62),engineFactor=vehicleTorqueFactor(rpm),damagePower=1-damage*.58,drag=profile.rolling+.0017*forward*Math.abs(forward),engineBrake=1.45*(rpm/VEHICLE_REDLINE_RPM)*(.45+.55*gearFactor)*(state.shiftTimer>0?.2:1);let longitudinalRequest;
