@@ -13,7 +13,7 @@ test('initializes the full lab without browser errors', async ({ page }) => {
   const errors = collectBrowserErrors(page);
   await page.goto('/simulator.html', { waitUntil: 'networkidle' });
 
-  await expect(page.locator('[data-app-version]').first()).toHaveText('v1.2.4');
+  await expect(page.locator('[data-app-version]').first()).toHaveText('v1.2.5');
   await expect(page.locator('#bootError')).toBeHidden();
   await expect(page.locator('#scene canvas')).toHaveCount(1);
   await expect(page.locator('#visionChip')).toContainText('40×16');
@@ -31,6 +31,7 @@ test('initializes the full lab without browser errors', async ({ page }) => {
   await expect(page.locator('#lapTimeChart')).toBeVisible();
 
   await expect(page.locator('#trainingCarCount')).toHaveValue('1');
+  await expect(page.locator('#observationCameraMode')).toHaveValue('pov');
   await expect(page.locator('#resetMode')).toHaveValue('never');
   await expect(page.locator('#trainingStaggered')).toBeChecked();
   await expect(page.locator('#trainingCarCollisions')).not.toBeChecked();
@@ -54,7 +55,7 @@ test('can begin learning and produce experience', async ({ page }) => {
   await expect(page.locator('#bootError')).toBeHidden();
   expect(errors, errors.join('\n\n')).toEqual([]);
 });
-test('can configure parallel learners and mirrored training', async ({ page }) => {
+test('can configure parallel learners, mirroring, and overhead neural input', async ({ page }) => {
   const errors = collectBrowserErrors(page);
   await page.goto('/simulator.html', { waitUntil: 'networkidle' });
   await page.locator('#trainingCarCount').selectOption('6');
@@ -63,6 +64,13 @@ test('can configure parallel learners and mirrored training', async ({ page }) =
   await expect(page.locator('#trackText')).toContainText('mirrored');
   await page.locator('#trainingCarCollisions').check();
   await expect(page.locator('#trainingCarCollisions')).toBeChecked();
+  await page.locator('#observationCameraMode').selectOption('overhead');
+  await expect(page.locator('#observationCameraMode')).toHaveValue('overhead');
+  await page.getByRole('button', { name: /Start learning/ }).click();
+  await expect.poll(async () => {
+    const text = await page.locator('#experienceText').innerText();
+    return Number(text.split('/')[0].trim()) || 0;
+  }, { timeout: 20_000 }).toBeGreaterThan(0);
   await expect(page.locator('#bootError')).toBeHidden();
   expect(errors, errors.join('\n\n')).toEqual([]);
 });

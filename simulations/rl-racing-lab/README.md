@@ -1,14 +1,20 @@
 # POV RL Racing Lab
 
-A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from rendered POV cameras, vehicle-local senses, and explicit memorized-track context; a separate four-car evaluation mode freezes that policy and races it without learning.
+A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from a selectable rendered neural camera, vehicle-local senses, and explicit memorized-track context; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.2.4**
+Current release: **v1.2.5**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.5: selectable overhead neural view
+
+Observation revision **O6** keeps O5's 662-input baseline and memorized-track context, but adds a **Neural camera** environment switch between the original **Driver POV** and a heading-aligned **Overhead look-ahead** view. The overhead camera sits 16 m above and 9 m behind the car and looks 10 m ahead, keeping the learner's own car plus substantially more upcoming road geometry in the rendered image. It uses the same configured image dimensions/channels and the same 52° neural FOV, so network shape and parameter count do not change.
+
+The selected neural camera is persisted with each brain's training state, stamped into PPO metrics/training segments/evaluation races, and included in matched-experiment comparison. Changing the camera discards any unfinished PPO batch and clean-starts the active learners without resetting learned weights; old saved brains default to POV when no camera mode exists. Evaluation uses the same selected neural view as learning. Fresh/reset overhead training is the cleanest O6 experiment because the policy learns the new pixel semantics from the start. D2 physics, R5 rewards, O5 track ID/position values, the 15-action space, and A3 PPO/GAE are unchanged.
 
 ## v1.2.4: explicit track memory context
 
@@ -152,9 +158,9 @@ Brains can now be exported or deleted directly from the library. The current ses
 
 v0.8 turns the simulator from a single fixed brain into an experiment lab. A **Lab Session** can contain multiple named brains with different visual inputs and dense-network shapes. Each brain keeps its own weights, training history, track exposure, and evaluation-race history.
 
-The baseline dense preset remains one 48-neuron hidden layer. The current O5 observation combines the POV image, eleven vehicle-local values, and eleven memorized-track values:
+The baseline dense preset remains one 48-neuron hidden layer. The current O6 observation combines a selectable neural image, eleven vehicle-local values, and eleven O5 memorized-track values:
 
-**40×16 grayscale + 11 local vehicle senses + 11 track-context values → 48 tanh → 15-action policy + value**
+**40×16 grayscale POV/overhead image + 11 local vehicle senses + 11 track-context values → 48 tanh → 15-action policy + value**
 
 Creating a different architecture creates a **new brain** rather than silently reshaping the one you already trained. Existing brains stay in the session and can be switched back in later.
 
@@ -167,7 +173,7 @@ Creating a different architecture creates a **new brain** rather than silently r
 | 40×16 RGB | 1,920 | 11 | 11 | 1,942 |
 | 80×32 RGB | 7,680 | 11 | 11 | 7,702 |
 
-RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. O5 keeps the eleven normalized vehicle-local senses and appends eleven memorized-track values: an eight-way one-hot circuit ID, a normal/mirrored flag, and sine/cosine of absolute lap position so the finish seam is continuous.
+RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the historical luminance conversion. O6 lets the visual tensor come from Driver POV or Overhead look-ahead while retaining O5's eleven vehicle-local senses and eleven memorized-track values: an eight-way one-hot circuit ID, a normal/mirrored flag, and sine/cosine of absolute lap position.
 
 ### Dense-network presets
 
@@ -178,7 +184,7 @@ RGB stores normalized red, green, and blue values per pixel. Grayscale keeps the
 
 The UI shows the resulting layer sizes, parameter count, approximate Float32 tensor size, and forward-pass MAC count before a new brain is created. The Brain Library keeps those same architecture-cost stats beside measured PPO timing for trained brains. The generic PPO implementation backpropagates through any of these dense-layer presets.
 
-Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. With the current O5 22-value auxiliary tail, **80×32 RGB + Wide has 988,048 trainable parameters** and **80×32 RGB + Deep + wide has 995,280**. The 11 added O5 track-context values are tiny compared with the image tensor; a small convolutional vision brain is still the next architecture item in [TASKS.md](TASKS.md).
+Large dense image networks are deliberately allowed for experimentation, but they can be expensive in pure browser JavaScript. O6 retains the O5 22-value auxiliary tail, so **80×32 RGB + Wide has 988,048 trainable parameters** and **80×32 RGB + Deep + wide has 995,280** in either camera mode. The selectable camera changes pixel semantics, not tensor dimensions; a small convolutional vision brain is still the next architecture item in [TASKS.md](TASKS.md).
 
 ## Live Brain Inspector
 
@@ -220,6 +226,7 @@ In **Learning** mode:
 - 1–10 active drivers can share the active brain; fresh sessions start with one;
 - staggered starts can distribute parallel learners around the circuit instead of concentrating them on the race grid;
 - training-car collisions can be disabled for ghost traffic or enabled for physical multi-car learning;
+- the **Neural camera** can switch between Driver POV and heading-aligned Overhead look-ahead; the same selected view is used in evaluation;
 - the selected track may be mirrored, and optional automatic rotation moves to the next circuit only after a complete PPO update once the configured experience interval has elapsed;
 - PPO updates after the active brain's selected 256/512/1024 combined-experience batch;
 - **Failures only** is the fresh-session reset baseline; adaptive or fixed 2,048/4,096/8,192/16,384-experience synchronized clean starts remain available, while individual failures always respawn immediately.
@@ -230,7 +237,7 @@ In **Evaluation Race** mode:
 - actions use the deterministic highest-probability choice;
 - no experiences or backpropagation are recorded;
 - the four copies race for 1, 3, or 5 laps on any available circuit;
-- completed results are stored with the active brain.
+- completed results are stored with the active brain together with the neural camera used.
 
 The Learning button also stays logically consistent through PPO. While backpropagation is running it continues to display **Pause learning** rather than flickering to Start. If Pause is clicked during backprop, the current optimizer update finishes safely and learning remains paused afterward.
 
@@ -243,7 +250,7 @@ Two charts answer different questions:
 
 Run distance is peak **net** forward progress from a spawn. Driving backward first reduces net progress, so rocking forward and backward cannot inflate the metric by repeatedly counting the same meters.
 
-The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start status, and achieved simulation speed. Driver cards now also show absolute track-position percentage, matching the circular position supplied to O5. The diagnostics line records the active learning environment plus forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
+The dashboard also shows best-ever run, off-road percentage, reward/experience, failure resets, total experiences, real/simulated training time, action mix, clean-start status, and achieved simulation speed. Driver cards also show absolute track-position percentage, matching the circular position supplied by O5. The diagnostics line records the active neural camera plus the rest of the learning environment, forward meters by surface, backtracking, no-progress percentage, collisions per 1,000 experiences, reward-component totals, policy entropy, PPO KL/clip fraction, and value explained variance.
 
 ## World, direction, collisions, and sound
 
@@ -253,7 +260,7 @@ Under O5 the policy intentionally receives circuit identity, normal/mirrored var
 
 Cars use oriented rectangular collision footprints and resolve hard car/car contact against relative world velocity, modifying both `vx/vz` vectors and yaw state before applying damage. During learning this entire car/car interaction can be disabled so multiple visible learners act as ghost traffic; evaluation always restores physical four-car interaction. Trees remain physical in both modes.
 
-Persistent spectator skid marks accumulate along the two rear-tire paths only after meaningful physical sideslip develops; ordinary high lateral-grip usage by itself no longer counts as a skid. Each rear tire is independently projected onto the nearby road/shoulder ribbon, so a tire over grass cannot paint rubber. Segment color varies from faint to near-black with slide strength and speed. Marks survive ordinary driver failures, clean starts, laps, and PPO updates, clear only when circuit geometry is rebuilt, stop accumulating during Headless learning, and remain explicitly hidden from every neural POV capture.
+Persistent spectator skid marks accumulate along the two rear-tire paths only after meaningful physical sideslip develops; ordinary high lateral-grip usage by itself no longer counts as a skid. Each rear tire is independently projected onto the nearby road/shoulder ribbon, so a tire over grass cannot paint rubber. Segment color varies from faint to near-black with slide strength and speed. Marks survive ordinary driver failures, clean starts, laps, and PPO updates, clear only when circuit geometry is rebuilt, stop accumulating during Headless learning, and remain explicitly hidden from every neural observation capture.
 
 Optional Web Audio synthesizes engine tone from actual RPM and adds filtered tire scrub/skid noise from the same slip-based scrub signal, plus collision transients. Audio and skid rendering remain presentation-only and never feed or write learning state; road/shoulder/grass friction coefficients are unchanged by this visual refinement.
 
@@ -267,7 +274,7 @@ All 1×/2×/4×/10×/50× settings use the same chronological scheduler:
 
 Higher requested speeds ask the browser to process more identical simulated work per wall-clock second; they do not switch physics or policy timing. At high speed the spectator/dashboard are simply repainted less often.
 
-Headless is a **presentation flag, not a learning mode**. It suppresses spectator, driver-card, and Brain Inspector repainting while summary metrics and both learning-progress charts remain live at a throttled cadence. Physics, neural POV rendering, observations, actions, reward, experience collection, PPO, and reset logic use the same path.
+Headless is a **presentation flag, not a learning mode**. It suppresses spectator, driver-card, and Brain Inspector repainting while summary metrics and both learning-progress charts remain live at a throttled cadence. Physics, neural observation rendering, observations, actions, reward, experience collection, PPO, and reset logic use the same path.
 
 ## Folder structure
 
@@ -285,11 +292,11 @@ src/js/vehicle-dynamics.js Pure world-velocity/yaw/slip/transmission model and l
 src/js/learning-contract.js Pure reward, exploration-temperature, and clean-reset contract.
 src/js/state.js       Configurable vision/network presets, constants, mutable state.
 src/js/track-layouts.js Pure rounded-waypoint circuit definitions, resampling, and geometry validation.
-src/js/scene.js       Three.js renderer, cameras, dynamic POV render targets.
+src/js/scene.js       Three.js renderer, cameras, dynamic neural-observation render targets.
 src/js/tracks.js      Rendered track surfaces, markings, scenery, and physical-distance metadata.
 src/js/cars.js        Car meshes, dynamic state, grid placement, direction telemetry.
 src/js/model.js       Configurable dense actor-critic networks, legacy-input migration, gradients.
-src/js/perception.js  Configurable grayscale/RGB POV plus vehicle-local and O5 track-context observations.
+src/js/perception.js  Configurable grayscale/RGB POV/overhead neural images plus vehicle-local and O5 track-context observations.
 src/js/simulation.js  Policy decisions and experience collection.
 src/js/physics.js     Reward/surface integration plus car/tree collision impulses.
 src/js/effects.js     Presentation-only persistent skid marks plus sparks, debris, smoke, dust, and tree fragments.
