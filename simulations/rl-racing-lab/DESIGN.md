@@ -1,8 +1,8 @@
-# POV RL Racing Lab — v1.2.5 Design
+# POV RL Racing Lab — v1.2.6 Design
 
 ## Goal
 
-v1.2 keeps the configurable dense-brain experiment platform and D2 sim-cade vehicle model, then removes avoidable learning noise while adding explicit known-track memorization and selectable visual framing: correct next-state PPO bootstrapping, continuous signed progress, a clean one-car baseline, configurable traffic/staggering, mirrored/larger circuits, deterministic rotation, O5 circuit/position context, and O6 Driver-POV/overhead neural cameras.
+v1.2 keeps the configurable dense-brain experiment platform and advances the sim-cade vehicle model to D3, removing avoidable learning noise while adding explicit known-track memorization and selectable visual framing: grip-scaled steering authority, correct next-state PPO bootstrapping, continuous signed progress, a clean one-car baseline, configurable traffic/staggering, mirrored/larger circuits, deterministic rotation, O5 circuit/position context, and O6 Driver-POV/overhead neural cameras.
 
 The causal chain is now:
 
@@ -75,7 +75,7 @@ The baseline therefore becomes:
 
 **662 → 48 tanh → 15-action policy + value**
 
-The hidden shapes, 15-action encoding, D2 physical environment, R5 reward, and A3 trainer remain unchanged. O6 changes only which camera produces the visual tensor; input size remains 662 for the baseline.
+The hidden shapes, 15-action encoding, D3 physical environment, R5 reward, and A3 trainer remain unchanged by O6. O6 changes only which camera produces the visual tensor; input size remains 662 for the baseline.
 
 Example parameter counts:
 
@@ -208,23 +208,27 @@ Requested 1×/2×/4×/10×/50× speed changes only how much of this same sequenc
 
 Headless remains presentation-only. It suppresses spectator, driver-card, and Brain Inspector repainting, but summary metrics and both learning-progress charts remain live at the throttled headless dashboard cadence. It does not select another physics, observation, reward, experience, PPO, or reset path. Neural observation render targets still run because they are the policy input.
 
-## Vehicle dynamics v2: world velocity, yaw, grip, and drivetrain
+## Vehicle dynamics v3: meaningful steering authority, world velocity, yaw, grip, and drivetrain
 
-`vehicle-dynamics.js` is deliberately renderer-independent. The authoritative planar motion state is `x/z`, world velocity `vx/vz`, chassis `heading`, and `yawRate`; steering angle, gear/shift state, damage, and the previous discrete policy controls complete the persistent vehicle state. Forward/lateral speed and slip angle are derived in the chassis frame each step rather than replacing world velocity.
+`vehicle-dynamics.js` remains renderer-independent. The authoritative planar motion state is `x/z`, world velocity `vx/vz`, chassis `heading`, and `yawRate`; steering angle, gear/shift state, damage, and the previous discrete policy controls complete the persistent vehicle state. Forward/lateral speed and slip angle are derived in the chassis frame each step rather than replacing world velocity.
 
-At each fixed 1/60-second tick, the current road/shoulder/grass surface selects a friction coefficient, cornering response, yaw response, and rolling resistance. Steering is rate-limited toward a speed-sensitive steering angle. A wheelbase-based kinematic yaw request is then capped by available lateral acceleration (`μg`) and approached with a surface-dependent yaw response. This creates speed/grip-limited understeer instead of allowing arbitrary heading rotation.
+D3 changes the policy-command-to-steering mapping. D2 used `0.58 / (1 + speed * 0.018)`, which still allowed medium and hard actions to request many times the curvature the road tires could support at racing speed; the downstream grip clamp therefore made `0.5` and `1.0` steering behave too similarly. D3 computes the full-command angle from `atan(wheelbase * 0.95 * roadGrip / speed^2)` capped at the existing 0.58-rad mechanical lock. This makes the five discrete steering actions meaningfully separated at speed while retaining large low-speed lock for tight corners. The reference uses dry-road grip because steering-wheel authority itself should not shrink on grass; the active surface still limits the realized tire/yaw response afterward.
 
-After chassis yaw advances, lateral tire acceleration opposes chassis-frame lateral velocity but is itself capped by grip. Engine/brake acceleration and lateral acceleration share a circular friction budget: lateral demand reduces the longitudinal acceleration still available in that tick. Because chassis heading and world velocity evolve separately, tire saturation can leave persistent sideslip; when demand drops, lateral force aligns velocity back toward the car and the slide is recoverable.
+At each fixed 1/60-second tick, road/shoulder/grass selects its friction coefficient, cornering response, yaw response, and rolling resistance. A wheelbase-based kinematic yaw request is capped by the active surface's available lateral acceleration (`mu*g`) and approached with surface-dependent yaw response. After chassis yaw advances, the single lateral tire acceleration opposes chassis-frame lateral velocity but is itself capped by grip. Engine/brake acceleration and lateral acceleration share the circular friction budget, so braking/acceleration cannot coexist with unlimited cornering force.
 
-The drivetrain is a lightweight five-speed automatic. Wheel speed, gear ratio, final drive, and wheel radius produce RPM; shift thresholds select gears; a bounded torque curve changes drive acceleration across the rev range; and a short shift timer cuts drive force during the shift. Damage reduces available power and maximum speed. This is a sim-cade mechanism, not a clutch/differential/turbo or per-wheel driveline model.
+This model supports real chassis/velocity misalignment and recoverable sideslip, but **D3 does not yet model a true rear-axle breakaway/spinout well**. There is only one chassis-wide lateral alignment force, and maximum chassis yaw (`~mu*g/speed`) is intentionally close to the maximum rate at which the lateral force can rotate the velocity vector (`~0.98*mu*g/speed`). The body therefore has little opportunity to rotate substantially faster than the travel direction and let the rear come around.
+
+A convincing D4 skid-out model does not require full Pacejka tires. A lightweight bicycle/axle model can compute front and rear slip angles separately, apply nonlinear lateral-force curves that rise to a peak and then flatten/drop after breakaway, and apply those axle forces at front/rear lever arms to create a real yaw moment. Adding simple longitudinal load transfer and sharing each axle's friction budget with braking/drive would then allow lift-off oversteer, power/brake-induced rear saturation, recoverable drifts, and genuine spins while remaining browser-friendly.
+
+The drivetrain remains a lightweight five-speed automatic. Wheel speed, gear ratio, final drive, and wheel radius produce RPM; shift thresholds select gears; a bounded torque curve changes drive acceleration across the rev range; and a short shift timer cuts drive force during the shift. Damage reduces available power and maximum speed. This is a sim-cade mechanism, not a clutch/differential/turbo or per-wheel driveline model.
 
 The neural observation tail contains eleven normalized vehicle-local values: scalar speed, signed forward speed, lateral speed, yaw rate, slip angle, previous steering command, previous throttle/brake command, damage, RPM, gear, and actual steering angle. O5 appends eleven explicit memorized-track values: eight one-hot circuit identity values, a normal/mirrored variant flag, and sine/cosine of absolute lap position. The position comes from continuous projected track arc, so staggered spawns share the same location code for the same physical corner and the finish seam remains continuous.
 
 Saved pre-v1.0 image+2, O3 image+10, and O4 image+11 networks migrate to O5's 662-input tensor by preserving old weights and zero-initializing new context weights. O6 does not resize that tensor, so O5 networks load without weight migration; old saved training states simply default their missing camera mode to POV. Historical provenance is not rewritten, and Reset establishes a fresh current O6/R5/A3 seeded run.
 
-`VEHICLE_DYNAMICS_VERSION = 2` remains the physical model and current `VEHICLE_OBSERVATION_VERSION = 6` denotes selectable POV/overhead neural images plus the existing eleven vehicle senses and eleven O5 memorized-track values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 5`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, neural camera, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
+`VEHICLE_DYNAMICS_VERSION = 3` is the current physical model and `VEHICLE_OBSERVATION_VERSION = 6` denotes selectable POV/overhead neural images plus the existing eleven vehicle senses and eleven O5 memorized-track values. Current fresh metrics additionally stamp `TRACK_LAYOUT_VERSION = 3`, `REWARD_CONTRACT_VERSION = 5`, and `TRAINER_VERSION = 3`. Comparison is fully matched only when seed, track/mirror variant, neural camera, T/D/O/R/A revisions, complete learning-environment setup, and seeded-from-start provenance all agree.
 
-The executable source gate is designed to validate R5 reward/reset math, A3 bootstrap/temperature guardrails, O6's unchanged 662-input shape plus POV/overhead camera constants/default/wiring, O5 circuit/variant/circular-position semantics and legacy input migrations, acceleration/shifting/braking/slide behavior, all T3 track geometries/mirroring, deterministic RNG streams, and classic-script load order. The Playwright smoke gate additionally switches to overhead mode and verifies that real learning experience is collected without browser errors.
+The executable source gate validates D3's low-speed lock, 18 m-hairpin capability, speed-descending steering authority, and the fact that high-speed half/full steering no longer collapse into the same road-grip request. It also retains R5 reward/reset math, A3 bootstrap/temperature guardrails, O6 camera wiring, O5 context/migrations, acceleration/shifting/braking/slide behavior, all T3 track geometries/mirroring, deterministic RNG streams, and classic-script load order. The Playwright smoke gate additionally switches to overhead mode and verifies real learning experience is collected without browser errors.
 
 ## Track layout v3: larger/mirrored circuits and continuous arc distance
 
@@ -236,7 +240,7 @@ The circuit catalog now includes the original six layouts plus **Endurance Ring*
 
 The Whole Track spectator camera derives its target/height from current track bounds. Fog is temporarily removed only while rendering this human-facing overview; neural observer cameras keep the existing fog and observation path.
 
-Current v1.2.5 fresh training records **T3/D2/O6/R5/A3**. Older missing revision/camera fields retain their historical defaults rather than being silently relabeled; continuing an older brain preserves earlier revision-stamped history while new metrics/segments use the current contract, and Reset establishes a fresh current-contract seeded run.
+Current v1.2.6 fresh training records **T3/D3/O6/R5/A3**. Older missing revision/camera fields retain their historical defaults rather than being silently relabeled; continuing an older brain preserves earlier revision-stamped history while new metrics/segments use the current contract, and Reset establishes a fresh current-contract seeded run.
 
 ## Training environment, tracks, and clean starts
 
@@ -289,5 +293,5 @@ Brain-vs-brain garage races, ghost comparisons, and tournaments are deliberately
 v1.2 deliberately stops after cleaning the environment/reward/bootstrap contract. Architecture and optimizer changes remain separate experiments so their effect is measurable:
 
 - **Experiment Lab:** small CNN vision brain, ghost/checkpoint comparison, tournament evaluation, and performance-threshold curriculum on top of the new manual/periodic environment controls.
-- **Trainer experiments:** compare GAE λ, entropy regularization, value-loss weight, Adam/minibatching, KL stopping, and global gradient clipping under matched T3/D2/O6/R5/A3 seeds and neural-camera modes rather than changing several at once.
+- **Trainer experiments:** compare GAE λ, entropy regularization, value-loss weight, Adam/minibatching, KL stopping, and global gradient clipping under matched T3/D3/O6/R5/A3 seeds and neural-camera modes rather than changing several at once.
 - **Later controlled tests:** compare O6 Driver POV versus Overhead look-ahead under matched seeds, then explore recurrent memory, wet/low-grip distribution shift, and other physics variants using explicit environment revisions rather than silently changing existing runs.

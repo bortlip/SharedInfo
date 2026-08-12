@@ -12,7 +12,8 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 ## Later experiments / fun
 
 - [ ] Distribution-shift tests: wet track, dusk/night, fog, changed scenery/markings.
-- [ ] Controlled comparison: O6 Driver POV versus Overhead look-ahead under matched T3/D2/R5/A3 seeds; later compare recurrent memory.
+- [ ] Controlled comparison: O6 Driver POV versus Overhead look-ahead under matched T3/D3/R5/A3 seeds; later compare recurrent memory.
+- [ ] D4 vehicle dynamics: split front/rear axle slip angles and tire forces, add nonlinear breakaway/drop-off and axle yaw moments, then simple load-transfer/friction sharing so genuine oversteer, drift recovery, and spinouts are possible without a full Pacejka model.
 - [ ] Generalization score across tracks the brain did not train on.
 - [ ] Add generated/procedural circuits and unseen-track suites beyond the expanded hand-authored T3 catalog.
 - [ ] Better race presentation: start lights, lap board, podium/results history, optional replay/ghost traces.
@@ -22,6 +23,13 @@ This is the single living checklist for the lab. Keep it short, move finished wo
 - [ ] Revisit multi-brain arenas later: different saved policies for racing and independent co-training in one physical world.
 
 ## Done
+
+### v1.2.6 Grip-scaled steering authority
+
+- [x] Advance D2→D3 by mapping full steering to approximately 95% of dry-road grip-limited curvature at the current speed while preserving the low-speed mechanical lock.
+- [x] Restore meaningful separation between half and full steering at racing speed without changing the five steering actions, braking, transmission, surface friction, R5 reward, O6 observations, or A3 PPO/GAE.
+- [x] Guard low-speed lock, 18 m-radius hairpin capability, descending steering authority with speed, and high-speed half/full grip demand in the executable dynamics probe.
+- [x] Document the current single-lateral-force limitation: recoverable sideslip is real, but sustained rear breakaway/spinout is not yet a faithful physical mode.
 
 ### v1.2.5 Selectable neural camera
 

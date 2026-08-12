@@ -2,13 +2,21 @@
 
 A browser-based reinforcement-learning racing laboratory. Learning can run **1–10 parallel copies of one shared actor-critic policy** from a selectable rendered neural camera, vehicle-local senses, and explicit memorized-track context; a separate four-car evaluation mode freezes that policy and races it without learning.
 
-Current release: **v1.2.5**
+Current release: **v1.2.6**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/rl-racing-lab/src/)
 - [See the living work plan](TASKS.md)
 - [Related lab: Perception Rover](https://bortlip.github.io/SharedInfo/simulations/perception-rover/)
 - [Related lab: Neural Playground](https://bortlip.github.io/SharedInfo/simulations/neural-playground/)
+
+## v1.2.6: steering that stays meaningful at racing speed
+
+Dynamics revision **D3** fixes a control-resolution problem in D2. The five policy steering choices are still `-1 / -0.5 / 0 / +0.5 / +1`, but the maximum physical steering angle is now derived from speed and dry-road grip instead of the old loose speed scalar. Full steering requests about **95% of the dry-road grip-limited curvature** at the current speed, capped by the existing 0.58-rad (~33°) mechanical lock. Approximate full-steer limits are 33° at 5 m/s, 10° at 12 m/s, 3.7° at 20 m/s, 1.6° at 30 m/s, and 0.9° at 40 m/s. At 12 m/s the car still has enough steering authority for the catalog's 18 m minimum-radius hairpin, while at highway/racing speeds half-steer is now a genuine moderate request instead of another path straight into the tire-grip cap.
+
+The steering mapping uses dry-road capability intentionally; shoulder/grass do not make the steering rack stop turning. Their lower `mu` still caps the realized yaw/lateral force downstream, so the same steering request can understeer or slide off asphalt. D3 otherwise leaves surface friction, cornering/yaw response, braking, transmission, tire-scrub presentation, R5 rewards, O6 observations, the 15-action space, and A3 PPO/GAE unchanged. Fresh/reset runs stamp **T3/D3/O6/R5/A3**; continued D2 brains retain their historical D2 segments while new metrics use D3.
+
+D3 still models one chassis-wide lateral alignment force, so it supports recoverable sideslip but not a convincing rear-axle breakaway/spinout. A future dynamics revision is tracked for front/rear axle slip and nonlinear tire breakaway rather than hiding that limitation behind stronger skid visuals.
 
 ## v1.2.5: selectable overhead neural view
 

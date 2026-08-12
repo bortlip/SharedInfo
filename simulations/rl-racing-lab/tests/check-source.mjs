@@ -61,13 +61,14 @@ try{
   vm.runInContext(`${learningContractSource}\n${physicsSource}\nconst car={lapStartedAt:12,lastLapTime:0};const first=recordCompletedLap(car);sim.simClock=50;sim.mode='race';const second=recordCompletedLap(car);sim.mode='learn';const terminalCar={pendingDone:false,pendingReward:2,actionSteer:1,actionThrottle:1};const terminalFirst=markCarTerminal(terminalCar),terminalSecond=markCarTerminal(terminalCar);globalThis.__lapTimingProbe={first,second,start:car.lapStartedAt,last:car.lastLapTime,total:sim.batchLapTimeTotal,count:sim.batchLapTimeCount,best:sim.batchBestLapTime,terminalFirst,terminalSecond,terminalReward:terminalCar.pendingReward,terminalBatch:sim.batchTerminalPenalty,terminalDone:terminalCar.pendingDone,terminalStopped:terminalCar.stopped};`,lapTimingContext);
   const p=lapTimingContext.__lapTimingProbe;if(!p||Math.abs(p.first-30)>1e-9||Math.abs(p.second-8)>1e-9||p.start!==50||p.last!==8||p.total!==30||p.count!==1||p.best!==30||p.terminalFirst!==true||p.terminalSecond!==false||p.terminalReward!==-13||p.terminalBatch!==-15||p.terminalDone!==true||p.terminalStopped!==true){failed=true;console.error('\nLap-timing / terminal execution check failed:',p)}
 }catch(error){failed=true;console.error('\nLap-timing / terminal execution check threw:',error)}
-// Execute the pure v1.0 sim-cade vehicle model: acceleration/shifts, braking, grip differences,
-// slide recovery, observation bounds, and long-run finite state.
+// Execute the pure D3 sim-cade vehicle model: acceleration/shifts, braking, speed-aware steering,
+// grip differences, slide recovery, observation bounds, and long-run finite state.
 const vehicleDynamicsSource = classicSources.get('vehicle-dynamics.js');
 const vehicleContext = vm.createContext({});
 try {
   vm.runInContext(`${vehicleDynamicsSource}
 function __car(speed=0){const s={x:0,z:0,heading:0,vx:0,vz:0,damage:0,gear:1,shiftTimer:0,actionSteer:0,actionThrottle:0};vehicleResetMotion(s,speed);return s}
+const steeringLow=vehicleMaxSteerAngle(5),steering12=vehicleMaxSteerAngle(12),steering20=vehicleMaxSteerAngle(20),steering30=vehicleMaxSteerAngle(30),roadGrip=vehicleSurfaceProfile('road').mu*VEHICLE_GRAVITY,hairpinRequired=Math.atan(VEHICLE_WHEELBASE/18),halfSteerLat30=30*30/VEHICLE_WHEELBASE*Math.tan(steering30*.5),fullSteerLat30=30*30/VEHICLE_WHEELBASE*Math.tan(steering30);
 const straight=__car();for(let i=0;i<600;i++)stepVehicleDynamics(straight,{steer:0,throttle:1},'road',1/60);
 const accelerated={speed:straight.speed,gear:straight.gear,slip:straight.slipAngle,rpm:straight.rpm};
 for(let i=0;i<240;i++)stepVehicleDynamics(straight,{steer:0,throttle:-1},'road',1/60);const brakeSpeed=straight.speed;
@@ -77,17 +78,18 @@ const gentle=__car(22);gentle.vz=.5;vehicleUpdateDerived(gentle);stepVehicleDyna
 const slide=__car();slide.vx=18;slide.vz=6;vehicleUpdateDerived(slide);const slipBefore=Math.abs(slide.slipAngle);stepVehicleDynamics(slide,{steer:0,throttle:0},'road',1/60);const slideScrub=slide.tireScrub;for(let i=1;i<180;i++)stepVehicleDynamics(slide,{steer:0,throttle:0},'road',1/60);const slipAfter=Math.abs(slide.slipAngle);
 const senseCar=__car(40);senseCar.steerAngle=.29;const observation=vehicleObservationValues(senseCar);
 const longRun=__car(8);for(let i=0;i<6000;i++){const phase=i%720,steer=phase<180?.65:phase<360?-.65:0,throttle=phase<540?1:0;stepVehicleDynamics(longRun,{steer,throttle},i%1200>980?'shoulder':'road',1/60)}
-globalThis.__vehicleProbe={accelerated,brakeSpeed,roadHeading:Math.abs(road.heading),grassHeading:Math.abs(grass.heading),roadSlip:Math.abs(road.slipAngle),grassSlip:Math.abs(grass.slipAngle),lowGearCoast:lowGear.speed,highGearCoast:highGear.speed,gentleScrub,slideScrub,slipBefore,slipAfter,observation,longRun:[longRun.x,longRun.z,longRun.vx,longRun.vz,longRun.heading,longRun.speed,longRun.yawRate,longRun.slipAngle]};`, vehicleContext);
+globalThis.__vehicleProbe={dynamicsVersion:VEHICLE_DYNAMICS_VERSION,steeringLow,steering12,steering20,steering30,roadGrip,hairpinRequired,halfSteerLat30,fullSteerLat30,accelerated,brakeSpeed,roadHeading:Math.abs(road.heading),grassHeading:Math.abs(grass.heading),roadSlip:Math.abs(road.slipAngle),grassSlip:Math.abs(grass.slipAngle),lowGearCoast:lowGear.speed,highGearCoast:highGear.speed,gentleScrub,slideScrub,slipBefore,slipAfter,observation,longRun:[longRun.x,longRun.z,longRun.vx,longRun.vz,longRun.heading,longRun.speed,longRun.yawRate,longRun.slipAngle]};`, vehicleContext);
   const p = vehicleContext.__vehicleProbe;
   const obs = Array.from(p?.observation || []);
   const finiteLongRun = Array.from(p?.longRun || []).every(Number.isFinite);
-  if (!p || p.accelerated.speed < 20 || p.accelerated.gear < 2 || Math.abs(p.accelerated.slip) > .03 || p.brakeSpeed > 1 || p.roadHeading <= p.grassHeading * 1.15 || !(p.lowGearCoast < p.highGearCoast-.25) || p.gentleScrub > 1e-6 || p.slideScrub < .5 || p.slipAfter >= p.slipBefore * .4 || obs.length !== 11 || Math.abs(obs[0]-1) > 1e-6 || Math.abs(obs[10]-.5) > 1e-6 || obs.some(v => !Number.isFinite(v) || v < -1.000001 || v > 1.000001) || !finiteLongRun) {
+  const steeringContract=p&&Math.abs(p.steeringLow-.58)<1e-9&&p.steering12>p.hairpinRequired&&p.steering12>p.steering20&&p.steering20>p.steering30&&p.fullSteerLat30>p.roadGrip*.94&&p.fullSteerLat30<p.roadGrip*.96&&p.halfSteerLat30>p.roadGrip*.44&&p.halfSteerLat30<p.roadGrip*.52;
+  if (!p || p.dynamicsVersion!==3 || !steeringContract || p.accelerated.speed < 20 || p.accelerated.gear < 2 || Math.abs(p.accelerated.slip) > .03 || p.brakeSpeed > 1 || p.roadHeading <= p.grassHeading * 1.15 || !(p.lowGearCoast < p.highGearCoast-.25) || p.gentleScrub > 1e-6 || p.slideScrub < .5 || p.slipAfter >= p.slipBefore * .4 || obs.length !== 11 || Math.abs(obs[0]-1) > 1e-6 || Math.abs(obs[10]-.5) > 1e-6 || obs.some(v => !Number.isFinite(v) || v < -1.000001 || v > 1.000001) || !finiteLongRun) {
     failed = true;
-    console.error('\nVehicle-dynamics execution check failed:', p);
+    console.error('\nVehicle-dynamics D3 execution check failed:', p);
   }
 } catch (error) {
   failed = true;
-  console.error('\nVehicle-dynamics execution check threw:', error);
+  console.error('\nVehicle-dynamics D3 execution check threw:', error);
 }
 
 // Build every pure circuit definition and enforce the road-ribbon safety envelope.
@@ -179,4 +181,4 @@ for (const htmlFile of htmlFiles) {
 }
 
 if (failed) process.exit(1);
-console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; O6 selectable POV/overhead neural cameras + O5 track-context observations/migrations + R5/A3 learning contract validated; vehicle dynamics and all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
+console.log(`Source checks passed: ${jsFiles.length} JavaScript files parsed; D3 speed/grip-aware steering + O6 selectable POV/overhead neural cameras + O5 track-context observations/migrations + R5/A3 learning contract validated; vehicle dynamics and all track layouts validated; deterministic learning path guarded; shared helpers are early; no pre-declaration HTML-id/global hazards found.`);
