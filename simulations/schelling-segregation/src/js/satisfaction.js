@@ -14,15 +14,15 @@ function evaluateStats(agent, stats, config) {
   const threshold = agentThreshold(agent, config);
   if (stats.occupied === 0) {
     const satisfied = s.isolated === 'satisfied';
-    return { satisfied, threshold, utility: 0, reason: satisfied ? 'No occupied neighbors; configured satisfied.' : 'No occupied neighbors; configured unsatisfied.' };
+    return { satisfied, threshold, score: 0, utility: 0, reason: satisfied ? 'No occupied neighbors; configured satisfied.' : 'No occupied neighbors; configured unsatisfied.' };
   }
-  let satisfied = false, reason = '';
-  if (s.rule === 'minSimilarFraction') { satisfied = stats.similarFraction >= threshold; reason = `${pct(stats.similarFraction)} same-group vs ${pct(threshold)} required`; }
-  else if (s.rule === 'maxDifferentFraction') { satisfied = stats.differentFraction <= threshold; reason = `${pct(stats.differentFraction)} different-group vs ${pct(threshold)} maximum`; }
-  else if (s.rule === 'minSameCount') { satisfied = stats.same >= threshold; reason = `${stats.same} same-group vs ${Math.ceil(threshold)} required`; }
-  else if (s.rule === 'majority') { satisfied = stats.same > stats.different; reason = `${stats.same} same vs ${stats.different} different`; }
-  else { const score = stats.similarFraction - stats.differentFraction; satisfied = score >= threshold; reason = `utility ${score.toFixed(2)} vs ${threshold.toFixed(2)} required`; }
-  return { satisfied, threshold, utility: stats.similarFraction - stats.differentFraction, reason };
+  let satisfied = false, reason = '', score = 0;
+  if (s.rule === 'minSimilarFraction') { score = stats.similarFraction; satisfied = score >= threshold; reason = `${pct(stats.similarFraction)} same-group vs ${pct(threshold)} required`; }
+  else if (s.rule === 'maxDifferentFraction') { score = -stats.differentFraction; satisfied = stats.differentFraction <= threshold; reason = `${pct(stats.differentFraction)} different-group vs ${pct(threshold)} maximum`; }
+  else if (s.rule === 'minSameCount') { score = stats.same; satisfied = score >= threshold; reason = `${stats.same} same-group vs ${Math.ceil(threshold)} required`; }
+  else if (s.rule === 'majority') { score = stats.same - stats.different; satisfied = score > 0; reason = `${stats.same} same vs ${stats.different} different`; }
+  else { score = stats.similarFraction - stats.differentFraction; satisfied = score >= threshold; reason = `utility ${score.toFixed(2)} vs ${threshold.toFixed(2)} required`; }
+  return { satisfied, threshold, score, utility: score, reason };
 }
 
 function evaluateAgent(world, agentId, config) {
