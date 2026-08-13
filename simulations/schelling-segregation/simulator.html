@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Interactive Schelling neighborhood model laboratory with configurable groups, neighborhoods, movement rules, deterministic seeds, metrics, and A/B comparison." />
+<link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/schelling-segregation/simulator.html" />
+<link rel="stylesheet" href="src/styles.css" />
+<title>Schelling Segregation Lab</title>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="brandmark">S</div><div><h1>Schelling Segregation Lab</h1><p>Small local preferences. Large global patterns. Many knobs to blame.</p></div></div>
+  <div class="top-status"><a class="chip version-chip" href="https://github.com/bortlip/SharedInfo/tree/main/simulations/schelling-segregation"><strong data-app-version>v—</strong></a><span class="chip live" id="simStatusChip">Ready</span><span class="chip">Groups <strong id="topGroups">2</strong></span><span class="chip">Seed <strong id="topSeed">7319</strong></span></div>
+</header>
+<div class="layout">
+<main class="main-column">
+<section class="card world-card">
+  <div class="world-toolbar"><button class="primary-btn" id="playBtn">▶ Run</button><button class="secondary-btn" id="stepBtn">Step</button><button class="secondary-btn" id="resetSameBtn">↺ Same world</button><button class="secondary-btn" id="newWorldBtn">✦ New world</button><div class="speed-group"><button class="speed-btn active" data-speed="1">1×</button><button class="speed-btn" data-speed="2">2×</button><button class="speed-btn" data-speed="5">5×</button><button class="speed-btn" data-speed="20">20×</button></div><div class="spacer"></div><label class="toggle"><input type="checkbox" id="compareToggle" /> A/B compare</label></div>
+  <div class="world-stage" id="worldStage">
+    <div class="world-pane"><div class="pane-title"><span>World A</span><span id="worldALabel">threshold 30%</span></div><div class="canvas-wrap"><canvas class="world-canvas" id="worldCanvas" width="1200" height="840"></canvas><div class="canvas-help">Hover to inspect · click to pin · custom mode: click to paint</div></div></div>
+    <div class="world-pane" id="comparePane" hidden><div class="pane-title"><span>World B · same initial world</span><span id="worldBLabel">threshold 40%</span></div><div class="canvas-wrap"><canvas class="world-canvas" id="compareCanvas" width="1200" height="840"></canvas><div class="canvas-help">Same starting cells; comparison threshold differs</div></div></div>
+  </div>
+  <div class="metrics-strip"><div class="metric"><label>Satisfied</label><strong id="metricSatisfied">—</strong></div><div class="metric"><label>Segregation index</label><strong id="metricSegregation">—</strong></div><div class="metric"><label>Same-neighbor share</label><strong id="metricSimilarity">—</strong></div><div class="metric"><label>Largest cluster</label><strong id="metricLargest">—</strong></div><div class="metric"><label>Total moves</label><strong id="metricMoves">0</strong></div><div class="metric"><label>Iteration</label><strong id="metricRound">0</strong></div></div>
+</section>
+<div class="insights">
+  <section class="card section"><div class="section-head"><div><h2>Convergence trace</h2><p>Satisfaction and normalized segregation over time.</p></div><span class="chip" id="historyStatus">initial state</span></div><canvas id="historyCanvas" width="760" height="210"></canvas></section>
+  <section class="card section"><div class="section-head"><div><h2>Groups</h2><p>Population colors and current counts.</p></div></div><div class="legend" id="legend"></div><p class="experiment-note"><strong>Model note:</strong> this is a configurable toy model for studying how local rules create spatial patterns. It is not a complete causal model of real neighborhoods.</p></section>
+</div>
+</main>
+<aside class="sidebar">
+<section class="card side-card"><div class="section-head"><div><h2>Experiment</h2><p>Choose a preset, then change any assumption.</p></div></div><div class="settings-grid"><div class="field full"><label for="presetSelect">Preset</label><select id="presetSelect"><option value="classic">Classic Schelling</option><option value="threeGroups">Three groups</option><option value="swap">Full occupancy + swaps</option><option value="local">Local search</option><option value="bestChoice">Best available destination</option><option value="simultaneous">Round sweep</option></select></div><div class="field"><label for="compareThreshold">World B threshold</label><div class="range-row"><input id="compareThreshold" type="range" min="0" max="1" step="0.01" value="0.40" /><span class="range-value" id="compareThresholdValue">40%</span></div></div><div class="field"><label for="paintGroupSelect">Custom paint</label><select id="paintGroupSelect"><option value="-1">Vacancy</option></select></div></div></section>
+<section class="card">
+<details class="settings" open><summary>Population & initial world</summary><div class="settings-body">
+  <div class="settings-grid">
+    <div class="field"><label for="groupsInput">Groups</label><input id="groupsInput" type="number" min="2" max="20" value="2" /></div>
+    <div class="field"><label for="vacancyInput">Vacancy rate</label><div class="range-row"><input id="vacancyInput" type="range" min="0" max="0.90" step="0.01" value="0.12" /><span class="range-value" id="vacancyValue">12%</span></div></div>
+    <div class="field"><label for="colsInput">Columns</label><input id="colsInput" type="number" min="12" max="140" value="60" /></div>
+    <div class="field"><label for="rowsInput">Rows</label><input id="rowsInput" type="number" min="12" max="100" value="44" /></div>
+    <div class="field"><label for="distributionSelect">Initial pattern</label><select id="distributionSelect"><option value="random">Random</option><option value="clustered">Loose clusters</option><option value="striped">Stripes</option><option value="custom">Custom / paint</option></select></div>
+    <div class="field"><label for="seedInput">Seed</label><input id="seedInput" type="number" min="1" max="999999999" value="7319" /></div>
+  </div>
+  <div><span class="small-label">Relative group shares</span><div class="group-actions"><button class="secondary-btn" id="equalSharesBtn" type="button">Equalize</button><span class="experiment-note">Weights are normalized automatically.</span></div><div class="group-shares" id="groupShares"></div></div>
+</div></details>
+<details class="settings"><summary>Neighborhood</summary><div class="settings-body">
+  <div class="settings-grid"><div class="field"><label for="neighborhoodSelect">Shape</label><select id="neighborhoodSelect"><option value="moore">Moore / surrounding</option><option value="vonNeumann">Von Neumann / orthogonal</option></select></div><div class="field"><label for="radiusInput">Radius</label><input id="radiusInput" type="number" min="1" max="6" value="1" /></div></div>
+  <div class="check-grid"><label class="toggle"><input type="checkbox" id="wrapToggle" /> wrap edges (torus)</label><label class="toggle"><input type="checkbox" id="ignoreVacanciesToggle" checked /> ignore vacancies in ratios</label></div>
+</div></details>
+<details class="settings"><summary>Satisfaction rule</summary><div class="settings-body">
+  <div class="settings-grid">
+    <div class="field full"><label for="satisfactionRuleSelect">Rule</label><select id="satisfactionRuleSelect"><option value="minSimilarFraction">Minimum same-group fraction</option><option value="maxDifferentFraction">Maximum different-group fraction</option><option value="minSameCount">Minimum same-group count</option><option value="majority">Same-group majority</option><option value="weightedUtility">Weighted utility (same − different)</option></select></div>
+    <div class="field full"><label for="thresholdInput" id="thresholdLabel">Minimum same-group share</label><div class="range-row"><input id="thresholdInput" type="range" min="0" max="1" step="0.01" value="0.30" /><span class="range-value" id="thresholdValue">30%</span></div></div>
+    <div class="field"><label for="isolatedSelect">No occupied neighbors</label><select id="isolatedSelect"><option value="satisfied">Satisfied</option><option value="unsatisfied">Unsatisfied</option></select></div>
+    <div class="field"><label for="variationInput">Threshold variation</label><div class="range-row"><input id="variationInput" type="range" min="0" max="0.50" step="0.01" value="0.10" /><span class="range-value" id="variationValue">±10%</span></div></div>
+  </div>
+  <label class="toggle"><input type="checkbox" id="heterogeneousToggle" /> heterogeneous thresholds</label>
+</div></details>
+<details class="settings"><summary>Movement</summary><div class="settings-body">
+  <div class="settings-grid">
+    <div class="field"><label for="movementModeSelect">Relocation mode</label><select id="movementModeSelect"><option value="vacancy">Vacancies only</option><option value="swap">Swap only</option><option value="either">Vacancy or swap</option></select></div>
+    <div class="field"><label for="selectionSelect">Agent selection</label><select id="selectionSelect"><option value="randomSequential">Random sequential</option><option value="fixedOrder">Fixed order</option><option value="allPerRound">All unhappy per round</option><option value="snapshotRound">Snapshot-simultaneous round</option></select></div>
+    <div class="field"><label for="destinationSelect">Destination</label><select id="destinationSelect"><option value="randomVacancy">Random candidate</option><option value="randomSatisfying">Random satisfying</option><option value="best">Best available</option><option value="nearestSatisfying">Nearest satisfying</option><option value="leastBad">Least bad</option></select></div>
+    <div class="field"><label for="fallbackSelect">If none satisfy</label><select id="fallbackSelect"><option value="stay">Stay put</option><option value="best">Move to best</option><option value="random">Move randomly</option></select></div>
+    <div class="field"><label for="searchSelect">Search scope</label><select id="searchSelect"><option value="global">Whole world</option><option value="local">Within radius</option></select></div>
+    <div class="field"><label for="searchRadiusInput">Move radius</label><input id="searchRadiusInput" type="number" min="1" max="30" value="8" /></div>
+  </div>
+  <label class="toggle"><input type="checkbox" id="allowSatisfiedToggle" /> allow satisfied agents to relocate when non-worsening</label>
+</div></details>
+<details class="settings"><summary>Simulation & stopping</summary><div class="settings-body">
+  <div class="settings-grid">
+    <div class="field"><label for="simulationModeSelect">Time model</label><select id="simulationModeSelect"><option value="continuous">Continuous attempts</option><option value="round">Round sweeps</option></select></div>
+    <div class="field"><label for="movesPerTickInput">Attempts / tick</label><input id="movesPerTickInput" type="number" min="1" max="500" value="20" /></div>
+    <div class="field"><label for="maxIterationsInput">Max iterations</label><input id="maxIterationsInput" type="number" min="1" max="100000" value="5000" /></div>
+    <div class="field"><label for="quietRoundsInput">Quiet rounds</label><input id="quietRoundsInput" type="number" min="1" max="100" value="5" /></div>
+  </div>
+  <div class="check-grid"><label class="toggle"><input type="checkbox" id="stopSatisfiedToggle" checked /> stop when everyone satisfied</label><label class="toggle"><input type="checkbox" id="stopNoLegalToggle" checked /> stop when no legal move exists</label><label class="toggle"><input type="checkbox" id="stopQuietToggle" checked /> stop after quiet rounds</label><label class="toggle"><input type="checkbox" id="stopMaxToggle" checked /> stop at iteration cap</label></div>
+</div></details>
+<details class="settings"><summary>Visualization</summary><div class="settings-body">
+  <div class="settings-grid"><div class="field full"><label for="colorSchemeSelect">Color scheme</label><select id="colorSchemeSelect"><option value="vivid">Vivid</option><option value="pastel">Pastel</option><option value="colorblind">Colorblind-friendly</option><option value="neon">Neon</option></select></div></div>
+  <div class="check-grid"><label class="toggle"><input type="checkbox" id="showVacanciesToggle" checked /> show vacancies</label><label class="toggle"><input type="checkbox" id="showUnhappyToggle" checked /> mark unsatisfied</label><label class="toggle"><input type="checkbox" id="showNeighborhoodToggle" checked /> selected neighborhood</label><label class="toggle"><input type="checkbox" id="animateMovesToggle" checked /> animate recent moves</label><label class="toggle"><input type="checkbox" id="showTrailsToggle" /> recent move trails</label><label class="toggle"><input type="checkbox" id="gridLinesToggle" /> grid lines</label><label class="toggle"><input type="checkbox" id="clusterOutlinesToggle" /> cluster boundaries</label></div>
+</div></details>
+<div class="apply-strip"><button class="primary-btn" id="applySettingsBtn">Apply rules · same world</button><button class="secondary-btn" id="shareBtn">Copy experiment link</button></div>
+</section>
+<section class="card side-card"><div class="section-head"><div><h2>Cell inspector</h2><p>Pin an occupied cell to see the rule applied locally.</p></div></div><div class="inspector"><div class="inspector-title"><span class="swatch" id="inspectorSwatch"></span><span id="inspectorTitle">Nothing selected</span></div><div class="inspector-grid"><div class="mini"><label>Same neighbors</label><strong id="inspectSame">—</strong></div><div class="mini"><label>Different</label><strong id="inspectDifferent">—</strong></div><div class="mini"><label>Local share</label><strong id="inspectShare">—</strong></div><div class="mini"><label>Status</label><strong id="inspectStatus">—</strong></div></div><div class="inspector-copy" id="inspectorCopy">Click an agent in World A. Hovering also shows a compact explanation.</div></div></section>
+<section class="card side-card"><div class="warning"><strong>Model boundary:</strong> this lab isolates mechanisms. Real residential patterns are also shaped by policy, discrimination, income and wealth, lending, zoning, housing supply, geography, institutions, and history.</div></section>
+</aside>
+</div>
+<footer class="site-footer">Schelling Segregation Lab <span data-app-version>v—</span> · deterministic seeds · no external libraries · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/schelling-segregation">source on GitHub</a></footer>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<script src="src/js/version.js"></script>
+<script src="src/js/constants.js"></script>
+<script src="src/js/utils.js"></script>
+<script src="src/js/state.js"></script>
+<script src="src/js/world.js"></script>
+<script src="src/js/neighborhood.js"></script>
+<script src="src/js/satisfaction.js"></script>
+<script src="src/js/movement.js"></script>
+<script src="src/js/metrics.js"></script>
+<script src="src/js/simulation.js"></script>
+<script src="src/js/render.js"></script>
+<script src="src/js/ui.js"></script>
+<script src="src/js/app.js"></script>
+</body>
+</html>
