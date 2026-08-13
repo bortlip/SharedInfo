@@ -22,6 +22,42 @@ const COLOR_SCHEMES = {
   neon: ['#dfff00','#6c7bff','#00f5c4','#ff4d7d','#ffb000','#b56cff','#00d9ff','#ff4fd8','#79ff4d','#ff7b35','#2d8cff','#bfff27','#ff5d00','#775dff','#00e5ff','#ff6e8a','#d58b52','#77ff00','#ff9d2e','#4de9ff']
 };
 
+const B_OVERRIDE_DEFS = [
+  { key:'satisfaction.threshold', group:'Satisfaction', label:'Satisfaction threshold', type:'number', min:-1, max:200, step:.01, defaultEnabled:true, defaultValue:.40, help:'Override only World B’s satisfaction threshold. The valid interpretation follows B’s satisfaction rule.' },
+  { key:'satisfaction.rule', group:'Satisfaction', label:'Satisfaction rule', type:'select', defaultValue:'minSimilarFraction', options:[['minSimilarFraction','Minimum same-group fraction'],['maxDifferentFraction','Maximum different-group fraction'],['minSameCount','Minimum same-group count'],['majority','Same-group majority'],['weightedUtility','Weighted utility']], help:'Use a different rule to decide whether World B agents are satisfied.' },
+  { key:'satisfaction.isolated', group:'Satisfaction', label:'No occupied neighbors', type:'select', defaultValue:'satisfied', options:[['satisfied','Satisfied'],['unsatisfied','Unsatisfied']], help:'Override how isolated World B agents are treated.' },
+  { key:'satisfaction.heterogeneous', group:'Satisfaction', label:'Heterogeneous thresholds', type:'boolean', defaultValue:false, help:'Give World B agents stable individual threshold differences.' },
+  { key:'satisfaction.variation', group:'Satisfaction', label:'Threshold variation', type:'number', min:0, max:.5, step:.01, defaultValue:.10, help:'Maximum per-agent threshold variation in World B when heterogeneous thresholds are enabled.' },
+  { key:'neighborhood.type', group:'Neighborhood', label:'Neighborhood shape', type:'select', defaultValue:'moore', options:[['moore','Moore / surrounding'],['vonNeumann','Von Neumann / orthogonal']], help:'Use a different neighborhood geometry in World B.' },
+  { key:'neighborhood.radius', group:'Neighborhood', label:'Neighborhood radius', type:'number', min:1, max:6, step:1, defaultValue:1, help:'How far World B agents look when evaluating nearby cells.' },
+  { key:'neighborhood.wrap', group:'Neighborhood', label:'Wrap edges', type:'boolean', defaultValue:false, help:'Make World B wrap across opposite grid edges.' },
+  { key:'neighborhood.ignoreVacancies', group:'Neighborhood', label:'Ignore vacancies in ratios', type:'boolean', defaultValue:true, help:'Choose whether World B excludes vacancies from neighborhood ratio denominators.' },
+  { key:'movement.mode', group:'Movement', label:'Relocation mode', type:'select', defaultValue:'vacancy', options:[['vacancy','Vacancies only'],['swap','Swap only'],['either','Vacancy or swap']], help:'Override whether World B moves into vacancies, swaps, or can do either.' },
+  { key:'movement.selection', group:'Movement', label:'Agent selection', type:'select', defaultValue:'randomSequential', options:[['randomSequential','Random sequential'],['fixedOrder','Fixed order'],['allPerRound','All unhappy per round'],['snapshotRound','Snapshot-simultaneous round']], help:'Override how World B chooses agents for movement.' },
+  { key:'movement.destination', group:'Movement', label:'Destination choice', type:'select', defaultValue:'randomSatisfying', options:[['randomVacancy','Random candidate'],['randomSatisfying','Random satisfying'],['best','Best available'],['nearestSatisfying','Nearest satisfying'],['leastBad','Least bad']], help:'Override how World B chooses a destination.' },
+  { key:'movement.fallback', group:'Movement', label:'If none satisfy', type:'select', defaultValue:'stay', options:[['stay','Stay put'],['best','Move to best'],['random','Move randomly']], help:'What World B does when no candidate satisfies the rule.' },
+  { key:'movement.search', group:'Movement', label:'Search scope', type:'select', defaultValue:'global', options:[['global','Whole world'],['local','Within radius']], help:'Search all of World B or only nearby destinations.' },
+  { key:'movement.searchRadius', group:'Movement', label:'Move radius', type:'number', min:1, max:30, step:1, defaultValue:8, help:'Maximum relocation distance for World B local search.' },
+  { key:'movement.allowSatisfied', group:'Movement', label:'Satisfied agents may move', type:'boolean', defaultValue:false, help:'Allow satisfied World B agents to relocate when the destination is non-worsening.' },
+  { key:'simulation.mode', group:'Simulation & stopping', label:'Time model', type:'select', defaultValue:'continuous', options:[['continuous','Continuous attempts'],['round','Round sweeps']], help:'Override the World B simulation time model.' },
+  { key:'simulation.movesPerTick', group:'Simulation & stopping', label:'Attempts / tick', type:'number', min:1, max:500, step:1, defaultValue:20, help:'Maximum move attempts per World B continuous tick.' },
+  { key:'simulation.maxIterations', group:'Simulation & stopping', label:'Max iterations', type:'number', min:1, max:100000, step:1, defaultValue:5000, help:'World B iteration cap.' },
+  { key:'simulation.quietRounds', group:'Simulation & stopping', label:'Quiet rounds', type:'number', min:1, max:100, step:1, defaultValue:5, help:'World B no-move iterations required by the quiet-stop rule.' },
+  { key:'simulation.stopSatisfied', group:'Simulation & stopping', label:'Stop when all satisfied', type:'boolean', defaultValue:true, help:'Let World B stop when every occupied agent is satisfied.' },
+  { key:'simulation.stopNoLegal', group:'Simulation & stopping', label:'Stop when no legal move', type:'boolean', defaultValue:true, help:'Let World B stop when no eligible agent has a legal move.' },
+  { key:'simulation.stopQuiet', group:'Simulation & stopping', label:'Stop after quiet rounds', type:'boolean', defaultValue:true, help:'Let World B stop after its configured quiet-round count.' },
+  { key:'simulation.stopMax', group:'Simulation & stopping', label:'Stop at iteration cap', type:'boolean', defaultValue:true, help:'Let World B stop at its maximum iteration count.' },
+  { key:'population.groups', group:'Initial world', label:'Groups', type:'number', min:2, max:20, step:1, defaultValue:2, structural:true, help:'Give World B a different number of groups. This requires a different initial world.' },
+  { key:'population.groupWeights', group:'Initial world', label:'Relative group shares', type:'weights', defaultValue:'1, 1', structural:true, help:'Comma-separated relative group weights for World B. They are normalized automatically and adapted to B’s group count.' },
+  { key:'population.vacancyRate', group:'Initial world', label:'Vacancy rate', type:'number', min:0, max:.9, step:.01, defaultValue:.12, structural:true, help:'Give World B a different vacancy rate. This breaks the matched starting grid.' },
+  { key:'population.cols', group:'Initial world', label:'Columns', type:'number', min:12, max:140, step:1, defaultValue:60, structural:true, help:'Give World B a different grid width. This creates a different initial world.' },
+  { key:'population.rows', group:'Initial world', label:'Rows', type:'number', min:12, max:100, step:1, defaultValue:44, structural:true, help:'Give World B a different grid height. This creates a different initial world.' },
+  { key:'population.distribution', group:'Initial world', label:'Initial pattern', type:'select', defaultValue:'random', structural:true, options:[['random','Random'],['clustered','Loose clusters'],['striped','Stripes']], help:'Give World B a different generated starting pattern. This creates a different initial world.' },
+  { key:'population.seed', group:'Initial world', label:'Seed', type:'number', min:1, max:999999999, step:1, defaultValue:7319, structural:true, help:'Give World B an independent random seed. This creates a different initial world.' }
+];
+
+const DEFAULT_COMPARE_OVERRIDES = Object.fromEntries(B_OVERRIDE_DEFS.map(def => [def.key, { enabled:Boolean(def.defaultEnabled), value:def.defaultValue }]));
+
 const DEFAULT_CONFIG = {
   population: { groups: 2, groupWeights: [1,1], vacancyRate: .12, cols: 60, rows: 44, distribution: 'random', seed: 7319 },
   neighborhood: { type: 'moore', radius: 1, wrap: false, ignoreVacancies: true },
@@ -29,7 +65,7 @@ const DEFAULT_CONFIG = {
   movement: { mode: 'vacancy', selection: 'randomSequential', destination: 'randomSatisfying', fallback: 'stay', search: 'global', searchRadius: 8, allowSatisfied: false },
   simulation: { mode: 'continuous', movesPerTick: 20, maxIterations: 5000, quietRounds: 5, stopSatisfied: true, stopNoLegal: true, stopQuiet: true, stopMax: true },
   visual: { colorScheme: 'vivid', markerStyle: 'strongOutline', showVacancies: true, showUnhappy: true, showNeighborhood: true, animateMoves: true, showTrails: false, gridLines: false, clusterOutlines: false },
-  compare: { enabled: false, threshold: .40 }
+  compare: { enabled: false, overrides: DEFAULT_COMPARE_OVERRIDES }
 };
 
 const PRESETS = {

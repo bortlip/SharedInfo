@@ -1,8 +1,8 @@
 # Schelling Segregation Lab
 
-An interactive, dependency-free laboratory for Schelling-style residential sorting models. Start with the classic two-group vacancy model, then change the assumptions: 2–20 groups, neighborhood geometry, tolerance rules, heterogeneous agents, swapping, local search, destination choice, stopping rules, visualization, and synchronized A/B comparison.
+An interactive, dependency-free laboratory for Schelling-style residential sorting models. Start with the classic two-group vacancy model, then change the assumptions: 2–20 groups, neighborhood geometry, tolerance rules, heterogeneous agents, swapping, local search, destination choice, stopping rules, visualization, and synchronized A/B comparison with per-setting World B overrides.
 
-Current release: **v1.0.0**
+Current release: **v1.1.0**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/schelling-segregation/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/schelling-segregation/src/)
@@ -11,8 +11,8 @@ Current release: **v1.0.0**
 
 ```text
 index.html          Stable redirect to the released simulator.
-src/index.html      Source entry point; opens the release shell that loads src directly.
-src/index.html      Direct modular-source preview.
+simulator.html      Released application shell; loads the modular src scripts.
+src/index.html      Source entry point; opens the release shell.
 src/styles.css      Application styling.
 src/js/             JavaScript organized by responsibility.
 ```
@@ -40,6 +40,12 @@ The released page and modular source load the same ordinary browser scripts in d
 The default "segregation index" is a baseline-adjusted local same-neighbor score: observed mean same-group neighbor share is compared with the share expected from the current group proportions. It is useful for within-lab comparisons, but it should not be confused with a uniquely canonical empirical segregation index.
 
 Snapshot-simultaneous rounds let all eligible agents choose from the same frozen pre-move world. If plans conflict, they are applied in randomized order only while their original source and target still match that snapshot.
+
+A/B comparison treats World A as the base configuration. World B inherits A and applies only explicitly enabled overrides. Rule and behavior overrides retain the exact same initial snapshot. Population, grid, distribution, or seed overrides create a separate deterministic World B initial snapshot, and the UI labels that comparison as using a different initial world.
+
+## Release discipline
+
+Increment `src/js/version.js` for every user-visible change to this simulation, and keep the `Current release` value in this README synchronized.
 ## Model note
 
 This is a configurable toy model for exploring how local rules can produce aggregate spatial patterns. It is not a complete causal model of real residential segregation; housing policy, discrimination, wealth, lending, zoning, geography, migration, and many other mechanisms are intentionally absent unless modeled explicitly.

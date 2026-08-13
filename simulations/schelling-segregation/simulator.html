@@ -20,7 +20,7 @@
   <div class="world-toolbar"><button class="primary-btn" id="playBtn">▶ Run</button><button class="secondary-btn" id="stepBtn">Step</button><button class="secondary-btn" id="resetSameBtn">↺ Same world</button><button class="secondary-btn" id="newWorldBtn">✦ New world</button><button class="secondary-btn apply-btn" id="applySettingsBtn">Apply changes</button><span class="pending-chip" id="pendingSettingsChip" hidden>settings pending</span><div class="speed-group"><button class="speed-btn active" data-speed="1">1×</button><button class="speed-btn" data-speed="2">2×</button><button class="speed-btn" data-speed="5">5×</button><button class="speed-btn" data-speed="20">20×</button></div><div class="spacer"></div><label class="toggle"><input type="checkbox" id="compareToggle" /> A/B compare</label></div>
   <div class="world-stage" id="worldStage">
     <div class="world-pane"><div class="pane-title"><span>World A</span><span id="worldALabel">threshold 30%</span></div><div class="canvas-wrap"><canvas class="world-canvas" id="worldCanvas" width="1200" height="840"></canvas><div class="canvas-help">Hover to inspect · click to pin · custom mode: click to paint</div></div></div>
-    <div class="world-pane" id="comparePane" hidden><div class="pane-title"><span>World B · same initial world</span><span id="worldBLabel">threshold 40%</span></div><div class="canvas-wrap"><canvas class="world-canvas" id="compareCanvas" width="1200" height="840"></canvas><div class="canvas-help">Same starting cells; comparison threshold differs</div></div></div>
+    <div class="world-pane" id="comparePane" hidden><div class="pane-title"><span>World B · <span id="worldBStartLabel">same initial world</span></span><span id="worldBLabel">1 override</span></div><div class="canvas-wrap"><canvas class="world-canvas" id="compareCanvas" width="1200" height="840"></canvas><div class="canvas-help" id="worldBHelp">Same starting cells; World B inherits A except for enabled overrides.</div></div></div>
   </div>
   <div class="metrics-strip"><div class="metric"><label>Satisfied</label><strong id="metricSatisfied">—</strong></div><div class="metric"><label>Segregation index</label><strong id="metricSegregation">—</strong></div><div class="metric"><label>Same-neighbor share</label><strong id="metricSimilarity">—</strong></div><div class="metric"><label>Largest cluster</label><strong id="metricLargest">—</strong></div><div class="metric"><label>Total moves</label><strong id="metricMoves">0</strong></div><div class="metric"><label>Iteration</label><strong id="metricRound">0</strong></div></div>
 </section>
@@ -30,7 +30,19 @@
 </div>
 </main>
 <aside class="sidebar">
-<section class="card side-card"><div class="section-head"><div><h2>Experiment</h2><p>Choose a preset, then change any assumption.</p></div></div><div class="settings-grid"><div class="field full"><label for="presetSelect">Preset</label><select id="presetSelect"><option value="classic">Classic Schelling</option><option value="threeGroups">Three groups</option><option value="swap">Full occupancy + swaps</option><option value="local">Local search</option><option value="bestChoice">Best available destination</option><option value="simultaneous">Snapshot-simultaneous</option></select></div><div class="field"><label for="compareThreshold">World B threshold</label><div class="range-row"><input id="compareThreshold" type="range" min="0" max="1" step="0.01" value="0.40" /><span class="range-value" id="compareThresholdValue">40%</span></div></div><div class="field"><label for="paintGroupSelect">Custom paint</label><select id="paintGroupSelect"><option value="-1">Vacancy</option></select></div></div><p class="help-note">Hover most controls for a quick explanation. Model-setting edits show <strong>settings pending</strong> until you use <strong>Apply changes</strong> in the toolbar; visualization options update immediately.</p></section>
+<section class="card side-card">
+  <div class="section-head"><div><h2>Experiment</h2><p>Choose a preset, then change any assumption.</p></div></div>
+  <div class="settings-grid">
+    <div class="field"><label for="presetSelect">Preset</label><select id="presetSelect"><option value="classic">Classic Schelling</option><option value="threeGroups">Three groups</option><option value="swap">Full occupancy + swaps</option><option value="local">Local search</option><option value="bestChoice">Best available destination</option><option value="simultaneous">Snapshot-simultaneous</option></select></div>
+    <div class="field"><label for="paintGroupSelect">Custom paint</label><select id="paintGroupSelect"><option value="-1">Vacancy</option></select></div>
+  </div>
+  <p class="help-note">Hover most controls for a quick explanation. Model-setting edits show <strong>settings pending</strong> until you use <strong>Apply changes</strong> in the toolbar; visualization options update immediately.</p>
+  <div class="compare-builder" id="compareBuilder" hidden>
+    <div class="compare-builder-head"><div><strong>World B overrides</strong><span id="compareStartMode">Same exact initial world</span></div><button class="secondary-btn" id="clearBOverridesBtn" type="button">Clear overrides</button></div>
+    <p class="compare-copy">World B inherits every World A setting unless you enable an override. Rule/behavior overrides keep the exact same starting grid. Initial-world overrides create a separate B starting world and are labeled accordingly.</p>
+    <div id="compareOverrideControls"></div>
+  </div>
+</section>
 <section class="card">
 <details class="settings" open><summary>Population & initial world</summary><div class="settings-body">
   <div class="settings-grid">

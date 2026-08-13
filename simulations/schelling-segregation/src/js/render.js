@@ -89,8 +89,10 @@ function drawHistory() {
 }
 
 function renderAll(){
-  renderWorld(sim.worldA,ctx,sim.config,sim.selectedIndex);
-  if(sim.config.compare.enabled) renderWorld(sim.worldB,compareCtx,comparisonConfig(),sim.selectedIndex);
+  const selectedA=sim.selectedWorld==='A'?sim.selectedIndex:null;
+  const selectedB=sim.selectedWorld==='B'?sim.selectedIndex:null;
+  renderWorld(sim.worldA,ctx,sim.config,selectedA);
+  if(sim.config.compare.enabled) renderWorld(sim.worldB,compareCtx,comparisonConfig(),selectedB);
   drawHistory();
 }
 
