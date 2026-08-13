@@ -164,5 +164,8 @@ function loadConfigFromUrl() {
   sim.config=mergeDeep(deepClone(DEFAULT_CONFIG),decoded);
   sim.config.population.groups=clamp(Math.round(sim.config.population.groups),2,MAX_GROUPS);
   sim.config.population.groupWeights=normalizedWeights(sim.config.population.groupWeights,sim.config.population.groups);
-  writeFormConfig(sim.config); sim.status='Loaded shared experiment'; return true;
+  writeFormConfig(sim.config);
+  sim.config=readFormConfig();
+  writeFormConfig(sim.config);
+  sim.status='Loaded shared experiment'; return true;
 }
