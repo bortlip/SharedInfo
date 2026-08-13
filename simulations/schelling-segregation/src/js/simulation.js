@@ -1,10 +1,77 @@
 // Reset, stepping, comparison, convergence, and stop-condition orchestration.
 'use strict';
 
-function comparisonConfig() {
-  const config = deepClone(sim.config);
-  config.satisfaction.threshold = sim.config.compare.threshold;
+function normalizeComparisonSettings(config) {
+  if (!config.compare || typeof config.compare !== 'object') config.compare = {};
+  const compare = config.compare;
+  const hadOverrides = compare.overrides && typeof compare.overrides === 'object';
+  const source = hadOverrides ? compare.overrides : {};
+  const legacyThreshold = Number(compare.threshold);
+  const normalized = {};
+  for (const def of B_OVERRIDE_DEFS) {
+    const current = source[def.key];
+    let enabled = current && Object.prototype.hasOwnProperty.call(current, 'enabled') ? Boolean(current.enabled) : Boolean(def.defaultEnabled);
+    let value = current && Object.prototype.hasOwnProperty.call(current, 'value') ? current.value : def.defaultValue;
+    if (Object.prototype.hasOwnProperty.call(compare, 'threshold') && def.key === 'satisfaction.threshold' && Number.isFinite(legacyThreshold)) {
+      enabled = true; value = legacyThreshold;
+    }
+    normalized[def.key] = { enabled, value };
+  }
+  compare.enabled = Boolean(compare.enabled);
+  compare.overrides = normalized;
+  delete compare.threshold;
+  return compare;
+}
+
+function coerceComparisonValue(def, value) {
+  if (def.type === 'boolean') return value === true || value === 'true';
+  if (def.type === 'weights') {
+    const source = Array.isArray(value) ? value : String(value).split(',');
+    const weights = source.map(item => Math.max(0, Number(item))).filter(Number.isFinite);
+    return weights.length ? weights : [1];
+  }
+  if (def.type === 'number') {
+    let number = Number(value);
+    if (!Number.isFinite(number)) number = Number(def.defaultValue) || 0;
+    if (Number.isFinite(def.min)) number = Math.max(def.min, number);
+    if (Number.isFinite(def.max)) number = Math.min(def.max, number);
+    return def.step === 1 ? Math.round(number) : number;
+  }
+  return String(value);
+}
+
+function comparisonConfig(baseConfig = sim.config) {
+  const config = deepClone(baseConfig);
+  const compare = normalizeComparisonSettings(config);
+  for (const def of B_OVERRIDE_DEFS) {
+    const override = compare.overrides[def.key];
+    if (!override?.enabled) continue;
+    const [section, property] = def.key.split('.');
+    config[section][property] = coerceComparisonValue(def, override.value);
+  }
+  const p = config.population;
+  p.groups = clamp(Math.round(p.groups), 2, MAX_GROUPS);
+  p.vacancyRate = clamp(Number(p.vacancyRate), 0, .9);
+  p.cols = clamp(Math.round(p.cols), 12, 140);
+  p.rows = clamp(Math.round(p.rows), 12, 100);
+  p.seed = clamp(Math.round(p.seed), 1, 999999999);
+  p.groupWeights = normalizedWeights(p.groupWeights, p.groups);
+  config.neighborhood.radius = clamp(Math.round(config.neighborhood.radius), 1, 6);
+  config.satisfaction.variation = clamp(Number(config.satisfaction.variation), 0, .5);
+  const maxNeighbors = config.neighborhood.type === 'vonNeumann' ? 2 * config.neighborhood.radius * (config.neighborhood.radius + 1) : (2 * config.neighborhood.radius + 1) ** 2 - 1;
+  if (config.satisfaction.rule === 'minSameCount') config.satisfaction.threshold = clamp(Number(config.satisfaction.threshold), 0, maxNeighbors);
+  else if (config.satisfaction.rule === 'weightedUtility') config.satisfaction.threshold = clamp(Number(config.satisfaction.threshold), -1, 1);
+  else config.satisfaction.threshold = clamp(Number(config.satisfaction.threshold), 0, 1);
+  config.movement.searchRadius = clamp(Math.round(config.movement.searchRadius), 1, 30);
+  config.simulation.movesPerTick = clamp(Math.round(config.simulation.movesPerTick), 1, 500);
+  config.simulation.maxIterations = clamp(Math.round(config.simulation.maxIterations), 1, 100000);
+  config.simulation.quietRounds = clamp(Math.round(config.simulation.quietRounds), 1, 100);
   return config;
+}
+
+function activeComparisonOverrides(config = sim.config) {
+  const compare = normalizeComparisonSettings(config);
+  return B_OVERRIDE_DEFS.filter(def => compare.overrides[def.key]?.enabled);
 }
 
 function structuralSignature(config) {
@@ -12,21 +79,40 @@ function structuralSignature(config) {
   return JSON.stringify({ groups:p.groups, weights:normalizedWeights(p.groupWeights,p.groups), vacancy:p.vacancyRate, cols:p.cols, rows:p.rows, distribution:p.distribution, seed:p.seed });
 }
 
+function comparisonUsesSameInitialWorld(config = sim.config) {
+  return structuralSignature(config) === structuralSignature(comparisonConfig(config));
+}
+
 function initializeSimulation(makeNewInitial = true) {
   sim.running = false;
+  normalizeComparisonSettings(sim.config);
   const signature = structuralSignature(sim.config);
   if (makeNewInitial || !sim.initialSnapshot || sim.initialSignature !== signature) {
     const initial = createInitialWorld(sim.config);
     sim.initialSnapshot = snapshotWorld(initial);
     sim.initialSignature = signature;
   }
+
+  const bConfig = comparisonConfig();
+  const bSignature = structuralSignature(bConfig);
+  const sameInitial = signature === bSignature;
+  if (sameInitial) {
+    sim.initialSnapshotB = sim.initialSnapshot;
+    sim.initialSignatureB = signature;
+  } else if (makeNewInitial || !sim.initialSnapshotB || sim.initialSignatureB !== bSignature) {
+    const initialB = createInitialWorld(bConfig);
+    sim.initialSnapshotB = snapshotWorld(initialB);
+    sim.initialSignatureB = bSignature;
+  }
+
   sim.worldA = worldFromSnapshot(sim.initialSnapshot, sim.config, 0);
-  sim.worldB = worldFromSnapshot(sim.initialSnapshot, sim.config, 0);
+  sim.worldB = worldFromSnapshot(sameInitial ? sim.initialSnapshot : sim.initialSnapshotB, bConfig, 0);
   sim.selectedIndex = null;
+  sim.selectedWorld = 'A';
   sim.hoveredIndex = null;
   sim.history = [];
   computeWorldStats(sim.worldA, sim.config);
-  if (sim.config.compare.enabled) computeWorldStats(sim.worldB, comparisonConfig());
+  if (sim.config.compare.enabled) computeWorldStats(sim.worldB, bConfig);
   recordHistory();
   updateAllUI();
   renderAll();
@@ -133,6 +219,6 @@ function stepSimulation() {
   const doneB = !sim.config.compare.enabled || sim.worldB?.stopped;
   if (doneA && doneB) {
     sim.running = false;
-    sim.status = sim.config.compare.enabled ? 'Both worlds settled' : sim.worldA.stopReason;
+    sim.status = sim.config.compare.enabled ? 'Both worlds stopped' : `Stopped · ${sim.worldA.stopReason}`;
   }
 }
