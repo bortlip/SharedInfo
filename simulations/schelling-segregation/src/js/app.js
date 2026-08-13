@@ -47,16 +47,32 @@ function applyVisualSettingsOnly() {
   updateLegend();renderAll();
 }
 
+function ensureAppliedSettings() {
+  if(!sim.pendingSettings)return true;
+  sim.status='Apply pending settings before running';
+  setSettingsPending(true);updateAllUI();$('applySettingsBtn')?.focus();
+  return false;
+}
+
 function toggleRun() {
+  if(!sim.running&&!ensureAppliedSettings())return;
   if(sim.worldA?.stopped && (!sim.config.compare.enabled || sim.worldB?.stopped)){resetSameWorld();}
   sim.running=!sim.running;sim.status=sim.running?'Running':'Paused';sim.lastFrame=performance.now();updateAllUI();
 }
 
-function resetFromForm(sameWorldPreferred=true) {
-  const next=readFormConfig();
-  const sameStructure=structuralSignature(next)===structuralSignature(sim.config);
-  sim.config=next;
-  initializeSimulation(sameWorldPreferred&&sameStructure?false:true);
+function resetAppliedWorld() {
+  const hadPending=sim.pendingSettings;
+  resetSameWorld();
+  sim.status=hadPending?'Same applied world reset · pending settings not applied':'Same world reset';
+  setSettingsPending(hadPending);updateAllUI();
+}
+
+function newAppliedWorld() {
+  const hadPending=sim.pendingSettings;
+  sim.config.population.seed=randomSeed();$('seedInput').value=sim.config.population.seed;
+  initializeSimulation(true);
+  sim.status=hadPending?'New world · pending settings not applied':'New random world';
+  setSettingsPending(hadPending);updateAllUI();
 }
 
 for(const target of [canvas,compareCanvas]){
@@ -66,23 +82,24 @@ for(const target of [canvas,compareCanvas]){
 }
 
 $('playBtn').addEventListener('click',toggleRun);
-$('stepBtn').addEventListener('click',()=>{const done=sim.worldA?.stopped&&(!sim.config.compare.enabled||sim.worldB?.stopped);if(!done){stepSimulation();sim.status='Stepped once';updateAllUI();renderAll();}});
-$('resetSameBtn').addEventListener('click',()=>resetFromForm(true));
-$('newWorldBtn').addEventListener('click',()=>{
-  const next=readFormConfig();next.population.seed=randomSeed();$('seedInput').value=next.population.seed;sim.config=next;sim.status='New random world';initializeSimulation(true);
-});
+$('stepBtn').addEventListener('click',()=>{if(!ensureAppliedSettings())return;const done=sim.worldA?.stopped&&(!sim.config.compare.enabled||sim.worldB?.stopped);if(!done){stepSimulation();sim.status='Stepped once';updateAllUI();renderAll();}});
+$('resetSameBtn').addEventListener('click',resetAppliedWorld);
+$('newWorldBtn').addEventListener('click',newAppliedWorld);
 $('applySettingsBtn').addEventListener('click',applyFormSettings);
 $('shareBtn').addEventListener('click',copyExperimentLink);
 $('presetSelect').addEventListener('change',event=>applyPreset(event.target.value));
 
 $('groupsInput').addEventListener('change',()=>renderGroupShareControls());
-$('equalSharesBtn').addEventListener('click',()=>document.querySelectorAll('[data-group-weight]').forEach(input=>input.value='1'));
+$('equalSharesBtn').addEventListener('click',()=>{document.querySelectorAll('[data-group-weight]').forEach(input=>input.value='1');markSettingsPending();});
 $('satisfactionRuleSelect').addEventListener('change',()=>{syncThresholdControl(true);updateRangeLabels();});
 $('neighborhoodSelect').addEventListener('change',()=>syncThresholdControl(false));
 $('radiusInput').addEventListener('change',()=>syncThresholdControl(false));
 for(const id of ['vacancyInput','thresholdInput','variationInput','compareThreshold']) $(id).addEventListener('input',updateRangeLabels);
 $('colorSchemeSelect').addEventListener('change',applyVisualSettingsOnly);
+$('markerStyleSelect').addEventListener('change',applyVisualSettingsOnly);
 for(const id of ['showVacanciesToggle','showUnhappyToggle','showNeighborhoodToggle','animateMovesToggle','showTrailsToggle','gridLinesToggle','clusterOutlinesToggle']) $(id).addEventListener('change',applyVisualSettingsOnly);
+for(const id of PENDING_SETTING_IDS){const el=$(id);if(!el)continue;el.addEventListener(el.type==='range'?'input':'change',markSettingsPending);}
+$('groupShares').addEventListener('input',event=>{if(event.target.matches('[data-group-weight]'))markSettingsPending();});
 
 document.querySelectorAll('.speed-btn').forEach(btn=>btn.addEventListener('click',()=>{
   document.querySelectorAll('.speed-btn').forEach(other=>other.classList.remove('active'));
@@ -90,7 +107,10 @@ document.querySelectorAll('.speed-btn').forEach(btn=>btn.addEventListener('click
 }));
 
 $('compareToggle').addEventListener('change',event=>{
-  sim.config=readFormConfig();sim.config.compare.enabled=event.target.checked;sim.status=sim.config.compare.enabled?'Comparison enabled · same starting world':'Comparison disabled';resetSameWorld();
+  sim.config.compare.enabled=event.target.checked;
+  sim.config.compare.threshold=Number($('compareThreshold').value);
+  sim.status=sim.config.compare.enabled?'Comparison enabled · same starting world':'Comparison disabled';resetSameWorld();
+  setSettingsPending(sim.pendingSettings);
 });
 $('compareThreshold').addEventListener('change',()=>{
   sim.config.compare.threshold=Number($('compareThreshold').value);
@@ -121,6 +141,8 @@ window.__schellingLab=sim;
 try {
   writeFormConfig(sim.config);
   loadConfigFromUrl();
+  installControlHelp();
+  setSettingsPending(false);
   initializeSimulation(true);
   requestAnimationFrame(animationLoop);
 } catch(error) {

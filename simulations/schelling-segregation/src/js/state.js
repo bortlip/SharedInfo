@@ -17,6 +17,7 @@ const sim = {
   worldB: null,
   initialSnapshot: null,
   selectedIndex: null,
+  pendingSettings: false,
   initialSignature: null,
   hoveredIndex: null,
   history: [],

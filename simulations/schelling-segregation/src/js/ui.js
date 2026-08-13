@@ -32,7 +32,7 @@ function renderGroupShareControls(weights=null) {
   const existing=[...document.querySelectorAll('[data-group-weight]')].map(el=>Number(el.value));
   const source=weights||existing.length? (weights||existing) : sim.config.population.groupWeights;
   const normalized=normalizedWeights(source,count);
-  $('groupShares').innerHTML=Array.from({length:count},(_,g)=>`<label class="group-share"><span class="swatch" style="background:${groupColor(g,$('colorSchemeSelect').value)}"></span><span>Group ${g+1}</span><input data-group-weight="${g}" type="number" min="0" step="0.1" value="${Number((normalized[g]*count).toFixed(3))}" /></label>`).join('');
+  $('groupShares').innerHTML=Array.from({length:count},(_,g)=>`<label class="group-share" title="Relative population weight for Group ${g+1}; all group weights are normalized together."><span class="swatch" style="background:${groupColor(g,$('colorSchemeSelect').value)}"></span><span>Group ${g+1}</span><input data-group-weight="${g}" title="Relative population weight for Group ${g+1}" type="number" min="0" step="0.1" value="${Number((normalized[g]*count).toFixed(3))}" /></label>`).join('');
   $('paintGroupSelect').innerHTML='<option value="-1">Vacancy</option>'+Array.from({length:count},(_,g)=>`<option value="${g}">Group ${g+1}</option>`).join('');
 }
 
@@ -50,6 +50,7 @@ function readFormConfig() {
   config.movement={mode:$('movementModeSelect').value,selection:$('selectionSelect').value,destination:$('destinationSelect').value,fallback:$('fallbackSelect').value,search:$('searchSelect').value,searchRadius:clamp(Math.round(Number($('searchRadiusInput').value)||8),1,30),allowSatisfied:$('allowSatisfiedToggle').checked};
   config.simulation={mode:$('simulationModeSelect').value,movesPerTick:clamp(Math.round(Number($('movesPerTickInput').value)||20),1,500),maxIterations:clamp(Math.round(Number($('maxIterationsInput').value)||5000),1,100000),quietRounds:clamp(Math.round(Number($('quietRoundsInput').value)||5),1,100),stopSatisfied:$('stopSatisfiedToggle').checked,stopNoLegal:$('stopNoLegalToggle').checked,stopQuiet:$('stopQuietToggle').checked,stopMax:$('stopMaxToggle').checked};
   config.visual={colorScheme:$('colorSchemeSelect').value,showVacancies:$('showVacanciesToggle').checked,showUnhappy:$('showUnhappyToggle').checked,showNeighborhood:$('showNeighborhoodToggle').checked,animateMoves:$('animateMovesToggle').checked,showTrails:$('showTrailsToggle').checked,gridLines:$('gridLinesToggle').checked,clusterOutlines:$('clusterOutlinesToggle').checked};
+  config.visual.markerStyle=$('markerStyleSelect').value;
   config.compare={enabled:$('compareToggle').checked,threshold:Number($('compareThreshold').value)};
   return config;
 }
@@ -61,6 +62,7 @@ function writeFormConfig(config) {
   $('movementModeSelect').value=config.movement.mode;$('selectionSelect').value=config.movement.selection;$('destinationSelect').value=config.movement.destination;$('fallbackSelect').value=config.movement.fallback;$('searchSelect').value=config.movement.search;$('searchRadiusInput').value=config.movement.searchRadius;$('allowSatisfiedToggle').checked=config.movement.allowSatisfied;
   $('simulationModeSelect').value=config.simulation.mode;$('movesPerTickInput').value=config.simulation.movesPerTick;$('maxIterationsInput').value=config.simulation.maxIterations;$('quietRoundsInput').value=config.simulation.quietRounds;$('stopSatisfiedToggle').checked=config.simulation.stopSatisfied;$('stopNoLegalToggle').checked=config.simulation.stopNoLegal;$('stopQuietToggle').checked=config.simulation.stopQuiet;$('stopMaxToggle').checked=config.simulation.stopMax;
   $('colorSchemeSelect').value=config.visual.colorScheme;$('showVacanciesToggle').checked=config.visual.showVacancies;$('showUnhappyToggle').checked=config.visual.showUnhappy;$('showNeighborhoodToggle').checked=config.visual.showNeighborhood;$('animateMovesToggle').checked=config.visual.animateMoves;$('showTrailsToggle').checked=config.visual.showTrails;$('gridLinesToggle').checked=config.visual.gridLines;$('clusterOutlinesToggle').checked=config.visual.clusterOutlines;
+  $('markerStyleSelect').value=config.visual.markerStyle;
   $('compareToggle').checked=config.compare.enabled;$('compareThreshold').value=config.compare.threshold;
   renderGroupShareControls(config.population.groupWeights); syncThresholdControl(false); updateRangeLabels();
 }
@@ -71,23 +73,95 @@ function updateRangeLabels(){
   $('thresholdValue').textContent=formatThresholdValue($('satisfactionRuleSelect').value,$('thresholdInput').value);
   $('compareThresholdValue').textContent=formatThresholdValue($('satisfactionRuleSelect').value,$('compareThreshold').value);
 }
+const PENDING_SETTING_IDS = ['groupsInput','vacancyInput','colsInput','rowsInput','distributionSelect','seedInput','neighborhoodSelect','radiusInput','wrapToggle','ignoreVacanciesToggle','satisfactionRuleSelect','thresholdInput','isolatedSelect','variationInput','heterogeneousToggle','movementModeSelect','selectionSelect','destinationSelect','fallbackSelect','searchSelect','searchRadiusInput','allowSatisfiedToggle','simulationModeSelect','movesPerTickInput','maxIterationsInput','quietRoundsInput','stopSatisfiedToggle','stopNoLegalToggle','stopQuietToggle','stopMaxToggle'];
+
+function setSettingsPending(pending=true) {
+  sim.pendingSettings=Boolean(pending);
+  const button=$('applySettingsBtn'), chip=$('pendingSettingsChip');
+  if(button){button.classList.toggle('pending',sim.pendingSettings);button.textContent=sim.pendingSettings?'● Apply changes':'Apply changes';}
+  if(chip)chip.hidden=!sim.pendingSettings;
+}
+function markSettingsPending(){setSettingsPending(true);}
+
+const CONTROL_HELP = {
+  playBtn:'Run or pause the currently applied model. If settings are pending, apply them first.',
+  stepBtn:'Advance the currently applied model by one simulation tick.',
+  resetSameBtn:'Return to the exact same initial population using the currently applied rules and seed.',
+  newWorldBtn:'Create a new random starting population using the currently applied rules.',
+  applySettingsBtn:'Apply pending model changes. Rule-only changes reuse the same initial world; population or initial-world changes create a new starting world.',
+  compareToggle:'Run World B beside World A from the same starting population. Only the comparison threshold differs.',
+  presetSelect:'Load a complete preset immediately. You can then change any individual assumption.',
+  compareThreshold:'Satisfaction threshold used only by World B in A/B comparison mode.',
+  paintGroupSelect:'In Custom / paint mode, choose what a click on World A paints into a cell.',
+  groupsInput:'Number of distinct population groups, from 2 through 20.',
+  vacancyInput:'Fraction of grid cells initially left empty and available for vacancy-based moves.',
+  colsInput:'Number of grid columns. Larger worlds contain more agents and cost more to simulate.',
+  rowsInput:'Number of grid rows. Larger worlds contain more agents and cost more to simulate.',
+  distributionSelect:'How groups are arranged before the simulation begins: random, loosely clustered, striped, or hand-painted.',
+  seedInput:'Deterministic random seed. Reusing the same seed and structural settings recreates the same initial world.',
+  neighborhoodSelect:'Which nearby cells count as neighbors: Moore includes diagonals; Von Neumann uses orthogonal cells only.',
+  radiusInput:'How far outward each agent looks when evaluating its neighborhood.',
+  wrapToggle:'Treat opposite edges as touching, turning the grid into a torus with no outer boundary.',
+  ignoreVacanciesToggle:'Exclude empty cells from similarity and difference fractions. When off, vacancies remain in the denominator.',
+  satisfactionRuleSelect:'Choose the rule that determines whether an agent is satisfied with its current neighborhood.',
+  thresholdInput:'Threshold for the selected satisfaction rule. Its meaning changes with the rule.',
+  isolatedSelect:'Decide whether an agent with no occupied neighbors counts as satisfied or unsatisfied.',
+  variationInput:'Maximum per-agent variation around the shared threshold when heterogeneous thresholds are enabled.',
+  heterogeneousToggle:'Give agents stable individual threshold differences instead of one identical threshold for everyone.',
+  movementModeSelect:'Choose whether agents relocate into vacancies, swap with another group, or may do either.',
+  selectionSelect:'Choose how agents are selected for movement during each update.',
+  destinationSelect:'Choose how an eligible agent picks among possible destinations.',
+  fallbackSelect:'What an agent does when no destination satisfies its rule.',
+  searchSelect:'Search the whole grid for destinations or restrict relocation to a local radius.',
+  searchRadiusInput:'Maximum relocation distance when local search is enabled.',
+  allowSatisfiedToggle:'Allow already-satisfied agents to relocate when the destination does not make their score worse.',
+  simulationModeSelect:'Continuous mode makes a bounded number of attempts per tick; round mode evaluates a sweep of eligible agents.',
+  movesPerTickInput:'Maximum move attempts in each continuous simulation tick.',
+  maxIterationsInput:'Hard upper bound on simulation iterations when the iteration-cap stop rule is enabled.',
+  quietRoundsInput:'Number of consecutive no-move iterations required by the quiet-stop rule.',
+  stopSatisfiedToggle:'Stop when every occupied agent is satisfied.',
+  stopNoLegalToggle:'Stop when no eligible agent has a legal move under the current movement rules.',
+  stopQuietToggle:'Stop after the configured number of consecutive iterations with no moves.',
+  stopMaxToggle:'Stop when the maximum iteration count is reached.',
+  colorSchemeSelect:'Change only the group palette; this does not alter simulation behavior.',
+  markerStyleSelect:'Choose how unsatisfied agents are visually emphasized.',
+  showVacanciesToggle:'Show empty cells instead of blending them into the background.',
+  showUnhappyToggle:'Visually mark agents that currently fail their satisfaction rule.',
+  showNeighborhoodToggle:'Highlight the neighborhood cells used to evaluate the selected agent.',
+  animateMovesToggle:'Show short-lived lines for recent relocations.',
+  showTrailsToggle:'Keep recent movement lines more visible for longer.',
+  gridLinesToggle:'Draw cell boundaries over the world.',
+  clusterOutlinesToggle:'Draw boundaries where orthogonally adjacent occupied cells belong to different groups.',
+  equalSharesBtn:'Set every group weight to the same value. Changes remain pending until applied.',
+  shareBtn:'Copy a URL containing the current form configuration so the experiment can be recreated.'
+};
+
+function installControlHelp() {
+  for(const [id,help] of Object.entries(CONTROL_HELP)){
+    const el=$(id);if(!el)continue;el.title=help;
+    const label=document.querySelector(`label[for="${id}"]`);if(label)label.title=help;
+    const wrappingLabel=el.closest('label');if(wrappingLabel)wrappingLabel.title=help;
+  }
+  document.querySelectorAll('.speed-btn').forEach(btn=>btn.title=`Run the simulation at ${btn.dataset.speed}× display speed.`);
+  document.querySelectorAll('details.settings > summary').forEach(summary=>summary.title='Click to expand or collapse this group of model settings.');
+}
 
 function applyPreset(key) {
   const seed=clamp(Math.round(Number($('seedInput').value)||sim.config.population.seed),1,999999999);
   const compareEnabled=$('compareToggle').checked;
   const next=mergeDeep(deepClone(DEFAULT_CONFIG),PRESETS[key]?.patch||{});
   next.population.seed=seed; next.compare.enabled=compareEnabled;
-  sim.config=next; sim.preset=key; writeFormConfig(next); initializeSimulation(true);
+  sim.config=next; sim.preset=key; sim.pendingSettings=false; writeFormConfig(next); initializeSimulation(true); setSettingsPending(false);
 }
 
 function applyFormSettings() {
   const before=structuralSignature(sim.config);
   const next=readFormConfig();
   const needsNew=before!==structuralSignature(next);
-  sim.config=next; sim.preset='modified';
+  sim.config=next; sim.preset='modified'; sim.pendingSettings=false;
   initializeSimulation(needsNew);
   sim.status=needsNew?'Population changed · new initial world':'Rules applied · same initial world';
-  updateAllUI();
+  setSettingsPending(false); updateAllUI();
 }
 
 function metricPair(formatter, key) {
@@ -142,10 +216,12 @@ function updateAllUI() {
   $('topSeed').textContent=sim.config.population.seed;
   $('worldALabel').textContent=`threshold ${formatThresholdValue(sim.config.satisfaction.rule,sim.config.satisfaction.threshold)}`;
   $('worldBLabel').textContent=`threshold ${formatThresholdValue(sim.config.satisfaction.rule,sim.config.compare.threshold)}`;
-  $('playBtn').textContent=sim.running?'❚❚ Pause':(sim.worldA?.stopped?'▶ Settled':'▶ Run');
+  const allStopped=Boolean(sim.worldA?.stopped&&(!compare||sim.worldB?.stopped));
+  $('playBtn').textContent=sim.running?'❚❚ Pause':(allStopped?'↻ Run again':'▶ Run');
   const a=sim.worldA;
   $('simStatusChip').textContent=sim.running?'Running':(sim.status||a?.stopReason||'Ready');
   $('historyStatus').textContent=a?.stopped?a.stopReason:(a?`iteration ${a.iteration}`:'initial state');
+  setSettingsPending(sim.pendingSettings);
   updateRangeLabels(); updateMetrics(); updateLegend(); updateInspector();
 }
 

@@ -133,6 +133,6 @@ function stepSimulation() {
   const doneB = !sim.config.compare.enabled || sim.worldB?.stopped;
   if (doneA && doneB) {
     sim.running = false;
-    sim.status = sim.config.compare.enabled ? 'Both worlds settled' : sim.worldA.stopReason;
+    sim.status = sim.config.compare.enabled ? 'Both worlds stopped' : `Stopped · ${sim.worldA.stopReason}`;
   }
 }

@@ -49,7 +49,10 @@ a { color: var(--accent); }
 .primary-btn { padding:0 16px; background:linear-gradient(135deg,#a9e2ff,#8c9eff); color:#0a1020; border:0; font-weight:900; box-shadow:0 8px 24px rgba(116,167,255,.18); }
 .secondary-btn { padding:0 12px; background:rgba(255,255,255,.055); }
 .primary-btn:hover, .secondary-btn:hover, .speed-btn:hover { transform:translateY(-1px); filter:brightness(1.06); }
-.secondary-btn.danger:hover { border-color:rgba(255,123,136,.4); color:#ffb4bc; }
+button:disabled { opacity:.46; cursor:not-allowed; transform:none!important; filter:none!important; }
+.apply-btn { border-color:rgba(155,215,255,.34); }
+.apply-btn.pending { color:#fff3c4; border-color:rgba(255,209,102,.62); background:rgba(255,209,102,.12); box-shadow:0 0 0 3px rgba(255,209,102,.06); }
+.pending-chip { border:1px solid rgba(255,209,102,.35); background:rgba(255,209,102,.08); color:#ffe8a3; border-radius:999px; padding:6px 9px; font-size:10px; font-weight:850; white-space:nowrap; }
 .speed-group { display:flex; padding:3px; border:1px solid var(--line); border-radius:11px; background:rgba(0,0,0,.16); }
 .speed-btn { min-height:30px; padding:4px 9px; border:0; background:transparent; color:var(--muted); font-size:12px; font-weight:800; }
 .speed-btn.active { background:rgba(255,255,255,.11); color:#fff; }
@@ -102,6 +105,9 @@ details.settings[open] > summary::after { content:"−"; }
 .group-share span { font-size:10px; color:var(--muted); }
 .group-share input { width:100%; min-height:30px; border:1px solid var(--line); border-radius:8px; background:rgba(4,7,13,.6); color:#fff; padding:0 6px; }
 .apply-strip { display:flex; gap:8px; padding:12px 14px 14px; border-top:1px solid var(--line); flex-wrap:wrap; }
+.help-note { margin:10px 0 0; padding:9px 10px; border:1px solid rgba(155,215,255,.16); border-radius:10px; background:rgba(155,215,255,.045); color:var(--muted); font-size:10px; line-height:1.5; }
+.help-note strong { color:var(--text); }
+.field label[title], .toggle[title], details.settings > summary[title] { cursor:help; }
 .inspector { display:grid; gap:8px; }
 .inspector-title { display:flex; align-items:center; gap:8px; font-weight:900; }
 .inspector-copy { color:var(--muted); font-size:11px; line-height:1.5; }
