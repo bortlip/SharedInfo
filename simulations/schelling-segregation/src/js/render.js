@@ -32,6 +32,21 @@ function drawClusterBoundaries(g, world, config, geom) {
   }
   g.restore();
 }
+function drawStatusMarker(g, r, geom, flagged, config) {
+  if(!config.visual.showUnhappy||r.w<=3)return;
+  const style=config.visual.markerStyle||'strongOutline';
+  if(style==='dimSatisfied'&&!flagged){g.fillStyle='rgba(4,5,10,.38)';g.fillRect(r.x+.15,r.y+.15,Math.max(0,r.w-.3),Math.max(0,r.h-.3));return;}
+  if(!flagged)return;
+  if(style==='glow'){
+    g.fillStyle='rgba(118,15,31,.24)';g.fillRect(r.x+.2,r.y+.2,Math.max(0,r.w-.4),Math.max(0,r.h-.4));
+    g.strokeStyle='rgba(225,55,75,.98)';g.lineWidth=Math.max(1.4,Math.min(3.0,geom.cellW*.26));
+  }else if(style==='brightOutline'){
+    g.strokeStyle='rgba(255,74,92,.98)';g.lineWidth=Math.max(1.0,Math.min(2.2,geom.cellW*.20));
+  }else{
+    g.strokeStyle='rgba(151,28,47,.98)';g.lineWidth=Math.max(1.6,Math.min(3.4,geom.cellW*.30));
+  }
+  g.strokeRect(r.x+1,r.y+1,Math.max(0,r.w-2),Math.max(0,r.h-2));
+}
 
 function renderWorld(world, g, config, selectedIndex=null) {
   if(!world)return;
@@ -42,7 +57,7 @@ function renderWorld(world, g, config, selectedIndex=null) {
     if(id===EMPTY){if(config.visual.showVacancies){g.fillStyle='#181b29';g.fillRect(r.x+.2,r.y+.2,Math.max(0,r.w-.4),Math.max(0,r.h-.4));}continue;}
     const agent=world.agents[id]; if(!agent?.active)continue;
     g.fillStyle=groupColor(agent.group,config.visual.colorScheme); g.fillRect(r.x+.15,r.y+.15,Math.max(0,r.w-.3),Math.max(0,r.h-.3));
-    if(config.visual.showUnhappy&&world.satisfaction?.[id]===0&&r.w>3){g.strokeStyle='rgba(255,85,100,.95)';g.lineWidth=Math.max(.7,Math.min(1.6,r.w*.16));g.strokeRect(r.x+1,r.y+1,Math.max(0,r.w-2),Math.max(0,r.h-2));}
+    drawStatusMarker(g,r,geom,world.satisfaction?.[id]===0,config);
   }
   if(config.visual.gridLines&&geom.cellW>3){
     g.save();g.strokeStyle='rgba(255,255,255,.08)';g.lineWidth=.5;
@@ -74,8 +89,10 @@ function drawHistory() {
 }
 
 function renderAll(){
-  renderWorld(sim.worldA,ctx,sim.config,sim.selectedIndex);
-  if(sim.config.compare.enabled) renderWorld(sim.worldB,compareCtx,comparisonConfig(),sim.selectedIndex);
+  const selectedA=sim.selectedWorld==='A'?sim.selectedIndex:null;
+  const selectedB=sim.selectedWorld==='B'?sim.selectedIndex:null;
+  renderWorld(sim.worldA,ctx,sim.config,selectedA);
+  if(sim.config.compare.enabled) renderWorld(sim.worldB,compareCtx,comparisonConfig(),selectedB);
   drawHistory();
 }
 

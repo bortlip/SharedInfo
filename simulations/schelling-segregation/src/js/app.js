@@ -10,33 +10,33 @@ function eventToCell(event, target, config) {
   const px=(event.clientX-rect.left)/rect.width*target.width;
   const py=(event.clientY-rect.top)/rect.height*target.height;
   const geom=canvasGeometry(contextForCanvas(target),config);
-  const x=Math.floor((px-geom.pad)/geom.cellW), y=Math.floor((py-geom.pad)/geom.cellH);
+  const x=Math.floor((px-geom.pad)/geom.cellW),y=Math.floor((py-geom.pad)/geom.cellH);
   if(x<0||y<0||x>=geom.cols||y>=geom.rows)return null;
   return xyIndex(x,y,geom.cols);
 }
 
 function showCellTooltip(event, target) {
-  const config=configForCanvas(target), world=worldForCanvas(target);
+  const config=configForCanvas(target),world=worldForCanvas(target);
   const index=eventToCell(event,target,config);
   if(index===null||!world){$('tooltip').classList.remove('show');return;}
-  const id=world.grid[index], p=indexXY(index,config.population.cols);
-  $('tooltip').style.left=`${event.clientX}px`; $('tooltip').style.top=`${event.clientY}px`; $('tooltip').classList.add('show');
-  if(id===EMPTY){$('tooltip').innerHTML=`<strong>Vacancy</strong><div>Cell ${p.x+1}, ${p.y+1}</div><div>Available to vacancy-based moves.</div>`;return;}
-  const agent=world.agents[id], ev=evaluateAgent(world,id,config);
-  $('tooltip').innerHTML=`<strong>Group ${agent.group+1}</strong><div>Cell ${p.x+1}, ${p.y+1} · ${ev.satisfied?'satisfied':'unsatisfied'}</div><div>${ev.stats.same} same · ${ev.stats.different} different · ${ev.stats.vacant} vacant</div><div>${ev.reason}</div>`;
+  const id=world.grid[index],p=indexXY(index,config.population.cols),worldName=target===compareCanvas?'World B':'World A';
+  $('tooltip').style.left=`${event.clientX}px`;$('tooltip').style.top=`${event.clientY}px`;$('tooltip').classList.add('show');
+  if(id===EMPTY){$('tooltip').innerHTML=`<strong>${worldName} · Vacancy</strong><div>Cell ${p.x+1}, ${p.y+1}</div><div>Available to vacancy-based moves.</div>`;return;}
+  const agent=world.agents[id],ev=evaluateAgent(world,id,config);
+  $('tooltip').innerHTML=`<strong>${worldName} · Group ${agent.group+1}</strong><div>Cell ${p.x+1}, ${p.y+1} · ${ev.satisfied?'satisfied':'unsatisfied'}</div><div>${ev.stats.same} same · ${ev.stats.different} different · ${ev.stats.vacant} vacant</div><div>${ev.reason}</div>`;
 }
 
 function handleWorldClick(event, target) {
-  const config=configForCanvas(target), world=worldForCanvas(target);
-  const index=eventToCell(event,target,config); if(index===null||!world)return;
-  if(target===canvas && sim.config.population.distribution==='custom' && !sim.running){
+  const config=configForCanvas(target),world=worldForCanvas(target);
+  const index=eventToCell(event,target,config);if(index===null||!world)return;
+  if(target===canvas&&sim.config.population.distribution==='custom'&&!sim.running){
     paintWorldCell(sim.worldA,index,Number($('paintGroupSelect').value),sim.config);
     sim.initialSnapshot=snapshotWorld(sim.worldA);
-    sim.worldB=worldFromSnapshot(sim.initialSnapshot,sim.config,0);
-    computeWorldStats(sim.worldA,sim.config);
-    if(sim.config.compare.enabled)computeWorldStats(sim.worldB,comparisonConfig());
-    sim.history=[];recordHistory();sim.status='Custom world edited';
+    sim.initialSignature=structuralSignature(sim.config);
+    initializeSimulation(false);
+    sim.status='Custom World A edited';
   }
+  sim.selectedWorld=target===compareCanvas?'B':'A';
   sim.selectedIndex=index;updateAllUI();renderAll();
 }
 
@@ -47,16 +47,33 @@ function applyVisualSettingsOnly() {
   updateLegend();renderAll();
 }
 
+function ensureAppliedSettings() {
+  if(!sim.pendingSettings)return true;
+  sim.status='Apply pending settings before running';
+  setSettingsPending(true);updateAllUI();$('applySettingsBtn')?.focus();
+  return false;
+}
+
 function toggleRun() {
-  if(sim.worldA?.stopped && (!sim.config.compare.enabled || sim.worldB?.stopped)){resetSameWorld();}
+  if(!sim.running&&!ensureAppliedSettings())return;
+  if(sim.worldA?.stopped&&(!sim.config.compare.enabled||sim.worldB?.stopped))resetSameWorld();
   sim.running=!sim.running;sim.status=sim.running?'Running':'Paused';sim.lastFrame=performance.now();updateAllUI();
 }
 
-function resetFromForm(sameWorldPreferred=true) {
-  const next=readFormConfig();
-  const sameStructure=structuralSignature(next)===structuralSignature(sim.config);
-  sim.config=next;
-  initializeSimulation(sameWorldPreferred&&sameStructure?false:true);
+function resetAppliedWorld() {
+  const hadPending=sim.pendingSettings;
+  resetSameWorld();
+  sim.status=hadPending?'Applied world reset · pending settings not applied':'Same initial world reset';
+  setSettingsPending(hadPending);updateAllUI();
+}
+
+function newAppliedWorld() {
+  const hadPending=sim.pendingSettings,newSeed=randomSeed();
+  sim.config.population.seed=newSeed;
+  if(!hadPending)$('seedInput').value=newSeed;
+  initializeSimulation(true);
+  sim.status=hadPending?'New applied world · pending settings not applied':'New random world';
+  setSettingsPending(hadPending);updateAllUI();
 }
 
 for(const target of [canvas,compareCanvas]){
@@ -66,23 +83,30 @@ for(const target of [canvas,compareCanvas]){
 }
 
 $('playBtn').addEventListener('click',toggleRun);
-$('stepBtn').addEventListener('click',()=>{const done=sim.worldA?.stopped&&(!sim.config.compare.enabled||sim.worldB?.stopped);if(!done){stepSimulation();sim.status='Stepped once';updateAllUI();renderAll();}});
-$('resetSameBtn').addEventListener('click',()=>resetFromForm(true));
-$('newWorldBtn').addEventListener('click',()=>{
-  const next=readFormConfig();next.population.seed=randomSeed();$('seedInput').value=next.population.seed;sim.config=next;sim.status='New random world';initializeSimulation(true);
-});
+$('stepBtn').addEventListener('click',()=>{if(!ensureAppliedSettings())return;const done=sim.worldA?.stopped&&(!sim.config.compare.enabled||sim.worldB?.stopped);if(!done){stepSimulation();sim.status='Stepped once';updateAllUI();renderAll();}});
+$('resetSameBtn').addEventListener('click',resetAppliedWorld);
+$('newWorldBtn').addEventListener('click',newAppliedWorld);
 $('applySettingsBtn').addEventListener('click',applyFormSettings);
 $('shareBtn').addEventListener('click',copyExperimentLink);
 $('presetSelect').addEventListener('change',event=>applyPreset(event.target.value));
+$('clearBOverridesBtn').addEventListener('click',clearComparisonOverrideForm);
 
 $('groupsInput').addEventListener('change',()=>renderGroupShareControls());
-$('equalSharesBtn').addEventListener('click',()=>document.querySelectorAll('[data-group-weight]').forEach(input=>input.value='1'));
+$('equalSharesBtn').addEventListener('click',()=>{document.querySelectorAll('[data-group-weight]').forEach(input=>input.value='1');markSettingsPending();});
 $('satisfactionRuleSelect').addEventListener('change',()=>{syncThresholdControl(true);updateRangeLabels();});
 $('neighborhoodSelect').addEventListener('change',()=>syncThresholdControl(false));
 $('radiusInput').addEventListener('change',()=>syncThresholdControl(false));
-for(const id of ['vacancyInput','thresholdInput','variationInput','compareThreshold']) $(id).addEventListener('input',updateRangeLabels);
+for(const id of ['vacancyInput','thresholdInput','variationInput'])$(id).addEventListener('input',updateRangeLabels);
 $('colorSchemeSelect').addEventListener('change',applyVisualSettingsOnly);
-for(const id of ['showVacanciesToggle','showUnhappyToggle','showNeighborhoodToggle','animateMovesToggle','showTrailsToggle','gridLinesToggle','clusterOutlinesToggle']) $(id).addEventListener('change',applyVisualSettingsOnly);
+$('markerStyleSelect').addEventListener('change',applyVisualSettingsOnly);
+for(const id of ['showVacanciesToggle','showUnhappyToggle','showNeighborhoodToggle','animateMovesToggle','showTrailsToggle','gridLinesToggle','clusterOutlinesToggle'])$(id).addEventListener('change',applyVisualSettingsOnly);
+for(const id of PENDING_SETTING_IDS){const el=$(id);if(!el)continue;el.addEventListener(el.type==='range'?'input':'change',markSettingsPending);}
+$('groupShares').addEventListener('input',event=>{if(event.target.matches('[data-group-weight]'))markSettingsPending();});
+$('compareOverrideControls').addEventListener('change',event=>{
+  if(event.target.matches('[data-b-override-enable]'))syncComparisonOverrideControlStates();
+  if(event.target.matches('[data-b-override-enable],[data-b-override-value]'))markSettingsPending();
+});
+$('compareOverrideControls').addEventListener('input',event=>{if(event.target.matches('[data-b-override-value]'))markSettingsPending();});
 
 document.querySelectorAll('.speed-btn').forEach(btn=>btn.addEventListener('click',()=>{
   document.querySelectorAll('.speed-btn').forEach(other=>other.classList.remove('active'));
@@ -90,12 +114,9 @@ document.querySelectorAll('.speed-btn').forEach(btn=>btn.addEventListener('click
 }));
 
 $('compareToggle').addEventListener('change',event=>{
-  sim.config=readFormConfig();sim.config.compare.enabled=event.target.checked;sim.status=sim.config.compare.enabled?'Comparison enabled · same starting world':'Comparison disabled';resetSameWorld();
-});
-$('compareThreshold').addEventListener('change',()=>{
-  sim.config.compare.threshold=Number($('compareThreshold').value);
-  if(sim.config.compare.enabled){sim.status='Comparison threshold changed · reset both worlds';resetSameWorld();}
-  else updateAllUI();
+  sim.config.compare.enabled=event.target.checked;
+  sim.status=sim.config.compare.enabled?(comparisonUsesSameInitialWorld(sim.config)?'Comparison enabled · same initial world':'Comparison enabled · World B has a separate initial world'):'Comparison disabled';
+  resetSameWorld();setSettingsPending(sim.pendingSettings);
 });
 
 function animationLoop(now) {
@@ -119,8 +140,11 @@ function showBootFailure(error) {
 
 window.__schellingLab=sim;
 try {
+  normalizeComparisonSettings(sim.config);
   writeFormConfig(sim.config);
   loadConfigFromUrl();
+  installControlHelp();
+  setSettingsPending(false);
   initializeSimulation(true);
   requestAnimationFrame(animationLoop);
 } catch(error) {
