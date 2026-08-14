@@ -89,7 +89,7 @@ $('newWorldBtn').addEventListener('click',newAppliedWorld);
 $('applySettingsBtn').addEventListener('click',applyFormSettings);
 $('shareBtn').addEventListener('click',copyExperimentLink);
 $('presetSelect').addEventListener('change',event=>applyPreset(event.target.value));
-$('clearBOverridesBtn').addEventListener('click',clearComparisonOverrideForm);
+$('clearBOverridesBtn')?.addEventListener('click',clearComparisonOverrideForm);
 
 $('groupsInput').addEventListener('change',()=>renderGroupShareControls());
 $('equalSharesBtn').addEventListener('click',()=>{document.querySelectorAll('[data-group-weight]').forEach(input=>input.value='1');markSettingsPending();});
@@ -98,15 +98,18 @@ $('neighborhoodSelect').addEventListener('change',()=>syncThresholdControl(false
 $('radiusInput').addEventListener('change',()=>syncThresholdControl(false));
 for(const id of ['vacancyInput','thresholdInput','variationInput'])$(id).addEventListener('input',updateRangeLabels);
 $('colorSchemeSelect').addEventListener('change',applyVisualSettingsOnly);
-$('markerStyleSelect').addEventListener('change',applyVisualSettingsOnly);
+$('markerStyleSelect')?.addEventListener('change',applyVisualSettingsOnly);
 for(const id of ['showVacanciesToggle','showUnhappyToggle','showNeighborhoodToggle','animateMovesToggle','showTrailsToggle','gridLinesToggle','clusterOutlinesToggle'])$(id).addEventListener('change',applyVisualSettingsOnly);
 for(const id of PENDING_SETTING_IDS){const el=$(id);if(!el)continue;el.addEventListener(el.type==='range'?'input':'change',markSettingsPending);}
 $('groupShares').addEventListener('input',event=>{if(event.target.matches('[data-group-weight]'))markSettingsPending();});
-$('compareOverrideControls').addEventListener('change',event=>{
-  if(event.target.matches('[data-b-override-enable]'))syncComparisonOverrideControlStates();
-  if(event.target.matches('[data-b-override-enable],[data-b-override-value]'))markSettingsPending();
-});
-$('compareOverrideControls').addEventListener('input',event=>{if(event.target.matches('[data-b-override-value]'))markSettingsPending();});
+const compareOverrideControls=$('compareOverrideControls');
+if(compareOverrideControls){
+  compareOverrideControls.addEventListener('change',event=>{
+    if(event.target.matches('[data-b-override-enable]'))syncComparisonOverrideControlStates();
+    if(event.target.matches('[data-b-override-enable],[data-b-override-value]'))markSettingsPending();
+  });
+  compareOverrideControls.addEventListener('input',event=>{if(event.target.matches('[data-b-override-value]'))markSettingsPending();});
+}
 
 document.querySelectorAll('.speed-btn').forEach(btn=>btn.addEventListener('click',()=>{
   document.querySelectorAll('.speed-btn').forEach(other=>other.classList.remove('active'));

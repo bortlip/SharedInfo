@@ -2,7 +2,7 @@
 
 An interactive, dependency-free laboratory for Schelling-style residential sorting models. Start with the classic two-group vacancy model, then change the assumptions: 2–20 groups, neighborhood geometry, tolerance rules, heterogeneous agents, swapping, local search, destination choice, stopping rules, visualization, and synchronized A/B comparison with per-setting World B overrides.
 
-Current release: **v1.1.0**
+Current release: **v1.1.1**
 
 - [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/schelling-segregation/)
 - [Open the modular source preview](https://bortlip.github.io/SharedInfo/simulations/schelling-segregation/src/)
@@ -45,7 +45,7 @@ A/B comparison treats World A as the base configuration. World B inherits A and 
 
 ## Release discipline
 
-Increment `src/js/version.js` for every user-visible change to this simulation, and keep the `Current release` value in this README synchronized.
+Increment `src/js/version.js` for every user-visible change to this simulation and keep the `Current release` value in this README synchronized. When a release removes or renames DOM controls, preserve a temporary compatibility path so cached HTML and JavaScript from adjacent releases cannot crash each other.
 ## Model note
 
 This is a configurable toy model for exploring how local rules can produce aggregate spatial patterns. It is not a complete causal model of real residential segregation; housing policy, discrimination, wealth, lending, zoning, geography, migration, and many other mechanisms are intentionally absent unless modeled explicitly.

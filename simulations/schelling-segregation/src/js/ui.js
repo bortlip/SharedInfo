@@ -109,7 +109,7 @@ function readFormConfig() {
   config.movement={mode:$('movementModeSelect').value,selection:$('selectionSelect').value,destination:$('destinationSelect').value,fallback:$('fallbackSelect').value,search:$('searchSelect').value,searchRadius:clamp(Math.round(Number($('searchRadiusInput').value)||8),1,30),allowSatisfied:$('allowSatisfiedToggle').checked};
   config.simulation={mode:$('simulationModeSelect').value,movesPerTick:clamp(Math.round(Number($('movesPerTickInput').value)||20),1,500),maxIterations:clamp(Math.round(Number($('maxIterationsInput').value)||5000),1,100000),quietRounds:clamp(Math.round(Number($('quietRoundsInput').value)||5),1,100),stopSatisfied:$('stopSatisfiedToggle').checked,stopNoLegal:$('stopNoLegalToggle').checked,stopQuiet:$('stopQuietToggle').checked,stopMax:$('stopMaxToggle').checked};
   config.visual={colorScheme:$('colorSchemeSelect').value,showVacancies:$('showVacanciesToggle').checked,showUnhappy:$('showUnhappyToggle').checked,showNeighborhood:$('showNeighborhoodToggle').checked,animateMoves:$('animateMovesToggle').checked,showTrails:$('showTrailsToggle').checked,gridLines:$('gridLinesToggle').checked,clusterOutlines:$('clusterOutlinesToggle').checked};
-  config.visual.markerStyle=$('markerStyleSelect').value;
+  config.visual.markerStyle=$('markerStyleSelect')?.value||config.visual.markerStyle||'strongOutline';
   normalizeComparisonSettings(config);
   config.compare.enabled=$('compareToggle').checked;
   readComparisonOverridesFromForm(config);
@@ -124,7 +124,7 @@ function writeFormConfig(config) {
   $('movementModeSelect').value=config.movement.mode;$('selectionSelect').value=config.movement.selection;$('destinationSelect').value=config.movement.destination;$('fallbackSelect').value=config.movement.fallback;$('searchSelect').value=config.movement.search;$('searchRadiusInput').value=config.movement.searchRadius;$('allowSatisfiedToggle').checked=config.movement.allowSatisfied;
   $('simulationModeSelect').value=config.simulation.mode;$('movesPerTickInput').value=config.simulation.movesPerTick;$('maxIterationsInput').value=config.simulation.maxIterations;$('quietRoundsInput').value=config.simulation.quietRounds;$('stopSatisfiedToggle').checked=config.simulation.stopSatisfied;$('stopNoLegalToggle').checked=config.simulation.stopNoLegal;$('stopQuietToggle').checked=config.simulation.stopQuiet;$('stopMaxToggle').checked=config.simulation.stopMax;
   $('colorSchemeSelect').value=config.visual.colorScheme;$('showVacanciesToggle').checked=config.visual.showVacancies;$('showUnhappyToggle').checked=config.visual.showUnhappy;$('showNeighborhoodToggle').checked=config.visual.showNeighborhood;$('animateMovesToggle').checked=config.visual.animateMoves;$('showTrailsToggle').checked=config.visual.showTrails;$('gridLinesToggle').checked=config.visual.gridLines;$('clusterOutlinesToggle').checked=config.visual.clusterOutlines;
-  $('markerStyleSelect').value=config.visual.markerStyle;
+  if($('markerStyleSelect'))$('markerStyleSelect').value=config.visual.markerStyle||'strongOutline';
   $('compareToggle').checked=config.compare.enabled;
   renderGroupShareControls(config.population.groupWeights);renderComparisonControls(config);syncThresholdControl(false);updateRangeLabels();
 }
@@ -275,14 +275,16 @@ function updateInspector() {
 
 function updateComparisonUI() {
   const compare=sim.config.compare.enabled;
-  $('comparePane').hidden=!compare;$('compareBuilder').hidden=!compare;$('worldStage').classList.toggle('compare-on',compare);$('compareToggle').checked=compare;
+  const pane=$('comparePane'),builder=$('compareBuilder'),stage=$('worldStage'),toggle=$('compareToggle');
+  if(pane)pane.hidden=!compare;if(builder)builder.hidden=!compare;if(stage)stage.classList.toggle('compare-on',compare);if(toggle)toggle.checked=compare;
   if(!compare)return;
   const bConfig=comparisonConfig(),sameInitial=comparisonUsesSameInitialWorld(sim.config),overrides=activeComparisonOverrides(sim.config);
-  $('worldBStartLabel').textContent=sameInitial?'same initial world':'different initial world';
-  $('compareStartMode').textContent=sameInitial?'Same exact initial world':'Different initial world because population/grid settings differ';
-  $('worldBLabel').textContent=overrides.length===0?'inherits A exactly':`${overrides.length} override${overrides.length===1?'':'s'}`;
-  $('worldBHelp').textContent=sameInitial?'Same starting cells; World B inherits A except for enabled rule/behavior overrides.':'World B uses its own reproducible starting world because at least one structural setting differs from A.';
-  if(overrides.length===1&&overrides[0].key==='satisfaction.threshold')$('worldBLabel').textContent=`threshold ${formatThresholdValue(bConfig.satisfaction.rule,bConfig.satisfaction.threshold)}`;
+  const startLabel=$('worldBStartLabel'),startMode=$('compareStartMode'),worldBLabel=$('worldBLabel'),worldBHelp=$('worldBHelp');
+  if(startLabel)startLabel.textContent=sameInitial?'same initial world':'different initial world';
+  if(startMode)startMode.textContent=sameInitial?'Same exact initial world':'Different initial world because population/grid settings differ';
+  if(worldBLabel)worldBLabel.textContent=overrides.length===0?'inherits A exactly':`${overrides.length} override${overrides.length===1?'':'s'}`;
+  if(worldBHelp)worldBHelp.textContent=sameInitial?'Same starting cells; World B inherits A except for enabled rule/behavior overrides.':'World B uses its own reproducible starting world because at least one structural setting differs from A.';
+  if(worldBLabel&&overrides.length===1&&overrides[0].key==='satisfaction.threshold')worldBLabel.textContent=`threshold ${formatThresholdValue(bConfig.satisfaction.rule,bConfig.satisfaction.threshold)}`;
 }
 
 function updateAllUI() {
