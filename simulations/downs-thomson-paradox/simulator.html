@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Interactive one-page demonstration of the Downs-Thomson paradox, Nash equilibrium, highway congestion, and transit ridership feedback.">
+  <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/downs-thomson-paradox/simulator.html">
+  <link rel="stylesheet" href="styles.css">
+  <title>Downs-Thomson Paradox</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="../"><span class="brandmark">DT</span><span><strong>Downs-Thomson Paradox</strong><small>When a faster road makes the commute worse.</small></span></a>
+    <nav><a href="../">Simulations</a><a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/downs-thomson-paradox">Source</a></nav>
+  </header>
+
+  <section class="hero card">
+    <div>
+      <p class="eyebrow">A 100-commuter game</p>
+      <h1>Should the city build the tunnel?</h1>
+      <p class="lede">Every morning, 100 commuters choose the quicker option: drive from the suburbs to downtown, or take public transit. The highway wastes five minutes looping around a mountain. Surely a tunnel fixes that. Right?</p>
+    </div>
+    <div class="hero-verdict" id="heroVerdict"><span>Current equilibrium</span><strong>45 min</strong><small>40 drive · 60 transit</small></div>
+  </section>
+
+  <section class="story-controls card" aria-label="Simulation controls">
+    <div class="button-row">
+      <button class="secondary" id="resetBtn">↺ Reset story</button>
+      <button class="primary" id="tunnelBtn">⛏ Build the tunnel</button>
+      <button class="secondary" id="adaptBtn" disabled>▶ Let commuters adapt</button>
+      <button class="secondary" id="stepBtn" disabled>Step one switch</button>
+    </div>
+    <div class="split-control">
+      <label for="driverSlider"><span>Manually set the mode split</span><strong><span id="sliderDrivers">40</span> drivers</strong></label>
+      <input id="driverSlider" type="range" min="0" max="100" step="1" value="40">
+      <div class="split-labels"><span>0 drivers</span><span>100 drivers</span></div>
+    </div>
+  </section>
+
+  <main class="main-grid">
+    <section class="card scene-card">
+      <div class="section-head"><div><p class="eyebrow">The corridor</p><h2 id="sceneTitle">Before the tunnel: a stable split</h2></div><span class="status old" id="statusChip">Nash equilibrium</span></div>
+      <div class="route-scene" id="routeScene">
+        <div class="place suburbs"><span class="place-icon">🏘️</span><strong>Suburbs</strong></div>
+        <div class="mountain" aria-hidden="true"><span>▲</span><small>mountain</small></div>
+        <div class="place downtown"><span class="place-icon">🏙️</span><strong>Downtown</strong></div>
+        <svg class="routes" viewBox="0 0 1000 300" role="img" aria-label="Road and transit routes between suburbs and downtown">
+          <path class="road-shadow" d="M95 120 C280 32 390 28 500 55 C615 83 690 42 905 118"/>
+          <path class="road" d="M95 120 C280 32 390 28 500 55 C615 83 690 42 905 118"/>
+          <path class="tunnel-shadow" d="M335 118 L665 118"/>
+          <path class="tunnel" id="tunnelPath" d="M335 118 L665 118"/>
+          <path class="rail" d="M95 226 C330 245 665 245 905 226"/>
+        </svg>
+        <div class="route-label road-label">🚗 Highway <strong id="roadRouteTime">45 min</strong><small id="roadRouteNote">includes 5-minute mountain detour</small></div>
+        <div class="route-label transit-label">🚇 Transit <strong id="transitRouteTime">45 min</strong><small id="transitRouteNote">60 riders support better service</small></div>
+      </div>
+
+      <div class="commuter-wrap">
+        <div class="commuter-head"><strong>All 100 commuters</strong><span><i class="legend-dot drive"></i> drive <b id="driveCount">40</b> <i class="legend-dot transit"></i> transit <b id="transitCount">60</b></span></div>
+        <div class="commuters" id="commuters" aria-label="100 commuter dots colored by travel mode"></div>
+      </div>
+    </section>
+
+    <aside class="metrics-column">
+      <section class="card metric-card">
+        <p class="eyebrow">Right now</p>
+        <div class="metric-grid">
+          <div><span>Drive time</span><strong id="driveTime">45.0</strong><small>minutes</small></div>
+          <div><span>Transit time</span><strong id="transitTime">45.0</strong><small>minutes</small></div>
+          <div><span>Average commute</span><strong id="averageTime">45.0</strong><small>minutes</small></div>
+          <div><span>Faster choice</span><strong class="small-metric" id="fasterChoice">Neither</strong><small id="switchHint">no incentive to switch</small></div>
+        </div>
+      </section>
+
+      <section class="card explanation-card" id="explanationCard">
+        <p class="eyebrow">What is happening?</p>
+        <h2 id="explanationTitle">Nobody can improve by switching.</h2>
+        <p id="explanationText">At 40 drivers, both choices take 45 minutes. A commuter who treats their own effect on the whole system as negligible has no reason to change modes. This is the mode-choice Nash equilibrium.</p>
+        <div class="equation" id="equationBox"><span>Driving</span><code>25 + 0.50 × 40 = 45</code><span>Transit</span><code>35 + 0.25 × 40 = 45</code></div>
+      </section>
+    </aside>
+  </main>
+
+  <section class="lower-grid">
+    <section class="card chart-card">
+      <div class="section-head"><div><p class="eyebrow">Why the equilibrium moves</p><h2>Travel time vs. number of drivers</h2></div><span class="chart-key"><i class="line-key road-key"></i> driving <i class="line-key transit-key"></i> transit</span></div>
+      <canvas id="costChart" width="900" height="430" aria-label="Travel-time curves for driving and transit"></canvas>
+      <p class="chart-note">The intersection is the equilibrium: if one mode is faster, commuters move toward it. Opening the tunnel shifts the driving curve down by five minutes, but it does not freeze behavior at the old mode split.</p>
+    </section>
+
+    <section class="card punchline-card">
+      <p class="eyebrow">The paradox</p>
+      <div class="before-after">
+        <div><span>Before</span><strong>45 min</strong><small>40 drive · 60 transit</small></div>
+        <div class="arrow">→</div>
+        <div><span>After adaptation</span><strong>50 min</strong><small>60 drive · 40 transit</small></div>
+      </div>
+      <p><strong>The tunnel really is five minutes faster.</strong> That is precisely the problem. It attracts transit riders to the road. More cars rebuild congestion; fewer transit riders make transit less attractive. Commuters keep responding individually until both modes meet again — at a worse equilibrium.</p>
+      <div class="lesson"><strong>Individual incentive:</strong> take whichever mode is faster for you.<br><strong>Collective outcome:</strong> everybody can end up five minutes worse off.</div>
+    </section>
+  </section>
+
+  <details class="card model-note">
+    <summary>Model assumptions and the tiny bit of math</summary>
+    <div class="model-body">
+      <p>This is a deliberately transparent teaching model, not a calibrated transportation forecast. Let <code>D</code> be the number of drivers out of 100 commuters. Before the tunnel, driving takes <code>25 + 0.50D</code> minutes. The tunnel removes the five-minute mountain detour, so afterward driving takes <code>20 + 0.50D</code>. Transit takes <code>35 + 0.25D</code>: as riders leave transit for cars, service becomes less frequent or convenient.</p>
+      <p>The equilibrium shown here is the standard nonatomic/Wardrop form of a Nash equilibrium. We draw 100 commuter dots because humans enjoy dots more than measure theory, but the model treats one commuter as too small to change the cost functions by themselves. Equating the two used-mode costs gives <code>D = 40</code> before the tunnel and <code>D = 60</code> afterward.</p>
+      <p>The key assumption behind the Downs-Thomson mechanism is the ridership feedback in transit. If transit service did not weaken as riders left, this particular paradox would disappear from this toy model.</p>
+    </div>
+  </details>
+
+  <footer>SharedInfo · <a href="../">simulation hub</a> · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/downs-thomson-paradox">source on GitHub</a></footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
