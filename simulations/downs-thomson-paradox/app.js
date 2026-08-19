@@ -422,6 +422,7 @@ function buildTunnel() {
   state.tunnelOpen=true;
   state.tunnelBuiltDay=state.history.length?state.day+1:state.day;
   state.lastDay=null;
+  state.simTime=0;state.cars=[];state.transitTrips=[];state.trains=[];state.currentHeadway=null;state.maxQueue=0;state.currentQueue=0;
   resetAgentDayState();
   $('tunnelBtn').disabled=true;
   $('tunnelBtn').textContent='✓ Tunnel built';
