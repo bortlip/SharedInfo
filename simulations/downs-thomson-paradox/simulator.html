@@ -3,125 +3,118 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Agent-based traffic microsimulation of the Downs-Thomson paradox: 100 commuters, individual cars, road queues, transit schedules, mode switching, and a mountain tunnel.">
+  <meta name="description" content="Agent-based street-network microsimulation of the Downs-Thomson paradox with 100 commuters, individual cars, traffic lights, side streets, cross traffic, transit schedules, and a mountain tunnel.">
   <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/downs-thomson-paradox/simulator.html">
   <link rel="stylesheet" href="styles.css">
-  <title>Downs-Thomson Traffic Lab</title>
+  <title>Downs-Thomson Street Lab</title>
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <a class="brand" href="../"><span class="brandmark">DT</span><span><strong>Downs-Thomson Traffic Lab</strong><small>100 commuters. Real queues. One suspiciously tempting tunnel.</small></span></a>
+    <a class="brand" href="../"><span class="brandmark">DT</span><span><strong>Downs-Thomson Street Lab</strong><small>100 commuters. Real cars, queues, signals, side streets, and cross traffic.</small></span></a>
     <nav><a href="../">Simulations</a><a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/downs-thomson-paradox">Source</a></nav>
   </header>
 
   <section class="hero card">
     <div>
-      <p class="eyebrow">Agent-based commute simulation</p>
-      <h1>Build a faster road. Watch everybody adapt.</h1>
-      <p class="lede">Each of 100 commuters has a mode and departure time. Drivers become individual cars that move through the corridor and physically queue at a downtown bottleneck. Transit riders walk to the station and wait for scheduled trains. After each morning, a few commuters reconsider whichever mode was slower.</p>
+      <p class="eyebrow">Traffic microsimulation</p>
+      <h1>What if the shortcut changes everybody's behavior?</h1>
+      <p class="lede">The city has a real little street network now. Commuter cars leave homes, queue at lights, mix with cross traffic, follow one another around the mountain, and eventually reach downtown. Transit riders walk to the station and catch scheduled trains. Build the tunnel only after you have watched the old network settle.</p>
     </div>
-    <div class="hero-verdict" id="heroVerdict"><span>Before the tunnel</span><strong>37 / 63</strong><small>drive / transit</small></div>
+    <div class="hero-verdict" id="heroVerdict"><span>Before tunnel</span><strong>13 / 87</strong><small>drive / transit</small></div>
   </section>
 
-  <section class="controls card" aria-label="Simulation controls">
+  <section class="controls card">
     <div class="button-row">
-      <button class="secondary" id="resetBtn">↺ Reset city</button>
       <button class="primary" id="runDayBtn">▶ Run morning</button>
-      <button class="secondary" id="autoBtn">⏩ Run until stable</button>
+      <button class="secondary" id="autoBtn">⏩ Run days until stable</button>
       <button class="tunnel-btn" id="tunnelBtn">⛏ Build tunnel</button>
+      <button class="secondary" id="resetBtn">↺ Reset city</button>
     </div>
-    <div class="speed-control" aria-label="Simulation speed">
-      <span>Speed</span>
-      <div class="speed-buttons">
-        <button data-speed="1">1×</button><button data-speed="4">4×</button><button class="active" data-speed="12">12×</button><button data-speed="30">30×</button>
-      </div>
+    <div class="speed-group" aria-label="Simulation speed">
+      <button class="speed-btn" data-speed="1">1×</button>
+      <button class="speed-btn active" data-speed="8">8×</button>
+      <button class="speed-btn" data-speed="24">24×</button>
+      <button class="speed-btn" data-speed="60">60×</button>
+    </div>
+    <div class="control-sliders">
+      <label>Cross traffic <input id="crossTraffic" type="range" min="0" max="2" step="0.25" value="1"><strong id="crossTrafficValue">1.00×</strong></label>
+      <label>Signal cycle <input id="signalCycle" type="range" min="1.6" max="3.6" step="0.2" value="2.4"><strong id="signalCycleValue">2.4 min</strong></label>
     </div>
   </section>
 
   <main class="main-grid">
-    <section class="card map-card">
+    <section class="card world-card">
       <div class="section-head">
-        <div><p class="eyebrow">Morning commute</p><h2 id="dayTitle">Day 1 · established travel pattern</h2></div>
-        <div class="status-wrap"><span class="status stable" id="statusChip">Ready</span><span class="clock" id="simClock">6:30 AM</span></div>
+        <div><p class="eyebrow">The city</p><h2 id="dayTitle">Day 1 · mountain detour</h2></div>
+        <div class="world-status"><span class="clock" id="simClock">6:30 AM</span><span class="status stable" id="statusChip">Ready</span></div>
       </div>
-      <div class="map-wrap">
-        <canvas id="worldCanvas" width="1100" height="540" aria-label="Animated road and transit map with individual cars and trains"></canvas>
-        <div class="map-legend"><span><i class="swatch car"></i> individual car</span><span><i class="swatch train"></i> train</span><span><i class="swatch queue"></i> downtown bottleneck</span></div>
+      <div class="canvas-wrap">
+        <canvas id="worldCanvas" width="1200" height="660" aria-label="Animated street network with individual cars, signals, cross traffic, transit, mountain route and tunnel"></canvas>
+        <div class="map-legend"><span><i class="car-swatch commuter"></i> commuter car</span><span><i class="car-swatch cross"></i> cross traffic</span><span><i class="rail-swatch"></i> transit</span><span><i class="signal-swatch"></i> traffic light</span></div>
       </div>
       <div class="live-strip">
-        <div><span>Cars on road</span><strong id="carsOnRoad">0</strong></div>
-        <div><span>Queued now</span><strong id="queueNow">0</strong></div>
-        <div><span>Max queue</span><strong id="maxQueue">0</strong></div>
+        <div><span>Cars on streets</span><strong id="carsOnRoad">0</strong></div>
+        <div><span>Stopped commuter cars</span><strong id="queueNow">0</strong></div>
+        <div><span>Peak stopped cars</span><strong id="maxQueue">0</strong></div>
+        <div><span>Background traffic</span><strong id="crossCars">0</strong></div>
         <div><span>Trips finished</span><strong id="finishedTrips">0 / 100</strong></div>
       </div>
     </section>
 
-    <aside class="sidebar">
+    <aside class="side-column">
       <section class="card metrics-card">
-        <p class="eyebrow">Measured this morning</p>
+        <p class="eyebrow">Measured today</p>
         <div class="metric-grid">
-          <div><span>Drivers</span><strong id="driverCount">37</strong><small>cars generated</small></div>
-          <div><span>Transit riders</span><strong id="riderCount">63</strong><small>people generated</small></div>
-          <div class="drive-metric"><span>Average drive</span><strong id="driveTime">—</strong><small>completed cars</small></div>
-          <div class="transit-metric"><span>Average transit</span><strong id="transitTime">—</strong><small>completed riders</small></div>
-          <div><span>Transit headway</span><strong id="headway">—</strong><small>minutes between trains</small></div>
-          <div><span>Road queue delay</span><strong id="queueDelay">—</strong><small>mean driver delay</small></div>
+          <div><span>Drivers</span><strong id="driverCount">13</strong><small>commuters</small></div>
+          <div><span>Transit</span><strong id="riderCount">87</strong><small>commuters</small></div>
+          <div><span>Drive average</span><strong id="driveTime">—</strong><small>actual arrivals</small></div>
+          <div><span>Transit average</span><strong id="transitTime">—</strong><small>actual schedules</small></div>
+          <div><span>Stopped delay</span><strong id="queueDelay">—</strong><small>per driver</small></div>
+          <div><span>Train headway</span><strong id="headway">—</strong><small>ridership-dependent</small></div>
         </div>
       </section>
 
       <section class="card story-card">
         <p class="eyebrow">What the agents are doing</p>
         <h2 id="storyTitle">Run the baseline morning.</h2>
-        <p id="storyText">The city begins near an established mode split: 37 people drive and 63 use transit. Run the morning to see whether those choices are actually stable when travel times are produced by the traffic and timetable simulations.</p>
+        <p id="storyText">Thirteen commuters currently drive and eighty-seven use transit. The default starts near the old-network equilibrium; run the morning and let the network itself verify that.</p>
         <div class="mode-change" id="modeChange"><strong>Tomorrow:</strong> no decisions yet.</div>
       </section>
 
       <section class="card inspector-card">
-        <div class="section-head compact"><div><p class="eyebrow">Commuter inspector</p><h2 id="inspectTitle">Commuter #1</h2></div><span class="person-mode transit" id="inspectMode">transit</span></div>
-        <div class="inspect-grid">
-          <div><span>Leaves home</span><strong id="inspectDeparture">—</strong></div>
-          <div><span>Today</span><strong id="inspectTrip">not run</strong></div>
-          <div><span>Last switched</span><strong id="inspectSwitch">never</strong></div>
-          <div><span>Status</span><strong id="inspectStatus">waiting</strong></div>
-        </div>
-        <p>Click any commuter below to follow that person across days.</p>
+        <div class="section-head"><div><p class="eyebrow">Individual commuter</p><h2 id="inspectTitle">Commuter #1</h2></div><span class="person-dot drive" id="inspectDot"></span></div>
+        <div class="inspect-grid"><div><span>Home</span><strong id="inspectHome">West subdivision</strong></div><div><span>Mode</span><strong id="inspectMode">Drive</strong></div><div><span>Departure</span><strong id="inspectDepart">6:34 AM</strong></div><div><span>Latest trip</span><strong id="inspectTrip">—</strong></div><div><span>Stopped</span><strong id="inspectStopped">—</strong></div><div><span>Switch reluctance</span><strong id="inspectInertia">—</strong></div></div>
+        <p>Click one of the 100 people below to follow that commuter across repeated mornings.</p>
       </section>
     </aside>
   </main>
 
-  <section class="card people-card">
-    <div class="section-head"><div><p class="eyebrow">All 100 commuters</p><h2>Mode choices persist from one day to the next</h2></div><div class="people-key"><span><i class="dot drive"></i> drive</span><span><i class="dot transit"></i> transit</span><span><i class="dot switched"></i> switched for tomorrow</span></div></div>
-    <div class="people" id="people" aria-label="100 clickable commuter agents"></div>
+  <section class="lower-grid">
+    <section class="card people-card">
+      <div class="section-head"><div><p class="eyebrow">Persistent population</p><h2>All 100 commuters</h2><p>Orange people drive tomorrow; green people take transit. Their mode changes only between simulated days.</p></div><div class="people-key"><span><i class="person-key drive"></i> drive</span><span><i class="person-key transit"></i> transit</span></div></div>
+      <div class="people" id="people"></div>
+    </section>
+
+    <section class="card history-card">
+      <div class="section-head"><div><p class="eyebrow">Emergent daily outcomes</p><h2>Experienced commute time</h2></div><span class="history-note">vertical marker = tunnel opens</span></div>
+      <canvas id="historyCanvas" width="660" height="300" aria-label="Daily average drive and transit commute times"></canvas>
+      <div class="history-legend"><span><i class="line road"></i> driving</span><span><i class="line transit"></i> transit</span></div>
+    </section>
   </section>
 
-  <section class="lower-grid">
-    <section class="card history-card">
-      <div class="section-head"><div><p class="eyebrow">Learning across days</p><h2>Experienced commute times</h2></div><span class="history-key"><i class="line drive"></i> driving <i class="line transit"></i> transit</span></div>
-      <canvas id="historyCanvas" width="900" height="360" aria-label="Daily average travel time history"></canvas>
-      <p class="chart-note">These points are measurements from completed agent trips. The road line is not a congestion formula: every point comes from cars moving through the road model and waiting behind other cars at the bottleneck.</p>
-    </section>
-
-    <section class="card mechanism-card">
-      <p class="eyebrow">The mechanism</p>
-      <div class="mechanism-flow">
-        <div><strong>1</strong><span>Tunnel shortens the physical driving route by five free-flow minutes.</span></div>
-        <div><strong>2</strong><span>Transit riders observe the faster driving day and some switch modes.</span></div>
-        <div><strong>3</strong><span>More individual cars hit the same downtown bottleneck, so a visible queue grows.</span></div>
-        <div><strong>4</strong><span>Fewer transit riders justify less frequent service, increasing waits at the station.</span></div>
-        <div><strong>5</strong><span>The system settles only when neither mode offers a meaningful advantage.</span></div>
-      </div>
-      <div class="punchline" id="punchline">The paradox has not happened yet. That is what the tunnel button is for.</div>
-    </section>
+  <section class="card punchline-section">
+    <div><p class="eyebrow">The question</p><h2>Does the tunnel improve the equilibrium, or merely improve the road?</h2></div>
+    <div class="punchline" id="punchline">The paradox has not happened yet. Establish a stable baseline, build the tunnel, then let commuters respond over multiple days.</div>
   </section>
 
   <details class="card model-note">
     <summary>What is actually modeled?</summary>
     <div class="model-body">
-      <p><strong>People:</strong> 100 persistent commuter agents, each with a fixed morning departure offset and a current travel mode. At most two commuters switch after a day when the observed average times differ by more than 0.25 minutes. Limiting daily switching makes adaptation visible instead of teleporting directly to an equilibrium.</p>
-      <p><strong>Road:</strong> every driver creates one car. Cars move at the same free-flow speed, maintain spacing behind the car ahead, and encounter a downtown bottleneck that can discharge only one car every 0.85 simulated minutes. When arrivals exceed that capacity they stop behind one another, producing the queue and measured travel delay. The mountain route requires 34 free-flow minutes; the tunnel route requires 29.</p>
-      <p><strong>Transit:</strong> riders walk six minutes to a station, catch the next scheduled train, ride for 28 minutes, and walk 7.1 minutes at the downtown end. Train headway responds to ridership, ranging from roughly six minutes with strong demand to roughly twenty-two with weak demand. Each rider's wait is determined by their station arrival and the actual timetable.</p>
-      <p><strong>Equilibrium:</strong> this is an agent-based approximation rather than an algebraically imposed Nash solution. The city is called stable when the two observed mode averages are close enough that nobody is scheduled to switch the following day. The numerical result depends on the explicit road capacity, departure pattern, service rule, and switching rule; that dependence is a feature, not a rounding error wearing a fake mustache.</p>
+      <p><strong>Driving is microscopic, not a congestion formula.</strong> Every driving commuter becomes a vehicle on a directed street network. Cars have positions and speeds, maintain a minimum following gap, stop at red lights, wait if the next street is full, and can create queues that spill backward across the network. Side-street background traffic is generated independently and competes for green time at three signalized intersections.</p>
+      <p>The old commuter route follows the arterial around the mountain. The tunnel creates a shorter edge through it. There is no equation that says “N drivers means X minutes”; a driver's trip time is simply arrival time minus departure time. The displayed driving average is the mean of those measured trips.</p>
+      <p>Transit riders are also individual commuters. Each walks to the station, arrives at a particular time, catches the next scheduled train, rides downtown, and walks to the destination. Service headway is adjusted between mornings based on total ridership, providing the feedback needed for a Downs-Thomson mechanism: losing riders makes transit less convenient.</p>
+      <p>After each morning, commuters compare the observed average times. A small number whose current choice is sufficiently worse than the alternative change modes for the next day, subject to individual switching reluctance. Stable means nobody currently has enough incentive to change modes; it is an agent-based approximation to a mode-choice equilibrium, not an algebraically imposed answer.</p>
     </div>
   </details>
 
