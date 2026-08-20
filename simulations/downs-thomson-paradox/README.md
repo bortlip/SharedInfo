@@ -48,11 +48,13 @@ The default city is calibrated around a pre-tunnel population near 40 drivers / 
 
 ## Route and mode adaptation
 
-Route choice now learns from the simulated traffic rather than using free-flow geometry forever. Every vehicle records the time it actually spent on each directed road link. At the end of the morning, those observations update a persistent expected-time estimate for that link using an exponential learning rate. Tomorrow's drivers then run shortest-path routing over the learned link costs.
+Route choice now learns from the simulated traffic rather than using free-flow geometry forever. Every vehicle records the time it actually spent on each directed road link. At the end of the morning, those observations update a persistent expected-time estimate for that link using an exponential learning rate.
 
-Tracked commuters have small persistent route preferences, and ambient trips have deterministic heterogeneous preferences, so near-equal alternatives split traffic instead of every vehicle choosing one identical path. The **Route learning rate** controls how quickly yesterday's observations replace older expectations; **Route diversity** controls the size of those stable traveler-specific cost differences. Route learning can also be disabled to compare against free-flow-only planning.
+Drivers do not all pick one deterministic shortest path. For each origin/destination pair, the router builds a bounded set of plausible alternatives and deliberately keeps distinct corridor families such as the mountain loop, southern parallel road, northern local road, surface streets, and tunnel when available. Each traveler has a persistent route-level preference measured in minutes, so near-equal routes can split traffic instead of tiny link-level perturbations cancelling over a long trip. The **Route preference spread** controls this heterogeneity.
 
-Mode choice continues to adapt separately. After each morning, tracked commuters compare the observed mean driving and transit times. A small number of people whose current mode is sufficiently slower than the alternative switch for the following morning, subject to individual switching reluctance and a short cooldown.
+Tracked drivers also have route inertia. A driver keeps yesterday's route unless another perceived route improves on it by more than the configurable **Route switch threshold**. This approximates boundedly rational day-to-day route choice: drivers learn from congestion, but they do not all jump to a marginally faster corridor in lockstep. The **Route learning rate** controls how quickly new observations replace older expectations. Route learning can also be disabled for comparison.
+
+Mode choice continues to adapt separately. After each morning, tracked commuters compare the observed mean driving and transit times. If one mode has no users, the sim uses a counterfactual expected time for that unused mode from the learned road network or current transit timetable, so all-driving and all-transit states are not artificially absorbing just because the unused option has no measured trips.
 
 The simulation declares equilibrium only when there are no scheduled mode switches and tracked driving routes remain unchanged for two consecutive mornings. This prevents a temporary mode balance from being mistaken for equilibrium while drivers are still learning around a congested intersection or newly opened road.
 
@@ -63,7 +65,7 @@ A useful experiment is:
 3. Observe the immediate physical road improvement and immediate route changes.
 4. Run repeated mornings while link-time estimates, routes, and commute modes co-adapt.
 5. Compare the stable pre- and post-tunnel commute times.
-6. Change background traffic, arterial lanes, tunnel lanes/speed, signal timing, saturation flow, signal coordination, route learning/diversity, or transit feedback and see when the paradox appears or disappears.
+6. Change background traffic, arterial lanes, tunnel lanes/speed, signal timing, saturation flow, signal coordination, route learning rate, route preference spread, route switch threshold, or transit feedback and see when the paradox appears or disappears.
 
 ## Remaining simplifications
 

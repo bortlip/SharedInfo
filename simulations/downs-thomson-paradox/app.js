@@ -101,9 +101,9 @@ let adjacency = {};
 const state = {
   agents:[],day:1,tunnelOpen:false,tunnelBuiltAfter:null,dayRunning:false,paused:false,autoRun:false,autoStartDay:null,speed:8,simTime:0,lastReal:performance.now(),
   vehicles:[],transitTrips:[],trains:[],history:[],lastDay:null,pendingSwitches:[],selectedAgentId:0,currentHeadway:null,maxStopped:0,stableBefore:null,stableAfter:null,
-  nextVehicleId:1,animationHandle:null,lastRelease:{},leaderMap:new Map(),edgeMemory:{},dayEdgeSamples:{},routeChanges:0,routeStableDays:0,
+  nextVehicleId:1,animationHandle:null,lastRelease:{},leaderMap:new Map(),edgeMemory:{},dayEdgeSamples:{},routeChoiceCache:{},routeChanges:0,routeStableDays:0,
   backgroundTraffic:1.2,signalCycleSec:90,greenSplit:.57,saturationFlow:1900,arterialLanes:1,tunnelLanes:2,tunnelSpeed:60,transitFeedback:1.8,coordinatedSignals:true,
-  routeLearning:true,routeLearningRate:.35,routeDiversity:.04
+  routeLearning:true,routeLearningRate:.35,routeDiversity:2.5,routeInertia:.8
 };
 
 function lanesForSpec(spec){if(spec.lanes==='arterial')return state.arterialLanes;if(spec.lanes==='tunnel')return state.tunnelLanes;return spec.lanes;}
@@ -129,17 +129,33 @@ function buildNetwork(){
 }
 
 function hashUnit(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return(h>>>0)/4294967296;}
-function routeCost(edge,travelerSeed=0){
+function perceivedEdgeCost(edge){
   const base=baseRouteCost(edge),memory=state.edgeMemory[edge.id],learned=state.routeLearning&&memory&&memory.observations>0?memory.cost:base;
-  const blended=state.routeLearning?base*.15+learned*.85:base,variation=(hashUnit(String(travelerSeed)+'|'+edge.id)*2-1)*state.routeDiversity;
-  return blended*(1+variation);
+  return state.routeLearning?base*.15+learned*.85:base;
 }
-function shortestRoute(start,end,travelerSeed=0){
-  const d={},prev={},unvisited=new Set(Object.keys(nodes));for(const id of unvisited)d[id]=Infinity;d[start]=0;
-  while(unvisited.size){let u=null,best=Infinity;for(const id of unvisited){if(d[id]<best){best=d[id];u=id;}}if(u===null||u===end)break;unvisited.delete(u);
-    for(const eid of adjacency[u]||[]){const e=edges[eid],alt=d[u]+routeCost(e,travelerSeed);if(alt<d[e.to]){d[e.to]=alt;prev[e.to]=eid;}}
+function routeFamily(route){const ids=route.map(eid=>edges[eid]?.specId||eid);if(ids.includes('tunnel'))return'tunnel';if(ids.some(id=>id.startsWith('mountain-')))return'mountain';if(ids.some(id=>id.startsWith('south-')))return'south';if(ids.some(id=>id.startsWith('north-')))return'north';return'surface';}
+function candidateRoutes(start,end,limit=6){
+  const cacheKey=`${start}>${end}`;if(state.routeChoiceCache[cacheKey])return state.routeChoiceCache[cacheKey];
+  const queue=[{node:start,cost:0,route:[],visited:new Set([start])}],results=[];let expansions=0;
+  while(queue.length&&results.length<24&&expansions<4000){
+    queue.sort((a,b)=>a.cost-b.cost);const cur=queue.shift();expansions++;
+    if(cur.node===end){results.push({route:cur.route,key:cur.route.join('>'),cost:cur.cost,family:routeFamily(cur.route)});continue;}
+    for(const eid of adjacency[cur.node]||[]){const edge=edges[eid];if(cur.visited.has(edge.to))continue;queue.push({node:edge.to,cost:cur.cost+perceivedEdgeCost(edge),route:[...cur.route,eid],visited:new Set([...cur.visited,edge.to])});}
   }
-  if(start!==end&&!prev[end])return[];const route=[];let cur=end;while(cur!==start){const eid=prev[cur];if(!eid)return[];route.push(eid);cur=edges[eid].from;}return route.reverse();
+  if(!results.length){state.routeChoiceCache[cacheKey]=[];return state.routeChoiceCache[cacheKey];}
+  const best=results[0].cost,plausible=results.filter(r=>r.cost<=best+7),chosen=[],families=new Set();
+  for(const route of plausible){if(!families.has(route.family)){chosen.push(route);families.add(route.family);if(chosen.length===limit)break;}}
+  if(chosen.length<limit)for(const route of plausible){if(!chosen.some(c=>c.key===route.key)){chosen.push(route);if(chosen.length===limit)break;}}
+  state.routeChoiceCache[cacheKey]=chosen;return chosen;
+}
+function routePreference(travelerSeed,routeKey){return(hashUnit(`${travelerSeed}|route|${routeKey}`)*2-1)*state.routeDiversity;}
+function routeKeyIsValid(routeKey){if(!routeKey)return false;return routeKey.split('>').every(eid=>!!edges[eid]);}
+function chooseRoute(start,end,travelerSeed=0,previousRouteKey=null){
+  const choices=[...candidateRoutes(start,end)];
+  if(previousRouteKey&&routeKeyIsValid(previousRouteKey)&&!choices.some(c=>c.key===previousRouteKey)){const route=previousRouteKey.split('>');choices.push({route,key:previousRouteKey,cost:route.reduce((sum,eid)=>sum+perceivedEdgeCost(edges[eid]),0),family:routeFamily(route)});}
+  if(!choices.length)return[];
+  const scored=choices.map(choice=>({...choice,score:choice.cost+routePreference(travelerSeed,choice.key)})).sort((a,b)=>a.score-b.score),best=scored[0],previous=previousRouteKey?scored.find(c=>c.key===previousRouteKey):null;
+  if(previous&&previous.score-best.score<=state.routeInertia)return previous.route;return best.route;
 }
 function recordEdgeSample(edgeId,duration){if(!Number.isFinite(duration)||duration<=0||duration>30)return;if(!state.dayEdgeSamples[edgeId])state.dayEdgeSamples[edgeId]=[];state.dayEdgeSamples[edgeId].push(duration);}
 function updateEdgeMemory(){
@@ -150,12 +166,12 @@ function updateEdgeMemory(){
 function readControls(){
   state.backgroundTraffic=Number($('backgroundTraffic').value);state.signalCycleSec=Number($('signalCycle').value);state.greenSplit=Number($('greenSplit').value)/100;
   state.saturationFlow=Number($('saturationFlow').value);state.arterialLanes=Number($('arterialLanes').value);state.tunnelLanes=Number($('tunnelLanes').value);state.tunnelSpeed=Number($('tunnelSpeed').value);
-  state.transitFeedback=Number($('transitFeedback').value);state.coordinatedSignals=$('coordinatedSignals').checked;state.routeLearning=$('routeLearning').checked;state.routeLearningRate=Number($('routeLearningRate').value);state.routeDiversity=Number($('routeDiversity').value)/100;
+  state.transitFeedback=Number($('transitFeedback').value);state.coordinatedSignals=$('coordinatedSignals').checked;state.routeLearning=$('routeLearning').checked;state.routeLearningRate=Number($('routeLearningRate').value);state.routeDiversity=Number($('routeDiversity').value);state.routeInertia=Number($('routeInertia').value);
 }
 function updateControlLabels(){
   $('backgroundTrafficValue').textContent=`${Number($('backgroundTraffic').value).toFixed(1)}×`;$('signalCycleValue').textContent=`${$('signalCycle').value} s`;$('greenSplitValue').textContent=`${$('greenSplit').value}%`;
   $('saturationFlowValue').textContent=`${$('saturationFlow').value} veh/h/lane`;$('arterialLanesValue').textContent=$('arterialLanes').value;$('tunnelLanesValue').textContent=$('tunnelLanes').value;
-  $('tunnelSpeedValue').textContent=`${$('tunnelSpeed').value} mph`;$('transitFeedbackValue').textContent=`${Number($('transitFeedback').value).toFixed(1)} min / 10 riders lost`;$('routeLearningRateValue').textContent=`${Math.round(Number($('routeLearningRate').value)*100)}%`;$('routeDiversityValue').textContent=`±${$('routeDiversity').value}%`;
+  $('tunnelSpeedValue').textContent=`${$('tunnelSpeed').value} mph`;$('transitFeedbackValue').textContent=`${Number($('transitFeedback').value).toFixed(1)} min / 10 riders lost`;$('routeLearningRateValue').textContent=`${Math.round(Number($('routeLearningRate').value)*100)}%`;$('routeDiversityValue').textContent=`±${Number($('routeDiversity').value).toFixed(1)} min`;$('routeInertiaValue').textContent=`${Number($('routeInertia').value).toFixed(1)} min`;
 }
 
 const originNames={W:'West suburb',NW:'Northwest homes',SW:'Southwest homes',AN:'North side',AS:'South side'};
@@ -174,7 +190,7 @@ function nextTrainAt(t,headway){if(t<=TRAIN_PHASE)return TRAIN_PHASE;return TRAI
 
 function createVehicle(type,route,depart,agentId=null,pace=1){return{id:state.nextVehicleId++,type,agentId,route,edgeIndex:0,lane:null,pos:0,speed:0,depart,active:false,done:false,start:depart,end:null,edgeEnter:null,pace,redDelay:0,trafficDelay:0};}
 function createCommuterVehicle(agent){
-  const route=shortestRoute(agent.origin,'E',agent.routeSeed),routeKey=route.join('>');if(agent.lastDriveRoute&&agent.lastDriveRoute!==routeKey)state.routeChanges++;agent.lastDriveRoute=routeKey;return createVehicle('commuter',route,agent.depart,agent.id,agent.pace);
+  const route=chooseRoute(agent.origin,'E',agent.routeSeed,agent.lastDriveRoute),routeKey=route.join('>');if(agent.lastDriveRoute&&agent.lastDriveRoute!==routeKey)state.routeChanges++;agent.lastDriveRoute=routeKey;return createVehicle('commuter',route,agent.depart,agent.id,agent.pace);
 }
 
 const ambientODs=[
@@ -183,7 +199,7 @@ const ambientODs=[
 ];
 function createAmbientVehicles(){
   if(state.backgroundTraffic<=0)return[];const rng=mulberry32(SEED+state.day*911+(state.tunnelOpen?7001:0)),vehicles=[];const baseInterval=1.15/state.backgroundTraffic;
-  ambientODs.forEach((od,ri)=>{let t=(ri*.17)%baseInterval,trip=0;while(t<52){t+=baseInterval*(.72+rng()*.56);if(t>=52)break;const seed=500000+ri*10000+trip*97+state.day*131,route=shortestRoute(od[0],od[1],seed);trip++;if(route.length)vehicles.push(createVehicle('ambient',route,t,null,.90+rng()*.20));}});
+  ambientODs.forEach((od,ri)=>{let t=(ri*.17)%baseInterval,trip=0;while(t<52){t+=baseInterval*(.72+rng()*.56);if(t>=52)break;const seed=500000+ri*10000+trip*97,route=chooseRoute(od[0],od[1],seed);trip++;if(route.length)vehicles.push(createVehicle('ambient',route,t,null,.90+rng()*.20));}});
   return vehicles;
 }
 function createTransitTrips(riders){
@@ -194,7 +210,7 @@ function createTransitTrips(riders){
 
 function resetAgentDayState(){for(const a of state.agents){a.lastTrip=null;a.lastRed=null;a.lastTraffic=null;}}
 function createDay(){
-  if(state.dayRunning)return;readControls();buildNetwork();resetAgentDayState();state.simTime=0;state.maxStopped=0;state.pendingSwitches=[];state.nextVehicleId=1;state.lastRelease={};state.dayEdgeSamples={};state.routeChanges=0;
+  if(state.dayRunning)return;readControls();buildNetwork();resetAgentDayState();state.simTime=0;state.maxStopped=0;state.pendingSwitches=[];state.nextVehicleId=1;state.lastRelease={};state.dayEdgeSamples={};state.routeChoiceCache={};state.routeChanges=0;
   const counts=modeCounts();state.vehicles=state.agents.filter(a=>a.mode==='drive').map(createCommuterVehicle).filter(v=>v.route.length);state.vehicles.push(...createAmbientVehicles());state.transitTrips=createTransitTrips(counts.riders);
   state.dayRunning=true;state.paused=false;state.lastReal=performance.now();setStatus('running','Morning running');$('runDayBtn').textContent='❚❚ Pause';$('tunnelBtn').disabled=true;renderUI();
 }
@@ -249,17 +265,20 @@ function updateSimulation(dt){
   const stopped=active.filter(v=>v.type==='commuter'&&v.speed<5/60).length;state.maxStopped=Math.max(state.maxStopped,stopped);if(dayFinished()||state.simTime>=DAY_END)finishDay();
 }
 
+function expectedTransitTrip(agent,riders){const headway=transitHeadway(riders),station=agent.depart+transitAccess[agent.origin],train=nextTrainAt(station,headway);return train+TRANSIT_RIDE+TRANSIT_EGRESS-agent.depart;}
+function expectedDriveTrip(agent){const route=chooseRoute(agent.origin,'E',agent.routeSeed,agent.lastDriveRoute);return route.length?route.reduce((sum,eid)=>sum+perceivedEdgeCost(edges[eid]),0):NaN;}
 function collectMetrics(){
   const counts=modeCounts(),drivers=state.agents.filter(a=>a.mode==='drive'),riders=state.agents.filter(a=>a.mode==='transit'),learnedLinks=Object.values(state.edgeMemory).filter(m=>m.observations>0).length;
-  return{day:state.day,tunnel:state.tunnelOpen,drivers:counts.drivers,riders:counts.riders,drive:mean(drivers.map(a=>a.lastTrip).filter(Number.isFinite)),transit:mean(riders.map(a=>a.lastTrip).filter(Number.isFinite)),red:mean(drivers.map(a=>a.lastRed).filter(Number.isFinite)),traffic:mean(drivers.map(a=>a.lastTraffic).filter(Number.isFinite)),headway:state.currentHeadway,maxStopped:state.maxStopped,ambient:state.vehicles.filter(v=>v.type==='ambient').length,routeChanges:state.routeChanges,learnedLinks};
+  const drive=mean(drivers.map(a=>a.lastTrip).filter(Number.isFinite)),transit=mean(riders.map(a=>a.lastTrip).filter(Number.isFinite)),driveChoice=Number.isFinite(drive)?drive:mean(state.agents.map(expectedDriveTrip).filter(Number.isFinite)),transitChoice=Number.isFinite(transit)?transit:mean(state.agents.map(a=>expectedTransitTrip(a,counts.riders)).filter(Number.isFinite));
+  return{day:state.day,tunnel:state.tunnelOpen,drivers:counts.drivers,riders:counts.riders,drive,transit,driveChoice,transitChoice,red:mean(drivers.map(a=>a.lastRed).filter(Number.isFinite)),traffic:mean(drivers.map(a=>a.lastTraffic).filter(Number.isFinite)),headway:state.currentHeadway,maxStopped:state.maxStopped,ambient:state.vehicles.filter(v=>v.type==='ambient').length,routeChanges:state.routeChanges,learnedLinks};
 }
 function chooseSwitches(metrics){
-  if(!Number.isFinite(metrics.drive)||!Number.isFinite(metrics.transit))return[];const gap=metrics.drive-metrics.transit;if(Math.abs(gap)<.05)return[];const slower=gap>0?'drive':'transit',adv=Math.abs(gap);
+  if(!Number.isFinite(metrics.driveChoice)||!Number.isFinite(metrics.transitChoice))return[];const gap=metrics.driveChoice-metrics.transitChoice;if(Math.abs(gap)<.05)return[];const slower=gap>0?'drive':'transit',adv=Math.abs(gap);
   return state.agents.filter(a=>a.mode===slower&&state.day-a.lastSwitchDay>SWITCH_COOLDOWN&&adv>a.inertia).sort((a,b)=>a.inertia-b.inertia||a.id-b.id).slice(0,SWITCH_LIMIT).map(a=>a.id);
 }
 function applyPendingSwitches(){for(const id of state.pendingSwitches){const a=state.agents[id];a.mode=a.mode==='drive'?'transit':'drive';a.lastSwitchDay=state.day;}}
 function finishDay(){
-  state.dayRunning=false;state.paused=false;updateEdgeMemory();const m=collectMetrics();state.lastDay=m;state.history.push(m);state.pendingSwitches=chooseSwitches(m);
+  state.dayRunning=false;state.paused=false;updateEdgeMemory();state.routeChoiceCache={};const m=collectMetrics();state.lastDay=m;state.history.push(m);state.pendingSwitches=chooseSwitches(m);
   state.routeStableDays=m.routeChanges===0?state.routeStableDays+1:0;const routeSettled=!state.routeLearning||state.routeStableDays>=2,stable=!state.pendingSwitches.length&&routeSettled;m.routeSettled=routeSettled;
   updateStory(m,state.pendingSwitches.length,stable);
   if(stable){if(state.tunnelOpen)state.stableAfter=m;else state.stableBefore=m;setStatus(state.tunnelOpen?'worse':'stable','Mode + route equilibrium');}
@@ -267,31 +286,32 @@ function finishDay(){
   $('runDayBtn').textContent='▶ Run next morning';$('tunnelBtn').disabled=state.tunnelOpen;applyPendingSwitches();renderUI();renderHistory();
   const autoDays=state.autoStartDay===null?0:state.day-state.autoStartDay+1;
   if(state.autoRun&&!stable&&autoDays<MAX_AUTO_DAYS){setTimeout(()=>{if(!state.autoRun)return;state.day++;createDay();},150);}
-  else{if(state.autoRun&&!stable&&autoDays>=MAX_AUTO_DAYS){setStatus('switching',`Not converged after ${MAX_AUTO_DAYS} days`);$('storyTitle').textContent='The city has not settled yet.';$('storyText').textContent=`Automatic adaptation stopped after ${MAX_AUTO_DAYS} mornings because route and mode choices were still changing. This can happen when near-equal routes oscillate; inspect the history or reduce the route learning rate/diversity.`;}state.autoRun=false;state.autoStartDay=null;$('autoBtn').textContent='⏩ Run days until stable';}
+  else{if(state.autoRun&&!stable&&autoDays>=MAX_AUTO_DAYS){setStatus('switching',`Not converged after ${MAX_AUTO_DAYS} days`);$('storyTitle').textContent='The city has not settled yet.';$('storyText').textContent=`Automatic adaptation stopped after ${MAX_AUTO_DAYS} mornings because route and mode choices were still changing. This can happen when near-equal routes oscillate; inspect the history or reduce the route learning rate, preference spread, or switch threshold.`;}state.autoRun=false;state.autoStartDay=null;$('autoBtn').textContent='⏩ Run days until stable';}
 }
+function overallAverage(m){const drivePart=m.drivers&&Number.isFinite(m.drive)?m.drive*m.drivers:0,transitPart=m.riders&&Number.isFinite(m.transit)?m.transit*m.riders:0;return(drivePart+transitPart)/TOTAL;}
 function updateStory(m,n,stable){
-  const gap=m.drive-m.transit,faster=gap<0?'Driving':'Transit',routeNote=m.routeChanges?`${m.routeChanges} tracked driver${m.routeChanges===1?'':'s'} also chose a different street route today.`:`The learned route pattern did not change today.`;
+  const driveTime=Number.isFinite(m.drive)?m.drive:m.driveChoice,transitTime=Number.isFinite(m.transit)?m.transit:m.transitChoice,gap=driveTime-transitTime,faster=gap<0?'Driving':'Transit',routeNote=m.routeChanges?`${m.routeChanges} tracked driver${m.routeChanges===1?'':'s'} also chose a different street route today.`:`The learned route pattern did not change today.`;
   if(!state.tunnelOpen){
     if(!stable){
       $('storyTitle').textContent=n?'The old city is still finding its mode split.':'Drivers are still learning the street network.';
-      $('storyText').textContent=`Driving averaged ${m.drive.toFixed(1)} minutes and transit ${m.transit.toFixed(1)}. ${n?`${faster} was faster, so ${n} commuter${n===1?'':'s'} will change modes tomorrow.`:'No mode switch is scheduled, but routing needs another confirming morning.'} ${routeNote} Link costs now contain observations on ${m.learnedLinks} directed road segments.`;
+      $('storyText').textContent=`Driving ${Number.isFinite(m.drive)?'averaged':'is currently estimated at'} ${driveTime.toFixed(1)} minutes and transit ${Number.isFinite(m.transit)?'averaged':'is currently estimated at'} ${transitTime.toFixed(1)}. ${n?`${faster} was faster, so ${n} commuter${n===1?'':'s'} will change modes tomorrow.`:'No mode switch is scheduled, but routing needs another confirming morning.'} ${routeNote} Link costs now contain observations on ${m.learnedLinks} directed road segments.`;
     } else {
       $('storyTitle').textContent='The old-city mode-and-route equilibrium has emerged.';
-      $('storyText').textContent=`At ${m.drivers} drivers and ${m.riders} transit riders, nobody currently wants to change mode and tracked drivers have held their learned routes for two mornings. Driving averaged ${m.drive.toFixed(1)} minutes, including ${m.red.toFixed(1)} minutes stopped at red lights and ${m.traffic.toFixed(1)} in traffic queues.`;
+      $('storyText').textContent=`At ${m.drivers} drivers and ${m.riders} transit riders, nobody currently wants to change mode and tracked drivers have held their learned routes for two mornings. Driving averaged ${driveTime.toFixed(1)} minutes, including ${Number.isFinite(m.red)?m.red.toFixed(1):'0.0'} minutes stopped at red lights and ${Number.isFinite(m.traffic)?m.traffic.toFixed(1):'0.0'} in traffic queues.`;
     }
     $('punchline').classList.remove('worse');$('punchline').textContent='The baseline is now an observed property of both the street network and the routes people learned through it. Build the tunnel and disturb both equilibria.';return;
   }
   const first=state.tunnelBuiltAfter!==null&&state.day===state.tunnelBuiltAfter+1;
-  if(first){$('storyTitle').textContent='The tunnel changes routes immediately.';$('storyText').textContent=`Nobody changed commute mode before this morning, but road routing did change. Driving averaged ${m.drive.toFixed(1)} minutes versus ${m.transit.toFixed(1)} on transit. ${routeNote} ${n?n+' commuters respond tomorrow':'No mode switch is scheduled yet'}.`;}
-  else if(!stable){$('storyTitle').textContent='Modes and routes are co-adapting.';$('storyText').textContent=`There are ${m.drivers} tracked commuter cars plus city traffic. Driving averaged ${m.drive.toFixed(1)} minutes; transit headway is ${m.headway.toFixed(1)} minutes. ${n?`${n} commuter${n===1?'':'s'} move toward ${faster.toLowerCase()} tomorrow.`:'The mode split held today.'} ${routeNote}`;}
-  else{$('storyTitle').textContent='A post-tunnel mode-and-route equilibrium has emerged.';$('storyText').textContent=`The final split is ${m.drivers} drivers / ${m.riders} transit riders, with ${m.drive.toFixed(1)} minutes driving and ${m.transit.toFixed(1)} minutes on transit. Tracked drivers have also held their learned routes for two mornings.`;}
-  if(stable&&state.stableBefore){const before=(state.stableBefore.drive*state.stableBefore.drivers+state.stableBefore.transit*state.stableBefore.riders)/TOTAL,after=(m.drive*m.drivers+m.transit*m.riders)/TOTAL,delta=after-before;$('punchline').classList.toggle('worse',delta>0);$('punchline').textContent=delta>0?`Downs-Thomson effect: after mode choice and route choice both settle, the average commuter is about ${delta.toFixed(1)} minutes worse off than in the stable pre-tunnel city, even though the tunnel is a genuine shortcut.`:`With these settings the tunnel does not create a worse final equilibrium. Try heavier background traffic, fewer arterial lanes, weaker signal coordination, or stronger transit feedback and compare the result.`;}
+  if(first){$('storyTitle').textContent='The tunnel changes routes immediately.';$('storyText').textContent=`Nobody changed commute mode before this morning, but road routing did change. Driving ${Number.isFinite(m.drive)?'averaged':'is estimated at'} ${driveTime.toFixed(1)} minutes versus ${transitTime.toFixed(1)} on transit. ${routeNote} ${n?n+' commuters respond tomorrow':'No mode switch is scheduled yet'}.`;}
+  else if(!stable){$('storyTitle').textContent='Modes and routes are co-adapting.';$('storyText').textContent=`There are ${m.drivers} tracked commuter cars plus city traffic. Driving is ${driveTime.toFixed(1)} minutes; transit headway is ${m.headway.toFixed(1)} minutes. ${n?`${n} commuter${n===1?'':'s'} move toward ${faster.toLowerCase()} tomorrow.`:'The mode split held today.'} ${routeNote}`;}
+  else{$('storyTitle').textContent='A post-tunnel mode-and-route equilibrium has emerged.';$('storyText').textContent=`The final split is ${m.drivers} drivers / ${m.riders} transit riders, with ${driveTime.toFixed(1)} minutes driving and ${transitTime.toFixed(1)} minutes on transit. Tracked drivers have also held their learned routes for two mornings.`;}
+  if(stable&&state.stableBefore){const before=overallAverage(state.stableBefore),after=overallAverage(m),delta=after-before;$('punchline').classList.toggle('worse',delta>0);$('punchline').textContent=delta>0?`Downs-Thomson effect: after mode choice and route choice both settle, the average commuter is about ${delta.toFixed(1)} minutes worse off than in the stable pre-tunnel city, even though the tunnel is a genuine shortcut.`:`With these settings the tunnel does not create a worse final equilibrium. Try heavier background traffic, fewer arterial lanes, weaker signal coordination, or stronger transit feedback and compare the result.`;}
 }
 function buildTunnel(){
   if(state.dayRunning||state.tunnelOpen)return;state.autoRun=false;state.tunnelOpen=true;state.tunnelBuiltAfter=state.history.length?state.day:0;state.lastDay=null;state.stableAfter=null;state.routeStableDays=0;readControls();buildNetwork();$('tunnelBtn').disabled=true;$('tunnelBtn').textContent='✓ Tunnel open';$('runDayBtn').textContent='▶ Run first tunnel morning';setStatus('switching','Tunnel open');$('storyTitle').textContent='The tunnel is open. Modes have not changed yet.';$('storyText').textContent='The next morning uses the same commute choices, but drivers will re-plan over a graph with a new tunnel link. The tunnel starts with an engineering/free-flow estimate; its experienced cost will be learned from actual traffic afterward.';renderUI();drawWorld();
 }
 function resetCity(){
-  readControls();state.agents=makeAgents();state.day=1;state.tunnelOpen=false;state.tunnelBuiltAfter=null;state.dayRunning=false;state.paused=false;state.autoRun=false;state.autoStartDay=null;state.speed=8;state.simTime=0;state.vehicles=[];state.transitTrips=[];state.trains=[];state.history=[];state.lastDay=null;state.pendingSwitches=[];state.selectedAgentId=0;state.currentHeadway=null;state.maxStopped=0;state.stableBefore=null;state.stableAfter=null;state.nextVehicleId=1;state.lastRelease={};state.edgeMemory={};state.dayEdgeSamples={};state.routeChanges=0;state.routeStableDays=0;buildNetwork();
+  readControls();state.agents=makeAgents();state.day=1;state.tunnelOpen=false;state.tunnelBuiltAfter=null;state.dayRunning=false;state.paused=false;state.autoRun=false;state.autoStartDay=null;state.speed=8;state.simTime=0;state.vehicles=[];state.transitTrips=[];state.trains=[];state.history=[];state.lastDay=null;state.pendingSwitches=[];state.selectedAgentId=0;state.currentHeadway=null;state.maxStopped=0;state.stableBefore=null;state.stableAfter=null;state.nextVehicleId=1;state.lastRelease={};state.edgeMemory={};state.dayEdgeSamples={};state.routeChoiceCache={};state.routeChanges=0;state.routeStableDays=0;buildNetwork();
   document.querySelectorAll('[data-speed]').forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===8));$('runDayBtn').textContent='▶ Run morning';$('autoBtn').textContent='⏩ Run days until stable';$('tunnelBtn').textContent='⛏ Build tunnel';$('tunnelBtn').disabled=false;$('storyTitle').textContent='Establish the old-city equilibrium.';$('storyText').textContent='Run repeated mornings first. Commuters will learn routes and move between driving and transit until both route choice and mode choice settle. Then build the tunnel and disturb the city.';$('modeChange').innerHTML='<strong>Tomorrow:</strong> no decisions yet.';$('punchline').classList.remove('worse');$('punchline').textContent='First let the old city settle. Then open the tunnel and let the same commuters respond to the new network.';setStatus('stable','Ready');renderUI();renderHistory();drawWorld();
 }
 function startAuto(){
@@ -302,13 +322,14 @@ function runDayButton(){if(state.dayRunning){pauseDay();return;}if(state.paused)
 function setStatus(kind,text){const c=$('statusChip');c.className=`status ${kind}`;c.textContent=text;}
 function clockText(mins){const total=6*60+30+Math.round(mins),h24=Math.floor(total/60),m=total%60,suffix=h24>=12?'PM':'AM',h=((h24-1)%12)+1;return`${h}:${String(m).padStart(2,'0')} ${suffix}`;}
 function fmt(v){return Number.isFinite(v)?`${v.toFixed(1)} min`:'—';}
-function routeCorridorLabel(routeKey){if(!routeKey)return'not driven yet';if(routeKey.includes('tunnel:'))return'Tunnel';if(routeKey.includes('mountain-'))return'Mountain loop';if(routeKey.includes('north-'))return'North local';if(routeKey.includes('south-'))return'South parallel';return'Surface streets';}
+function routeCorridorLabel(routeKey){if(!routeKey)return'not driven yet';const family=routeFamily(routeKey.split('>'));return{tunnel:'Tunnel',mountain:'Mountain loop',north:'North local',south:'South parallel',surface:'Surface streets'}[family]||'Surface streets';}
+function routeMixText(){const counts={tunnel:0,mountain:0,north:0,south:0,surface:0};for(const v of state.vehicles){if(v.type!=='commuter'||!v.route?.length)continue;counts[routeFamily(v.route)]++;}const labels={tunnel:'Tunnel',mountain:'Mtn',north:'North',south:'South',surface:'Surface'};const parts=Object.entries(counts).filter(([,count])=>count>0).map(([family,count])=>`${labels[family]} ${count}`);return parts.length?parts.join(' · '):'not routed yet';}
 function currentMeasured(){if(!state.dayRunning&&state.lastDay)return state.lastDay;const d=state.agents.filter(a=>a.mode==='drive'&&Number.isFinite(a.lastTrip)),t=state.agents.filter(a=>a.mode==='transit'&&Number.isFinite(a.lastTrip));return{drive:mean(d.map(a=>a.lastTrip)),transit:mean(t.map(a=>a.lastTrip)),red:mean(d.map(a=>a.lastRed).filter(Number.isFinite)),traffic:mean(d.map(a=>a.lastTraffic).filter(Number.isFinite))};}
 function renderUI(){
   const counts=modeCounts(),m=currentMeasured(),learnedLinks=Object.values(state.edgeMemory).filter(memory=>memory.observations>0).length,shownRouteChanges=!state.dayRunning&&state.lastDay?state.lastDay.routeChanges:state.routeChanges;
-  $('dayTitle').textContent=`Day ${state.day} · ${state.tunnelOpen?'tunnel network':'mountain network'}`;$('simClock').textContent=clockText(state.simTime);$('driverCount').textContent=counts.drivers;$('riderCount').textContent=counts.riders;$('driveTime').textContent=fmt(m.drive);$('transitTime').textContent=fmt(m.transit);$('redDelay').textContent=fmt(m.red);$('trafficDelay').textContent=fmt(m.traffic);$('headway').textContent=state.currentHeadway?`${state.currentHeadway.toFixed(1)} min`:'—';$('discharge').textContent=`${state.saturationFlow}/h`;$('routeChanges').textContent=shownRouteChanges;$('learnedLinks').textContent=learnedLinks;
+  $('dayTitle').textContent=`Day ${state.day} · ${state.tunnelOpen?'tunnel network':'mountain network'}`;$('simClock').textContent=clockText(state.simTime);$('driverCount').textContent=counts.drivers;$('riderCount').textContent=counts.riders;$('driveTime').textContent=fmt(m.drive);$('transitTime').textContent=fmt(m.transit);$('redDelay').textContent=fmt(m.red);$('trafficDelay').textContent=fmt(m.traffic);$('headway').textContent=state.currentHeadway?`${state.currentHeadway.toFixed(1)} min`:'—';$('discharge').textContent=`${state.saturationFlow}/h`;$('routeChanges').textContent=shownRouteChanges;$('learnedLinks').textContent=learnedLinks;$('routeMix').textContent=routeMixText();
   const active=state.vehicles.filter(v=>v.active&&!v.done);$('carsOnRoad').textContent=active.length;$('queueNow').textContent=active.filter(v=>v.type==='commuter'&&v.speed<5/60).length;$('maxQueue').textContent=state.maxStopped;$('ambientCars').textContent=active.filter(v=>v.type==='ambient').length;$('finishedTrips').textContent=`${state.agents.filter(a=>Number.isFinite(a.lastTrip)).length} / ${TOTAL}`;
-  const verdict=$('heroVerdict');verdict.querySelector('span').textContent=state.tunnelOpen?'Tunnel era':'Before tunnel';verdict.querySelector('strong').textContent=`${counts.drivers} / ${counts.riders}`;verdict.querySelector('small').textContent='drive / transit';verdict.classList.toggle('worse',!!(state.stableAfter&&state.stableBefore&&((state.stableAfter.drive*state.stableAfter.drivers+state.stableAfter.transit*state.stableAfter.riders)>(state.stableBefore.drive*state.stableBefore.drivers+state.stableBefore.transit*state.stableBefore.riders))));
+  const verdict=$('heroVerdict');verdict.querySelector('span').textContent=state.tunnelOpen?'Tunnel era':'Before tunnel';verdict.querySelector('strong').textContent=`${counts.drivers} / ${counts.riders}`;verdict.querySelector('small').textContent='drive / transit';verdict.classList.toggle('worse',!!(state.stableAfter&&state.stableBefore&&overallAverage(state.stableAfter)>overallAverage(state.stableBefore)));
   if(state.lastDay){let note=state.pendingSwitches.length?`${state.pendingSwitches.length} switch mode`:'no mode switches';if(state.lastDay.routeChanges)note+=` · ${state.lastDay.routeChanges} changed route`;$('modeChange').innerHTML=`<strong>Tomorrow:</strong> ${note}.`;}renderPeople();renderInspector();
 }
 function renderPeople(){const host=$('people');if(!host.childElementCount){for(const a of state.agents){const b=document.createElement('button');b.className='person';b.type='button';b.dataset.id=a.id;b.title=`Commuter #${a.id+1}`;b.addEventListener('click',()=>{state.selectedAgentId=a.id;renderPeople();renderInspector();});host.appendChild(b);}}[...host.children].forEach((el,i)=>{const a=state.agents[i];el.classList.toggle('drive',a.mode==='drive');el.classList.toggle('selected',a.id===state.selectedAgentId);});}
@@ -344,7 +365,7 @@ function frame(now){const realDt=Math.min(.05,(now-state.lastReal)/1000);state.l
 
 $('runDayBtn').addEventListener('click',runDayButton);$('autoBtn').addEventListener('click',startAuto);$('tunnelBtn').addEventListener('click',buildTunnel);$('resetBtn').addEventListener('click',resetCity);
 document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click',()=>{state.speed=Number(b.dataset.speed);document.querySelectorAll('[data-speed]').forEach(o=>o.classList.toggle('active',o===b));}));
-for(const id of ['backgroundTraffic','signalCycle','greenSplit','saturationFlow','arterialLanes','tunnelLanes','tunnelSpeed','transitFeedback','routeLearningRate','routeDiversity'])$(id).addEventListener('input',updateControlLabels);
+for(const id of ['backgroundTraffic','signalCycle','greenSplit','saturationFlow','arterialLanes','tunnelLanes','tunnelSpeed','transitFeedback','routeLearningRate','routeDiversity','routeInertia'])$(id).addEventListener('input',updateControlLabels);
 window.addEventListener('resize',renderHistory);
 
 updateControlLabels();readControls();state.agents=makeAgents();buildNetwork();renderPeople();renderUI();renderHistory();drawWorld();state.lastReal=performance.now();state.animationHandle=requestAnimationFrame(frame);
