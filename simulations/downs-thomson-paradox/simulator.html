@@ -51,8 +51,11 @@
         <label><span>Tunnel lanes / direction</span><input id="tunnelLanes" type="range" min="1" max="3" step="1" value="2"><strong id="tunnelLanesValue">2</strong></label>
         <label><span>Tunnel speed</span><input id="tunnelSpeed" type="range" min="35" max="65" step="5" value="60"><strong id="tunnelSpeedValue">60 mph</strong></label>
         <label><span>Transit headway penalty</span><input id="transitFeedback" type="range" min="0" max="2.5" step="0.1" value="1.8"><strong id="transitFeedbackValue">1.8 min / 10 riders lost</strong></label>
+        <label><span>Route learning rate</span><input id="routeLearningRate" type="range" min="0.05" max="0.8" step="0.05" value="0.35"><strong id="routeLearningRateValue">35%</strong></label>
+        <label><span>Route diversity</span><input id="routeDiversity" type="range" min="0" max="10" step="1" value="4"><strong id="routeDiversityValue">±4%</strong></label>
       </div>
       <label class="check-control"><input id="coordinatedSignals" type="checkbox" checked><span><strong>Coordinate signal offsets</strong><small>Creates a rough eastbound green wave instead of unrelated signal clocks.</small></span></label>
+      <label class="check-control"><input id="routeLearning" type="checkbox" checked><span><strong>Learn experienced street times</strong><small>Tomorrow's route planning uses observed link travel times from previous mornings instead of free-flow estimates alone.</small></span></label>
     </details>
   </section>
 
@@ -64,7 +67,7 @@
       </div>
       <div class="canvas-wrap">
         <canvas id="worldCanvas" width="1600" height="900" aria-label="Animated city traffic network with multiple lanes, traffic lights, side roads, individual cars, transit, mountain route and tunnel"></canvas>
-        <div class="map-legend"><span><i class="car-swatch commuter"></i> tracked commuter</span><span><i class="car-swatch ambient"></i> city traffic</span><span><i class="rail-swatch"></i> transit</span><span><i class="signal-swatch"></i> signal</span></div>
+        <div class="map-legend"><span><i class="car-swatch commuter"></i> tracked commuter</span><span><i class="car-swatch ambient"></i> city traffic</span><span><i class="rail-swatch"></i> transit</span><span><i class="signal-swatch"></i> signal</span><span><i class="route-swatch"></i> selected learned route</span></div>
       </div>
       <div class="live-strip">
         <div><span>Vehicles moving</span><strong id="carsOnRoad">0</strong></div>
@@ -87,6 +90,8 @@
           <div><span>Traffic/queue delay</span><strong id="trafficDelay">—</strong><small>per driver</small></div>
           <div><span>Train headway</span><strong id="headway">—</strong><small>ridership-dependent</small></div>
           <div><span>Signal discharge</span><strong id="discharge">1900/h</strong><small>per green lane</small></div>
+          <div><span>Routes changed</span><strong id="routeChanges">0</strong><small>tracked drivers today</small></div>
+          <div><span>Learned links</span><strong id="learnedLinks">0</strong><small>directed street segments</small></div>
         </div>
       </section>
 
@@ -99,8 +104,8 @@
 
       <section class="card inspector-card">
         <div class="section-head"><div><p class="eyebrow">Individual commuter</p><h2 id="inspectTitle">Commuter #1</h2></div><span class="person-dot drive" id="inspectDot"></span></div>
-        <div class="inspect-grid"><div><span>Home</span><strong id="inspectHome">West suburb</strong></div><div><span>Mode</span><strong id="inspectMode">Drive</strong></div><div><span>Departure</span><strong id="inspectDepart">6:34 AM</strong></div><div><span>Latest trip</span><strong id="inspectTrip">—</strong></div><div><span>Red delay</span><strong id="inspectRed">—</strong></div><div><span>Queue delay</span><strong id="inspectTraffic">—</strong></div></div>
-        <p>Click a person below to follow the same commuter across days.</p>
+        <div class="inspect-grid"><div><span>Home</span><strong id="inspectHome">West suburb</strong></div><div><span>Mode</span><strong id="inspectMode">Drive</strong></div><div><span>Departure</span><strong id="inspectDepart">6:34 AM</strong></div><div><span>Latest trip</span><strong id="inspectTrip">—</strong></div><div><span>Red delay</span><strong id="inspectRed">—</strong></div><div><span>Queue delay</span><strong id="inspectTraffic">—</strong></div><div><span>Learned route</span><strong id="inspectRoute">not driven yet</strong></div></div>
+        <p>Click a person below to follow the same commuter across days, including which corridor their learned route uses.</p>
       </section>
     </aside>
   </main>
@@ -129,8 +134,8 @@
       <p><strong>Physical units are separate from drawing units.</strong> Road links have modeled distances and speeds; the map is only a visualization. Cars therefore no longer become less capable merely because they are drawn large on the screen.</p>
       <p><strong>Signals have explicit phases and queue discharge.</strong> Green time, yellow/all-red clearance, roughly two seconds of startup lost time, and a configurable per-lane saturation flow govern how quickly a standing queue can leave. Multiple queued vehicles can pass during one green. Each lane has its own queue and discharge clock.</p>
       <p><strong>Driving is still microscopic.</strong> Individual cars accelerate, follow leaders with a time headway, stop at red lights, wait for downstream space, change road links, and can spill queues backward. Roads are bidirectional and the arterial/tunnel can have multiple lanes per direction.</p>
-      <p><strong>The surrounding city now routes traffic.</strong> Ambient vehicles are generated from multiple origins and destinations and find shortest free-flow paths through local streets, north/south cross streets, a southern parallel road, the mountain route, and — after construction — the tunnel. Some background traffic therefore reroutes when the tunnel opens too.</p>
-      <p><strong>Still simplified:</strong> there are no pedestrians, bicycles, buses in mixed traffic, crashes, parking maneuvers, lane-changing incentives, protected/permissive left-turn phases, stochastic signal actuation, or detailed intersection conflict geometry. Turns use the signal phase of their approach. Those are good candidates for later complexity if they help the lesson rather than bury it.</p>
+      <p><strong>The surrounding city now learns routes.</strong> Every vehicle records its experienced time on each directed street segment. At the end of the morning those observations update persistent link-time estimates; the next morning, commuter and ambient traffic plan shortest perceived-time paths over that learned network. Small persistent traveler-specific preferences spread traffic across near-equal alternatives instead of sending every car down one identical path.</p>
+      <p><strong>Still simplified:</strong> route choice updates only between mornings rather than en route; there are no pedestrians, bicycles, buses in mixed traffic, crashes, parking maneuvers, lane-changing incentives, protected/permissive left-turn phases, stochastic signal actuation, or detailed intersection conflict geometry. Turns use the signal phase of their approach. Those are good candidates for later complexity if they help the lesson rather than bury it.</p>
     </div>
   </details>
 

@@ -46,21 +46,27 @@ Transit riders are individual commuters with their own departure and station-arr
 
 The default city is calibrated around a pre-tunnel population near 40 drivers / 60 transit riders. Transit maintains its base 3.6-minute headway while at least 60 tracked commuters ride. Below that service-support level, its headway increases according to the configurable **Transit headway penalty**. This is the Downs-Thomson feedback: a road improvement can pull enough riders away that the competing transit service becomes less attractive.
 
-## Mode adaptation
+## Route and mode adaptation
 
-After each morning, tracked commuters compare the observed mean driving and transit times. A small number of people whose current mode is sufficiently slower than the alternative switch for the following morning, subject to an individual switching reluctance and a short cooldown. Repeated mornings therefore approach a mode-choice equilibrium without algebraically imposing one.
+Route choice now learns from the simulated traffic rather than using free-flow geometry forever. Every vehicle records the time it actually spent on each directed road link. At the end of the morning, those observations update a persistent expected-time estimate for that link using an exponential learning rate. Tomorrow's drivers then run shortest-path routing over the learned link costs.
+
+Tracked commuters have small persistent route preferences, and ambient trips have deterministic heterogeneous preferences, so near-equal alternatives split traffic instead of every vehicle choosing one identical path. The **Route learning rate** controls how quickly yesterday's observations replace older expectations; **Route diversity** controls the size of those stable traveler-specific cost differences. Route learning can also be disabled to compare against free-flow-only planning.
+
+Mode choice continues to adapt separately. After each morning, tracked commuters compare the observed mean driving and transit times. A small number of people whose current mode is sufficiently slower than the alternative switch for the following morning, subject to individual switching reluctance and a short cooldown.
+
+The simulation declares equilibrium only when there are no scheduled mode switches and tracked driving routes remain unchanged for two consecutive mornings. This prevents a temporary mode balance from being mistaken for equilibrium while drivers are still learning around a congested intersection or newly opened road.
 
 A useful experiment is:
 
-1. Run the old city until the mode split is stable.
+1. Run the old city until both mode choice and route choice stabilize.
 2. Build the tunnel without changing anybody's commute mode first.
-3. Observe the immediate physical road improvement.
-4. Run repeated mornings until commuters and traffic settle again.
+3. Observe the immediate physical road improvement and immediate route changes.
+4. Run repeated mornings while link-time estimates, routes, and commute modes co-adapt.
 5. Compare the stable pre- and post-tunnel commute times.
-6. Change background traffic, arterial lanes, tunnel lanes/speed, signal timing, saturation flow, signal coordination, or transit feedback and see when the paradox appears or disappears.
+6. Change background traffic, arterial lanes, tunnel lanes/speed, signal timing, saturation flow, signal coordination, route learning/diversity, or transit feedback and see when the paradox appears or disappears.
 
 ## Remaining simplifications
 
-This is deliberately a teaching microsimulation, not a calibrated transportation forecast. Important remaining simplifications include no pedestrians/bicycles, parking maneuvers, crashes, detailed lane-changing behavior, buses in mixed traffic, protected/permissive left-turn phases, actuated signal detection, or explicit intersection conflict geometry. Turning vehicles use the phase of their incoming approach, and route choice currently uses shortest expected free-flow network cost rather than learned congested travel times.
+This is deliberately a teaching microsimulation, not a calibrated transportation forecast. Important remaining simplifications include no pedestrians/bicycles, parking maneuvers, crashes, detailed lane-changing behavior, buses in mixed traffic, protected/permissive left-turn phases, actuated signal detection, or explicit intersection conflict geometry. Turning vehicles use the phase of their incoming approach. Route choice learns only between mornings; cars do not receive live traffic information and reroute while already traveling.
 
 Those omissions are now explicit rather than hidden inside a congestion formula, and they provide natural directions for further iterations if they improve the lesson rather than merely adding machinery.
