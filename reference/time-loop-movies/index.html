@@ -256,6 +256,7 @@
     }
 
     .causal .eyebrow { color: var(--accent-3); }
+    .broad .eyebrow { color: #74e6b0; }
     .honorable .eyebrow { color: var(--accent); }
 
     h2 {
@@ -1913,6 +1914,132 @@
     <a href="https://v3-cinemeta.strem.io/" target="_blank" rel="noopener noreferrer">Cinemeta</a>
     and embeds YouTube with privacy-enhanced mode when a trailer is available.
   </footer>
+
+  <script>
+    (() => {
+      const additions = {
+        loop: [
+          ["Groundhog Day",1993,8.0,"tt0107048","A cynical television weatherman covering Groundhog Day wakes to find the same day starting over again."],
+          ["Good Luck, Have Fun, Don't Die",2025,7.0,"tt1341338","A man from the future arrives at a Los Angeles diner looking for the right group of strangers to help him make another attempt at preventing a catastrophic future."],
+          ["If Only",2004,7.0,"tt0332136","After an ordinary day ends in tragedy, a young man unexpectedly gets another chance to live that day and make different choices."],
+          ["A Day",2017,6.8,"tt6890376","A doctor repeatedly returns to the beginning of the same devastating day and tries to change what happens."],
+          ["River",2023,6.8,"tt27695005","Guests and staff at a Kyoto inn discover that everyone is snapping back to the same moment every two minutes while retaining their memories."],
+          ["12:01",1993,6.7,"tt0106188","An office worker wakes to discover that the previous day has started over, giving him repeated chances to understand what is happening and change its outcome."],
+          ["Mondays: See You 'This' Week!",2022,6.5,"tt27510455","Workers at an advertising agency slowly realize that their entire office is repeating the same work week."],
+          ["Cruel & Unusual",2014,6.5,"tt2379080","A man finds himself confined in a mysterious institution where he is forced to relive the same devastating events again and again."],
+          ["Before I Fall",2017,6.4,"tt1691916","A teenager wakes to the same day again and again and begins viewing familiar events differently with each repetition."],
+          ["Until Dawn",2025,5.7,"tt30955489","A group of friends repeatedly wakes at the beginning of the same deadly night and must survive long enough to find a way out."],
+          ["Meet Cute",2022,5.7,"tt14900738","A woman uses a time machine to revisit the same first date again and again, trying different versions of a seemingly perfect evening."],
+          ["Omni Loop",2024,5.6,"tt28150132","A physicist repeatedly returns to the beginning of the same final week of her life while trying to understand her strange condition and the possibility of changing it."],
+          ["One More Shot",2025,5.6,"tt9425856","On New Year's Eve 1999, a woman discovers that each shot from a mysterious bottle sends her back to the beginning of the night."],
+          ["Naked",2017,5.4,"tt6048930","A nervous groom repeatedly wakes naked in an elevator on his wedding day and has to relive the same chaotic hours."],
+          ["Brightwood",2022,5.2,"tt14736734","A couple out for a run around a secluded pond discovers that every attempt to leave seems to bring them back to where they started."]
+        ],
+        causal: [
+          ["The Girl Who Leapt Through Time",2006,7.6,"tt0808506","A high-school student discovers that she can jump backward through time and starts using the ability to revisit everyday moments."],
+          ["Beyond the Infinite Two Minutes",2020,7.2,"tt14500584","A café owner discovers a screen showing exactly two minutes into the future, turning a tiny time offset into a recursive temporal puzzle."],
+          ["Miss Peregrine's Home for Peculiar Children",2016,6.7,"tt1935859","A teenager discovers a hidden refuge whose unusual residents are protected by a recurring pocket of time."],
+          ["The Final Girls",2015,6.5,"tt2118624","A group of friends is pulled into an old slasher movie and must navigate a world governed by the film's own repeating rules."]
+        ],
+        broad: [
+          ["Interstellar",2014,8.7,"tt0816692","Explorers travel through a wormhole seeking a future for humanity, with relativity making time itself one of the mission's central constraints."],
+          ["Terminator 2: Judgment Day",1991,8.6,"tt0103064","Visitors from a machine-dominated future arrive in the present as another struggle begins over whether that future can be changed."],
+          ["Back to the Future",1985,8.5,"tt0088763","A teenager is accidentally sent decades into the past in a DeLorean time machine and has to navigate the consequences of being there."],
+          ["The Terminator",1984,8.1,"tt0088247","A relentless cyborg and a human soldier arrive from the future with opposing missions centered on a young woman in 1980s Los Angeles."],
+          ["Arrival",2016,7.9,"tt2543164","A linguist is recruited to communicate with mysterious alien visitors in a story that gradually challenges ordinary assumptions about language, memory, and chronology."],
+          ["About Time",2013,7.8,"tt2194499","A young man discovers that he can revisit moments in his own life and begins using that ability to change everyday choices and relationships."],
+          ["Back to the Future Part II",1989,7.8,"tt0096874","Marty and Doc make another trip through time and have to navigate the consequences of changes across several points in the same timeline."],
+          ["Midnight in Paris",2011,7.6,"tt1605783","A nostalgic writer visiting Paris discovers that midnight can carry him into another era of the city."],
+          ["Looper",2012,7.4,"tt1276104","In a future where criminal organizations send targets into the past, a hired killer's job becomes entangled with the consequences of that technology."],
+          ["Tenet",2020,7.3,"tt6723592","An operative enters a global espionage conflict involving technology that makes cause, effect, and the direction of events behave in unusual ways."],
+          ["Somewhere in Time",1980,7.2,"tt0081534","A playwright becomes fascinated by a woman in an old photograph and attempts an unusual method of traveling into her era."],
+          ["The Time Traveler's Wife",2009,7.1,"tt0452694","A man involuntarily disappears into different moments of his own life, complicating a relationship that must endure his unpredictable movement through time."],
+          ["Time After Time",1979,7.0,"tt0080025","H. G. Wells follows a dangerous fugitive from Victorian England into modern-day San Francisco using a time machine."],
+          ["Safety Not Guaranteed",2012,6.9,"tt1862079","A magazine team investigates a classified advertisement seeking a companion for time travel and becomes increasingly invested in the man who placed it."],
+          ["The Lake House",2006,6.8,"tt0410297","Two strangers discover that letters passed through a lakeside mailbox allow them to communicate despite living at different points in time."],
+          ["Repeat Performance",1947,6.8,"tt0039761","On New Year's Eve, a woman wishes she could live the past year over again and suddenly finds herself given exactly that chance."],
+          ["Totally Killer",2023,6.5,"tt11426232","A teenager unexpectedly travels back to 1987 and tries to prevent a notorious killer from beginning a murder spree."],
+          ["Project Almanac",2015,6.4,"tt2436386","A group of teenagers builds a time machine from old plans and begins revisiting recent events, with increasingly complicated consequences."],
+          ["Mike & Nick & Nick & Alice",2026,6.2,"tt27552099","Two friends become entangled in an organized-crime adventure involving time travel, duplicate encounters, and an increasingly tangled sequence of events."],
+          ["Time Trap",2017,6.2,"tt4815122","A group searching for a missing professor enters a remote cave where time appears to move very differently from the outside world."]
+        ],
+        honorable: [
+          ["It Ends",2025,5.7,"tt35519455","Four friends on a late-night drive become trapped on an apparently endless road where ordinary rules of distance and time no longer seem to apply."]
+        ]
+      };
+
+      const esc = value => String(value)
+        .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+
+      const cardMarkup = ([title, year, rating, imdb, description]) => {
+        const fallback = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(`${title} ${year} official trailer`).replace(/%20/g, '+');
+        return `<article class="movie-card" data-title="${esc(title.toLowerCase())}" data-year="${year}" data-rating="${rating}" data-imdb="${imdb}">
+          <div class="poster-shell">
+            <div class="poster-fallback" aria-hidden="true"><span>${esc(title)}</span><small>${year}</small></div>
+            <img class="poster" src="https://images.metahub.space/poster/medium/${imdb}/img" alt="${esc(title)} poster" loading="lazy" decoding="async" onerror="this.style.display='none'" />
+            <div class="rating-badge" title="IMDb rating in this guide">★ ${rating.toFixed(1)}</div>
+          </div>
+          <div class="movie-body">
+            <div class="movie-heading"><h3>${esc(title)}</h3><span class="year">${year}</span></div>
+            <p>${esc(description)}</p>
+            <div class="movie-actions">
+              <a class="btn imdb" href="https://www.imdb.com/title/${imdb}/" target="_blank" rel="noopener noreferrer">IMDb</a>
+              <button class="btn trailer" type="button" data-imdb="${imdb}" data-title="${esc(title)}" data-fallback="${esc(fallback)}">▶ Trailer</button>
+            </div>
+          </div>
+        </article>`;
+      };
+
+      const loop = document.getElementById('section-0');
+      const causal = document.getElementById('section-1');
+      const honorable = document.getElementById('section-2');
+      honorable.id = 'section-3';
+
+      const broad = document.createElement('section');
+      broad.className = 'movie-section broad';
+      broad.id = 'section-2';
+      broad.innerHTML = `<div class="section-heading"><div><div class="eyebrow">Same temporal itch</div><h2>Broader Time Travel and Time-Bending</h2></div><div class="section-count">0 movies</div></div>
+        <p class="section-intro">These are not necessarily loops, but time travel, altered chronology, relativity, cross-time communication, or other temporal rules are central to the experience.</p>
+        <div class="movie-grid"></div>`;
+      honorable.before(broad);
+
+      document.querySelector('.hero-meta span').textContent = '78 movies';
+      loop.querySelector('.section-intro').textContent = 'These are the closest matches to the classic formula: a character repeatedly experiences—or gets a rare second pass through—the same day or short stretch of time and can make different choices on another run.';
+
+      const chips = [...document.querySelectorAll('.toolbar .nav-chip')];
+      chips[1].textContent = 'Time loops';
+      chips[2].textContent = 'Broader time travel';
+      chips[2].href = '#section-2';
+      const honorableChip = document.createElement('a');
+      honorableChip.className = 'nav-chip';
+      honorableChip.href = '#section-3';
+      honorableChip.textContent = 'Honorable mentions';
+      chips[2].after(honorableChip);
+
+      document.querySelector('[data-title="sliding doors"]')?.remove();
+      const moveToBroad = new Set(['donnie darko','the butterfly effect','frequency','mirage','déjà vu','the jacket','time lapse']);
+      const broadGrid = broad.querySelector('.movie-grid');
+      honorable.querySelectorAll('.movie-card').forEach(card => {
+        if (moveToBroad.has(card.dataset.title)) broadGrid.append(card);
+      });
+
+      const targets = { loop, causal, broad, honorable };
+      Object.entries(additions).forEach(([key, movies]) => {
+        const grid = targets[key].querySelector('.movie-grid');
+        movies.forEach(movie => grid.insertAdjacentHTML('beforeend', cardMarkup(movie)));
+      });
+
+      [loop, causal, broad, honorable].forEach(section => {
+        const grid = section.querySelector('.movie-grid');
+        [...grid.querySelectorAll('.movie-card')]
+          .sort((a, b) => Number(b.dataset.rating) - Number(a.dataset.rating))
+          .forEach(card => grid.append(card));
+        const count = grid.querySelectorAll('.movie-card').length;
+        section.querySelector('.section-count').textContent = `${count} movies`;
+      });
+    })();
+  </script>
 
   <script>
     const searchBox = document.getElementById('searchBox');
