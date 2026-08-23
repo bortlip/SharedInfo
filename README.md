@@ -6,6 +6,10 @@ Shared tutorials, simulations, and reference material.
 
 - [GitHub and ChatGPT Setup](tutorials/github-chatgpt-setup/) — Create a GitHub account and repository, connect GitHub to ChatGPT, and use ChatGPT to create and edit files. [Open the live tutorial](https://bortlip.github.io/SharedInfo/tutorials/github-chatgpt-setup/tutorial.html).
 
+## Reference
+
+- [Time-Loop Movies & Related Mind-Benders](reference/time-loop-movies/) — A spoiler-safe guide to Groundhog Day-style resets, time-travel loops, causal loops, and related reality-bending movies, with ratings, posters, IMDb links, search, and on-demand trailers. [Open the live guide](https://bortlip.github.io/SharedInfo/reference/time-loop-movies/).
+
 ## Simulations
 
 - [Boarding Rush](simulations/group-aware-boarding/) — Race six aircraft boarding methods while modeling families, children, assisted parties, load factor, party-size distributions, carry-ons, and imperfect sequence compliance. [Open the released simulator](https://bortlip.github.io/SharedInfo/simulations/group-aware-boarding/). [Read how the model works](simulations/group-aware-boarding/MODEL.md).
