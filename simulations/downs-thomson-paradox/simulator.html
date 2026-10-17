@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Agent-based street-network microsimulation of the Downs-Thomson paradox with 100 commuters, realistic signal discharge, multiple lanes, side streets, background traffic, transit schedules, and a mountain tunnel.">
+  <link rel="canonical" href="https://bortlip.github.io/SharedInfo/simulations/downs-thomson-paradox/simulator.html">
+  <link rel="stylesheet" href="styles.css">
+  <title>Downs-Thomson City Lab</title>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="brand" href="../"><span class="brandmark">DT</span><span><strong>Downs-Thomson City Lab</strong><small>Traffic emerges from cars, lanes, signals, routes, and transit.</small></span></a>
+    <nav><a href="../">Simulations</a><a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/downs-thomson-paradox">Source</a></nav>
+  </header>
+
+  <section class="hero card">
+    <div>
+      <p class="eyebrow">Traffic microsimulation</p>
+      <h1>A shortcut changes the whole city.</h1>
+      <p class="lede">One hundred commuters choose between driving and transit, but they do not drive through an equation. They enter a larger city containing local streets, parallel routes, opposing traffic, signalized intersections, multiple lanes, background origin/destination traffic, a mountain highway, and — if you build it — a tunnel.</p>
+    </div>
+    <div class="hero-verdict" id="heroVerdict"><span>Before tunnel</span><strong>40 / 60</strong><small>drive / transit</small></div>
+  </section>
+
+  <section class="controls card">
+    <div class="control-top">
+      <div class="button-row">
+        <button class="primary" id="runDayBtn">▶ Run morning</button>
+        <button class="secondary" id="autoBtn">⏩ Run days until stable</button>
+        <button class="tunnel-btn" id="tunnelBtn">⛏ Build tunnel</button>
+        <button class="secondary" id="resetBtn">↺ Reset city</button>
+      </div>
+      <div class="speed-group" aria-label="Simulation speed">
+        <button class="speed-btn" data-speed="1">1×</button>
+        <button class="speed-btn active" data-speed="8">8×</button>
+        <button class="speed-btn" data-speed="24">24×</button>
+        <button class="speed-btn" data-speed="60">60×</button>
+      </div>
+    </div>
+
+    <details class="advanced-controls" open>
+      <summary>City and traffic controls <span>changes apply to the next morning</span></summary>
+      <div class="slider-grid">
+        <label><span>Background traffic</span><input id="backgroundTraffic" type="range" min="0" max="2.5" step="0.1" value="1.2"><strong id="backgroundTrafficValue">1.2×</strong></label>
+        <label><span>Signal cycle</span><input id="signalCycle" type="range" min="60" max="120" step="5" value="90"><strong id="signalCycleValue">90 s</strong></label>
+        <label><span>Main-street green</span><input id="greenSplit" type="range" min="40" max="70" step="1" value="57"><strong id="greenSplitValue">57%</strong></label>
+        <label><span>Saturation flow</span><input id="saturationFlow" type="range" min="1400" max="2100" step="50" value="1900"><strong id="saturationFlowValue">1900 veh/h/lane</strong></label>
+        <label><span>Arterial lanes / direction</span><input id="arterialLanes" type="range" min="1" max="3" step="1" value="1"><strong id="arterialLanesValue">1</strong></label>
+        <label><span>Tunnel lanes / direction</span><input id="tunnelLanes" type="range" min="1" max="3" step="1" value="2"><strong id="tunnelLanesValue">2</strong></label>
+        <label><span>Tunnel speed</span><input id="tunnelSpeed" type="range" min="35" max="65" step="5" value="60"><strong id="tunnelSpeedValue">60 mph</strong></label>
+        <label><span>Transit headway penalty</span><input id="transitFeedback" type="range" min="0" max="2.5" step="0.1" value="1.8"><strong id="transitFeedbackValue">1.8 min / 10 riders lost</strong></label>
+        <label><span>Route learning rate</span><input id="routeLearningRate" type="range" min="0.05" max="0.8" step="0.05" value="0.35"><strong id="routeLearningRateValue">35%</strong></label>
+        <label><span>Route preference spread</span><input id="routeDiversity" type="range" min="0" max="4" step="0.1" value="2.5"><strong id="routeDiversityValue">±2.5 min</strong></label>
+        <label><span>Route switch threshold</span><input id="routeInertia" type="range" min="0" max="2.5" step="0.1" value="0.8"><strong id="routeInertiaValue">0.8 min</strong></label>
+      </div>
+      <label class="check-control"><input id="coordinatedSignals" type="checkbox" checked><span><strong>Coordinate signal offsets</strong><small>Creates a rough eastbound green wave instead of unrelated signal clocks.</small></span></label>
+      <label class="check-control"><input id="routeLearning" type="checkbox" checked><span><strong>Learn experienced street times</strong><small>Tomorrow's route planning uses observed link travel times from previous mornings instead of free-flow estimates alone.</small></span></label>
+    </details>
+  </section>
+
+  <main class="main-grid">
+    <section class="card world-card">
+      <div class="section-head">
+        <div><p class="eyebrow">The city — zoomed farther out</p><h2 id="dayTitle">Day 1 · mountain route</h2></div>
+        <div class="world-status"><span class="clock" id="simClock">6:30 AM</span><span class="status stable" id="statusChip">Ready</span></div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="worldCanvas" width="1600" height="900" aria-label="Animated city traffic network with multiple lanes, traffic lights, side roads, individual cars, transit, mountain route and tunnel"></canvas>
+        <div class="map-legend"><span><i class="car-swatch commuter"></i> tracked commuter</span><span><i class="car-swatch ambient"></i> city traffic</span><span><i class="rail-swatch"></i> transit</span><span><i class="signal-swatch"></i> signal</span><span><i class="route-swatch"></i> selected learned route</span></div>
+      </div>
+      <div class="live-strip">
+        <div><span>Vehicles moving</span><strong id="carsOnRoad">0</strong></div>
+        <div><span>Tracked cars stopped</span><strong id="queueNow">0</strong></div>
+        <div><span>Peak tracked queue</span><strong id="maxQueue">0</strong></div>
+        <div><span>Ambient vehicles</span><strong id="ambientCars">0</strong></div>
+        <div><span>Trips finished</span><strong id="finishedTrips">0 / 100</strong></div>
+      </div>
+    </section>
+
+    <aside class="side-column">
+      <section class="card metrics-card">
+        <p class="eyebrow">Measured today</p>
+        <div class="metric-grid">
+          <div><span>Drivers</span><strong id="driverCount">40</strong><small>tracked commuters</small></div>
+          <div><span>Transit</span><strong id="riderCount">60</strong><small>tracked commuters</small></div>
+          <div><span>Drive average</span><strong id="driveTime">—</strong><small>actual arrivals</small></div>
+          <div><span>Transit average</span><strong id="transitTime">—</strong><small>actual schedules</small></div>
+          <div><span>Red-light delay</span><strong id="redDelay">—</strong><small>per driver</small></div>
+          <div><span>Traffic/queue delay</span><strong id="trafficDelay">—</strong><small>per driver</small></div>
+          <div><span>Train headway</span><strong id="headway">—</strong><small>ridership-dependent</small></div>
+          <div><span>Signal discharge</span><strong id="discharge">1900/h</strong><small>per green lane</small></div>
+          <div><span>Routes changed</span><strong id="routeChanges">0</strong><small>tracked drivers today</small></div>
+          <div><span>Learned links</span><strong id="learnedLinks">0</strong><small>directed street segments</small></div>
+          <div class="route-mix-metric"><span>Tracked route mix</span><strong id="routeMix">not routed yet</strong><small>corridor family counts</small></div>
+        </div>
+      </section>
+
+      <section class="card story-card">
+        <p class="eyebrow">What the agents are doing</p>
+        <h2 id="storyTitle">Establish the old-city equilibrium.</h2>
+        <p id="storyText">Run repeated mornings first. Commuters will move between driving and transit until their individual switching thresholds leave the old network near a stable mode split. Then build the tunnel and disturb it.</p>
+        <div class="mode-change" id="modeChange"><strong>Tomorrow:</strong> no decisions yet.</div>
+      </section>
+
+      <section class="card inspector-card">
+        <div class="section-head"><div><p class="eyebrow">Individual commuter</p><h2 id="inspectTitle">Commuter #1</h2></div><span class="person-dot drive" id="inspectDot"></span></div>
+        <div class="inspect-grid"><div><span>Home</span><strong id="inspectHome">West suburb</strong></div><div><span>Mode</span><strong id="inspectMode">Drive</strong></div><div><span>Departure</span><strong id="inspectDepart">6:34 AM</strong></div><div><span>Latest trip</span><strong id="inspectTrip">—</strong></div><div><span>Red delay</span><strong id="inspectRed">—</strong></div><div><span>Queue delay</span><strong id="inspectTraffic">—</strong></div><div><span>Learned route</span><strong id="inspectRoute">not driven yet</strong></div></div>
+        <p>Click a person below to follow the same commuter across days, including which corridor their learned route uses.</p>
+      </section>
+    </aside>
+  </main>
+
+  <section class="lower-grid">
+    <section class="card people-card">
+      <div class="section-head"><div><p class="eyebrow">Persistent population</p><h2>All 100 commuters</h2><p>Orange people drive tomorrow; green people take transit. Ambient blue traffic is not part of this population.</p></div><div class="people-key"><span><i class="person-key drive"></i> drive</span><span><i class="person-key transit"></i> transit</span></div></div>
+      <div class="people" id="people"></div>
+    </section>
+
+    <section class="card history-card">
+      <div class="section-head"><div><p class="eyebrow">Emergent daily outcomes</p><h2>Experienced commute time</h2></div><span class="history-note">vertical marker = tunnel opens</span></div>
+      <canvas id="historyCanvas" width="680" height="300" aria-label="Daily average drive and transit commute times"></canvas>
+      <div class="history-legend"><span><i class="line road"></i> driving</span><span><i class="line transit"></i> transit</span></div>
+    </section>
+  </section>
+
+  <section class="card punchline-section">
+    <div><p class="eyebrow">The experiment</p><h2>Does a better road create a better equilibrium?</h2></div>
+    <div class="punchline" id="punchline">First let the old city settle. Then open the tunnel and let the same commuters respond to the new network.</div>
+  </section>
+
+  <details class="card model-note">
+    <summary>Realism review: what is modeled, and what is still simplified?</summary>
+    <div class="model-body">
+      <p><strong>Physical units are separate from drawing units.</strong> Road links have modeled distances and speeds; the map is only a visualization. Cars therefore no longer become less capable merely because they are drawn large on the screen.</p>
+      <p><strong>Signals have explicit phases and queue discharge.</strong> Green time, yellow/all-red clearance, roughly two seconds of startup lost time, and a configurable per-lane saturation flow govern how quickly a standing queue can leave. Multiple queued vehicles can pass during one green. Each lane has its own queue and discharge clock.</p>
+      <p><strong>Driving is still microscopic.</strong> Individual cars accelerate, follow leaders with a time headway, stop at red lights, wait for downstream space, change road links, and can spill queues backward. Roads are bidirectional and the arterial/tunnel can have multiple lanes per direction.</p>
+      <p><strong>The surrounding city now learns and distributes routes.</strong> Every vehicle records its experienced time on each directed street segment. The next morning, routing considers several plausible paths and preserves distinct corridor families before choosing among them. Persistent route-level preferences make drivers heterogeneous, while a configurable switching threshold gives tracked commuters inertia instead of making everyone jump to the same newly-fastest road at once.</p>
+      <p><strong>Still simplified:</strong> route choice updates only between mornings rather than en route; there are no pedestrians, bicycles, buses in mixed traffic, crashes, parking maneuvers, lane-changing incentives, protected/permissive left-turn phases, stochastic signal actuation, or detailed intersection conflict geometry. Turns use the signal phase of their approach. Those are good candidates for later complexity if they help the lesson rather than bury it.</p>
+    </div>
+  </details>
+
+  <footer>SharedInfo · <a href="../">simulation hub</a> · <a href="https://github.com/bortlip/SharedInfo/tree/main/simulations/downs-thomson-paradox">source on GitHub</a></footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
