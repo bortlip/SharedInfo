@@ -9,6 +9,7 @@ Shared tutorials, simulations, and reference material.
 ## Reference
 
 - [Time-Loop Movies & Related Mind-Benders](reference/time-loop-movies/) — A spoiler-safe guide to Groundhog Day-style resets, time-travel loops, causal loops, and related reality-bending movies, with ratings, posters, IMDb links, search, and on-demand trailers. [Open the live guide](https://bortlip.github.io/SharedInfo/reference/time-loop-movies/).
+- [The Chinese Room Debate](reference/chinese-room/) — An illustrated, fully referenced guide to Searle's argument, published objections and replies, and the deeper questions about syntax, meaning, and causal organization. [Open the live guide](https://bortlip.github.io/SharedInfo/reference/chinese-room/).
 
 ## Simulations
 
