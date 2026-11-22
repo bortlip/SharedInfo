@@ -1,174 +1,114 @@
-# The Chinese Room Debate
+# The Chinese Room: What Would Make a Computer Understand?
 
-**The core argument, step by step.** Searle argues that executing the right formal program, *by itself*, is insufficient for genuine understanding. The debate concerns whether a whole implemented system can acquire meaning even when its individual components don't understand.
+*An argument traced through Searle's actual claims, published objections, and the unresolved premise underneath them.*
 
-## 01. Producing a Chinese answer is not the same as understanding Chinese.
+**The question:** Is implementing the right computer program sufficient for genuine semantic understanding?
 
-**Searle (1980) — The opening claim.** A person can follow rules to return correct Chinese responses while having no idea what any of the symbols mean. Searle takes this as a challenge to the idea that running the right program is sufficient for understanding.
+John Searle's 1980 argument answers **no**. More precisely, he denies that a formal program, *merely in virtue of being instantiated*, guarantees understanding or intentionality (the capacity of a mental state to be about something). He does **not** argue that all artificial machines are incapable of understanding. An artificial system with the relevant physical causal powers might understand, and he treats that as an empirical possibility. [Searle 1980, pp. 417, 422–423](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=1).
 
-**Next:** The immediate objection: the person following instructions might not be the system that would understand.
+What follows is a *logical reconstruction of a documented debate*, not a transcript. The first objections and Searle's responses appear in the original 1980 article and its published commentaries. Where we move from what an author said to testing its implications, the transition is marked **Analytical challenge**. Each move is judged by whether it answers the preceding one—not merely by whether it raises a relevant philosophical issue.
 
-### Source context
+## 1. Searle: A person can follow the program without understanding Chinese.
 
-Searle targets a specific strong-AI thesis: that a properly programmed computer, just by having the program, literally has the relevant mental states. He discusses programs that answer questions about stories and then replaces the program's interpreter with an English speaker processing Chinese symbols.
+An English-speaking person who knows no Chinese receives Chinese stories and questions, follows elaborate rules written in English for manipulating the unfamiliar symbols, and sends back appropriate Chinese answers. We stipulate that the performance is indistinguishable from a native speaker's. But the person is only matching and transforming shapes and understands none of the Chinese.
 
-The thought experiment establishes something clear at the operator level: competent input-output performance does not force the operator to know Chinese. The contested inference is from that observation to what a complete implementation can or cannot understand.
+Searle concludes that executing the appropriate formal program is not sufficient, *by itself*, for understanding Chinese. He also argues that a computational description therefore cannot, just by itself, explain human understanding. [Searle 1980, pp. 417–418](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=1).
 
-- [Searle 1980, pp. 417–418](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=1)
+**What this establishes:** The **operator** can generate the right answers without personally knowing Chinese.
 
-[Full source analysis](systems-reply.html)
+**What it does not yet establish:** That the **entire implemented system** lacks understanding. That is the next objection.
 
-## 02. You're looking at the wrong entity: the person isn't the whole system.
+## 2. The Systems Reply: You're checking the wrong system.
 
-**Systems Reply (Presented in Searle 1980) — Objection.** The person is one component. The complete arrangement includes the rulebook, data, scratchpad and their coordinated operations. If something understands Chinese, it may be that whole system.
+The operator is only one component. Rules, storage, intermediate processing, and the operator together implement a larger information-processing system. Perhaps the *whole arrangement* understands Chinese, even if the person carrying out one part of it does not.
 
-**Next:** Searle's counter is to remove the distinction between the person and the external equipment.
+This does not assert that passing a language test automatically proves understanding. Its narrower purpose is to block the inference from **a component lacks understanding** to **the complete system lacks understanding**. Searle himself presents this objection under the name *Systems Reply*. [Searle 1980, p. 419](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=3).
 
-### Source context
+**The precise challenge to Searle:** Show why the larger arrangement cannot understand, rather than merely repeating that the operator doesn't.
 
-Searle presents the Systems Reply in his own paper. It is a historical objection he records and answers, not a fictitious computationalist turn invented for this guide.
+## 3. Searle: Internalize the whole arrangement, and the person still won't know Chinese.
 
-The reply targets a level-of-analysis problem. An individual neuron does not understand Chinese; nobody concludes from this that a whole brain cannot. Likewise, the operator's personal ignorance doesn't settle what the implemented organization does.
+Suppose the person memorizes all the rules and data and performs every step mentally. There is now no separate ledger or instruction book to which we can point as the remainder of the system. Searle argues that the person still knows no Chinese, so the Systems Reply has gained nothing by appealing to external components. [Searle 1980, pp. 419–420](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=3).
 
-- [Searle 1980, p. 419](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=3)
+**What this answers:** The suggestion that understanding comes simply from adding the *external* rulebook, paper, and storage to the person.
 
-[Full source analysis](systems-reply.html)
+**What remains open:** Whether a person can *implement a cognitive process* without making that process's representations part of the person's ordinary conscious knowledge. Putting two systems inside one head need not make them the same system.
 
-## 03. Then let the person memorize the entire system.
+## 4. Wilensky: Implementing a system isn't identical to being that system.
 
-**Searle (1980) — Counterargument.** The operator memorizes the rules and symbol database, performing everything mentally. Searle says the person still knows no Chinese, so adding a supposedly understanding subsystem does not help.
+In his published 1980 commentary, Robert Wilensky presses exactly this distinction. The ordinary person and the Chinese-language system can be described as different systems even if one physically implements the other. He suggests asking the person directly whether they know Chinese and then asking the implemented system via its Chinese-language interface. Their answers could differ, because the inquiries target different organizations of information. [Wilensky 1980, pp. 449–450](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=33).
 
-**Next:** But memorization may still leave a distinction between two organizations of information.
+It would be a mistake to say this *proves* the implemented system understands. Its actual force is negative: **internalizing the program does not by itself dispose of the system-level possibility**.
 
-### Source context
+**Where this leaves Searle:** His objection needs to explain why the alleged Chinese subsystem, as a subsystem, cannot have understanding.
 
-This is Searle's direct reply to the Systems Reply. He attempts to eliminate appeal to an external 'whole' by placing the entire implementation inside the person.
+## 5. Searle: The alleged subsystem still has no semantic content.
 
-What internalization settles is that the external rulebook and paper aren't essential. Whether internalization collapses an implemented Chinese-speaking subsystem into the operator's ordinary knowledge is still open to argument.
+Searle gives three numbered replies to proponents of the Systems Reply in his published response:
 
-- [Searle 1980, pp. 419–420](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=3)
+1. The Chinese subsystem relates formal tokens to other tokens without attaching their meanings. Unlike the English-speaking subsystem, it does not know what its words refer to.
+2. The Systems Reply, he argues, is unmotivated except by the Turing test; using outward performance to infer understanding assumes what is disputed.
+3. If systematic input-output relations alone suffice, why not attribute understanding to things like digestion? [Searle 1980, p. 453](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=37).
 
-[Full source analysis](systems-reply.html)
+These are substantive objections, but they do **not all address the same claim**. The second and third are effective against a theory identifying understanding with *successful input-output behavior alone*. The Systems Reply needn't adopt that theory; it can appeal to what the *internal organization* does. Nor does it have to prove that the system understands just to show the initial inference is incomplete.
 
-## 04. Memorizing a program doesn't make you the mind it implements.
+The first objection gets closer to the real issue—but it is also the crucial disputed premise. **Why does Searle know that the implemented subsystem's representations lack intrinsic semantic content?** If the answer is only that they are processed according to rules, then he has restated the original challenge rather than settled it.
 
-**Robert Wilensky (1980) — Published criticism.** An implementation and the system implemented by it need not share the same knowledge. A person could execute a Chinese-speaking process without having its representations available to their ordinary cognition.
+## 6. The functionalist proposal: Meaning might belong to organized activity.
 
-**Next:** Searle's rejoinder moves from who understands to whether any subsystem has intrinsic meaning.
+**Related published objections, not replies written after Searle's response in step 5.** Aaron Sloman and Monica Croucher argue that the performance of a formal operation has to be considered within the larger system that gives it a role. Understanding a sentence might involve inferential connections, memory, motives, beliefs, planning, perception, and decisions. These are not decorations around a bare symbol manipulator; the operations play their cognitive roles by participating in them. [Sloman and Croucher 1980, pp. 447–448](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=31).
 
-### Source context
+John Haugeland develops a related idea: perhaps the relevant causal powers are those of a system whose representations interact with each other and with the world in ways that make them useful, answerable to circumstances, and capable of correction. He also presses Searle with a more physical example: if neural interactions are reproduced at a low enough level, why should their causal effects disappear simply because an outside agent is doing the work? [Haugeland 1980, pp. 432–433](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=16).
 
-Wilensky is a named commentator in the original journal exchange, rather than an anonymous hypothetical objector. He resists the assumption that executing the system makes the operator and the modeled cognitive process identical.
+The strongest version of this proposal is **not** “enough complexity magically creates meaning.” It is that *some specific organization of causal, inferential, and possibly world-involving relations* may be what genuine meaning consists in.
 
-He also challenges the simulation comparison: a simulation can preserve some properties and not others. Whether understanding is preserved is precisely what needs to be argued.
+**The obligation on the functionalist:** Specify which relations make a state about something, rather than merely a mark interpreted by an observer. Simply announcing that meaning “emerges” is no explanation.
 
-- [Wilensky 1980, pp. 449–450](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=33)
+## 7. Searle: Those relations could still be meaning only in the observer's eyes.
 
-[Full source analysis](systems-reply.html)
+Searle distinguishes **intrinsic intentionality**, which he attributes to actual mental states, from **observer-relative ascriptions**, such as the purposes or meanings we assign to tools and machines. He argues that an engine can be described as highly coordinated and even semantically active from our standpoint without having beliefs. A human infant can possess intentionality despite much simpler behavior. [Searle 1980, pp. 451–453](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=35).
 
-## 05. The Chinese subsystem still has only syntax, not meaning.
+**What this answers:** The overly broad inference that any rich network of correlations, or any behavior we find convenient to describe intentionally, must possess original meaning.
 
-**Searle (1980 response) — Deeper claim.** Searle says the subsystem merely relates one uninterpreted symbol to another. He denies that adding formal operations gives those marks intrinsic semantic content.
+**Analytical challenge:** It does not yet exclude an account on which a *particular kind* of organized activity is what makes representation intrinsic rather than observer-relative. The functionalist can accept Searle's distinction while disagreeing about which physical systems satisfy it.
 
-**Next:** Now the disagreement becomes direct: why couldn't meaningful organization emerge from those relationships?
+Searle's next move concerns not just meaning ascribed to symbols but the **physical powers necessary to generate intentionality**. This is a broader defense of his conclusion, not a direct reply to every detail of the proposed semantic theories.
 
-### Source context
+## 8. Searle: A formal program does not guarantee the physical causes of understanding.
 
-Searle's reply to the Systems criticism depends on how he describes the implemented Chinese subsystem: the symbol manipulations are said to lack any grasp of what the tokens are about.
+Brains produce understanding through real physical processes. A formal program specifies abstract state transitions; its physical implementations can differ in many respects. A computer can simulate digestion without chemically digesting food. So reproducing a computational description of cognition does not automatically reproduce *all* the relevant causal properties. [Searle 1980, pp. 420–422](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=4).
 
-But calling the operations 'uninterpreted' is not an independent proof that the entire organization lacks intrinsic intentionality. A proponent of computational understanding disputes that very characterization.
+This is Searle's strongest independent argument. He explicitly allows that nonbiological systems might have causal powers equivalent to brains. Moreover, in answering Haugeland he concedes that reproducing the **actual relevant causes**, rather than merely describing them, would reproduce their effects—including intentionality. His objection is to the assumption that the **formal program alone** necessarily guarantees those causes. [Searle 1980, pp. 452–453](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=36).
 
-- [Searle, published response, pp. 453–454](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=37)
+**What this establishes:** A simulation's fidelity along one dimension is not automatically sufficient to preserve every physical property of the target.
 
-[Full source analysis](semantics.html)
+**What remains disputed:** Whether the relevant causal powers are already fixed by a suitably specified computational organization, or whether any such specification leaves out indispensable physical features.
 
-## 06. Why couldn't an integrated network of representations constitute meaning?
+## 9. Analytical challenge: Which causal organization matters, and how would we know?
 
-**Sloman, Croucher & Haugeland (1980 commentaries) — Published alternatives.** Critics propose that semantic content could depend on a system's inferential roles, goals, perception and ongoing interaction with its environment—not on the meaning of isolated tokens.
+An implemented calculator really calculates, though a modeled furnace doesn't heat a room. Whether understanding is like calculation or furnace-heating **cannot be decided by analogy alone**. First we need to know which causal properties constitute understanding.
 
-**Next:** Searle's answer is that causal complexity or observer-assigned meaning still isn't intrinsic intentionality.
+A computationalist can propose that the relevant properties consist in certain realized information-processing relations, rather than in a particular chemistry. Searle can demand a detailed theory of how those relations generate intrinsic content. That is a serious demand. But the computationalist can make the symmetrical demand: if computational organization *as specified* is insufficient, **which further causal properties are necessary, and why are those properties not guaranteed by that specification?**
 
-### Source context
+Here we must separate two claims that are easy to blur:
 
-These are related objections from different authors, not a single jointly authored response. Sloman and Croucher emphasize the architecture of an information-processing understander. Haugeland asks whether the activities of a larger organization could give content to its representations.
+- **An abstract program specification does not automatically guarantee understanding in every conceivable implementation.** This is Searle's narrower sufficiency challenge.
+- **No physically realized computational system can constitute or produce understanding.** This is much stronger. Searle's examples do not establish it, and he explicitly leaves open the possibility of nonbiological implementations with the requisite causal powers.
 
-Neither argument follows from 'more complexity' alone. Each invites an account of what organized inferential and world-involving relationships must do for representations to be genuinely about something.
+A theory of mind can reject the first proposition's overly broad guarantee while still defending the possibility that some precisely specified physical computational organizations genuinely understand. Conversely, merely noting that computers have physical causal powers does not prove they have the *relevant* powers.
 
-- [Sloman & Croucher 1980, pp. 447–448](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=31)
-- [Haugeland 1980, pp. 432–433](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=16)
+## Where the argument stops
 
-[Full source analysis](semantics.html)
+The Chinese Room gives a powerful illustration of the difference between **successful linguistic behavior** and **the operator's own understanding**. The Systems Reply blocks the unargued move from the latter to the capabilities of the whole system. Searle's reply shifts the dispute to **intrinsic semantic content**, and his causal-powers argument raises the further question of what a correct physical realization must preserve.
 
-## 07. Relationships may be complex without being intrinsically about anything.
+The unresolved disagreement is therefore not simply “syntax versus semantics.” It is **what constitutes a representation's having meaning for a physical system, and whether the right realized computational and causal organization can satisfy that condition**.
 
-**Searle (1980 responses) — Direct replies.** Searle argues that we may be interpreting the symbol relations from the outside. He contrasts complex causal activity in an engine with intentionality in an infant.
+Neither “the operator doesn't understand” nor “the whole system may understand” is an answer to that constitutive question. We need a substantive account of meaning, a credible implementation criterion, and evidence connecting the two. The original Chinese Room is a challenge to such an account—not a substitute for it.
 
-**Next:** That challenge makes the final disagreement clearer: how do we distinguish derived meaning from intrinsic understanding?
+## Primary sources
 
-### Source context
-
-In his author response, Searle rejects the suggestion that organized causal relations alone establish original intentionality. The engine/infant contrast illustrates his intuition that complexity and causal coordination need not be sufficient.
-
-The contrast does not by itself tell us which additional property is missing or why an appropriately integrated cognitive system cannot have it. It is a substantive challenge to a functional account, but not its conclusive refutation.
-
-- [Searle, published response, pp. 453–454](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=37)
-
-[Full source analysis](semantics.html)
-
-## 08. What, exactly, makes a physical system understand?
-
-**What remains unsettled (Analytical conclusion) — The underlying dispute.** Searle requires intrinsic intentionality and appropriate causal powers. A computationalist can argue that a sufficiently realized functional organization supplies those powers. The Chinese Room does not independently decide which account is right.
-
-**Next:** This is the stopping point of the core line. Separate arguments about robots, simulation, physical implementation and consciousness test parts of it.
-
-### Source context
-
-The key difference is not that physical computers lack causes; they plainly have causal powers. The disagreement is whether implementing the correct computational organization is enough to realize the semantic causal organization that matters.
-
-Searle's argument challenges the claim that a formal program, considered independently of its physical realization, suffices. That is more defensible than the stronger assertion that no computational implementation could possibly understand.
-
-- [Searle 1980, pp. 417–424](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=1)
-- [Searle 1990, Is the Brain a Digital Computer?](https://philosophy.as.uky.edu/sites/default/files/Is%20the%20Brain%20a%20Digital%20Computer%20-%20John%20R.%20Searle.pdf)
-
-[Full source analysis](computation.html)
-## Related branches
-
-- [Could a robot ground the symbols?](symbol-grounding.html) — The Robot Reply adds sensors, movement and worldly causal connections. Searle questions whether those connections themselves create meaning.
-- [Is simulation different from realization?](simulation.html) — A simulated stomach doesn't digest food, but a computer actually calculates. Which properties would understanding require?
-- [Does understanding require consciousness?](consciousness.html) — Searle's broader Connection Principle links intentionality and conscious accessibility. That is a separate debate—not an automatic answer to the Systems Reply.
-- [Is computation observer-relative?](computation.html) — Searle argues that computation is an interpretation assigned to physical processes. Critics examine the real causal and counterfactual structure of implementations.
-- [Can the thought experiment mislead?](intuition-pumps.html) — Block and Dennett challenge the leap from imagining a confused operator to dismissing the cognition of the entire implemented organization.
-
-## The underlying disagreement
-
-**Searle:** Formal program execution, as such, does not guarantee intrinsic semantics or the relevant physical causal powers.
-
-**Computationalist possibility:** An appropriately realized computational organization could itself supply the representational and causal relationships that constitute understanding.
-
-**Open question:** What independently determines whether a system's representations have intrinsic meaning, and what rules out the functional account?
-
-## References
-
-1. John R. Searle (1980). *Minds, Brains, and Programs.* Behavioral and Brain Sciences 3(3), 417–424. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf)
-2. Robert Wilensky (1980). *Computers, Cognition and Philosophy.* BBS 3(3), 449–450. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=33)
-3. Aaron Sloman & Monica Croucher (1980). *How to Turn an Information Processor into an Understander.* BBS 3(3), 447–448. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=31)
-4. Jerry Fodor (1980). *Searle on What Only Brains Can Do.* BBS 3(3), 430–431. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=14)
-5. Zenon Pylyshyn (1980). *The 'Causal Power' of Machines.* BBS 3(3), 442–443. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=26)
-6. Ned Block (1980). *What Intuitions About Homunculi Don't Show.* BBS 3(3), 425–426. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=9)
-7. Daniel Dennett (1980). *The Milk of Human Intentionality.* BBS 3(3), 428–430. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=12)
-8. John R. Searle (1980). *Intrinsic Intentionality (author's response).* BBS 3(3), 450–457. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=34)
-9. Martin Ringle (1980). *Mysticism as a Philosophy of Artificial Intelligence.* BBS 3(3), 444–445. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=28)
-10. John R. Searle (1990). *Is the Brain a Digital Computer?.* Proceedings and Addresses of the APA 64(3), 21–37. [Read source](https://philosophy.as.uky.edu/sites/default/files/Is%20the%20Brain%20a%20Digital%20Computer%20-%20John%20R.%20Searle.pdf)
-11. Paul Thagard (1986). *The Emergence of Meaning: How to Escape Searle's Chinese Room.* Behaviorism 14(2), 139–146. [Read source](https://philpapers.org/rec/THATEO-6)
-12. William J. Rapaport (2002; 2006). *Conceptual-role and Syntactic Semantics.* Author's papers, abstracts and preprints. [Read source](https://cse.buffalo.edu/~rapaport/papers.html)
-13. Daniel Dennett & John Searle (1995). *The Mystery of Consciousness: An Exchange.* The New York Review of Books. [Read source](https://www.nybooks.com/articles/1995/12/21/the-mystery-of-consciousness-an-exchange/)
-14. David Chalmers & John Searle (1997). *Consciousness and the Philosophers: An Exchange.* The New York Review of Books. [Read source](https://www.nybooks.com/articles/1997/05/15/consciousness-and-the-philosophers-an-exchange/)
-15. Fodor (1991). *Yin and Yang in the Chinese Room.* The Nature of Mind, ed. D. Rosenthal; discussed in SEP. [Read source](https://plato.stanford.edu/entries/chinese-room/#RoboRepl)
-16. Jack Copeland (2002). *The Chinese Room from a Logical Point of View.* Discussed in SEP, Systems Reply. [Read source](https://plato.stanford.edu/entries/chinese-room/#SystRepl)
-17. David Cole (rev. 2024). *The Chinese Room Argument.* Stanford Encyclopedia of Philosophy. [Read source](https://plato.stanford.edu/entries/chinese-room/)
-18. John Haugeland (1980). *Programs, Causal Powers, and Intentionality.* BBS 3(3), 432–433. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=16)
-19. Stevan Harnad (1990). *The Symbol Grounding Problem.* Physica D 42, 335–346. [Read source](https://www.southampton.ac.uk/~harnad/Papers/Harnad/harnad90.sgproblem.html)
-20. John R. Searle (1990). *Consciousness, Explanatory Inversion, and Cognitive Science.* Behavioral and Brain Sciences 13(4), 585–596 (target article). [Read source](https://www.cambridge.org/core/journals/behavioral-and-brain-sciences/article/abs/consciousness-explanatory-inversion-and-cognitive-science/76941A89615EB7CA8924E6F2F107C125)
-21. David J. Chalmers (1994). *On Implementing a Computation.* Minds and Machines 4(4), 391–402. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/chalmers-computation.pdf)
-22. Stanford Encyclopedia of Philosophy. *Computation in Physical Systems.* Reference article on implementation and counterfactual criteria. [Read source](https://plato.stanford.edu/entries/computation-physicalsystems/)
-23. Stanford Encyclopedia of Philosophy. *Phenomenal Intentionality.* Reference article surveying consciousness-based and alternative accounts of content. [Read source](https://plato.stanford.edu/entries/phenomenal-intentionality/)
+1. John R. Searle (1980), “Minds, Brains, and Programs,” *Behavioral and Brain Sciences* 3(3), pp. 417–424. [Primary paper](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=1).
+2. Robert Wilensky (1980), “Computers, Cognition and Philosophy,” *Behavioral and Brain Sciences* 3(3), pp. 449–450. [Commentary](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=33).
+3. Aaron Sloman and Monica Croucher (1980), “How to Turn an Information Processor into an Understander,” *Behavioral and Brain Sciences* 3(3), pp. 447–448. [Commentary](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=31).
+4. John Haugeland (1980), “Programs, Causal Powers, and Intentionality,” *Behavioral and Brain Sciences* 3(3), pp. 432–433. [Commentary](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=16).
+5. John R. Searle (1980), “Intrinsic Intentionality” (author's response to commentators), *Behavioral and Brain Sciences* 3(3), pp. 450–457. [Published reply](https://cse.buffalo.edu/~rapaport/Papers/Papers.by.Others/Searle/searle80-MindsBrainsProgs-BBS.pdf#page=34).
