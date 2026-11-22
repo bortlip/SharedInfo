@@ -147,3 +147,28 @@ Searle's argument challenges the claim that a formal program, considered indepen
 
 **Open question:** What independently determines whether a system's representations have intrinsic meaning, and what rules out the functional account?
 
+## References
+
+1. John R. Searle (1980). *Minds, Brains, and Programs.* Behavioral and Brain Sciences 3(3), 417–424. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf)
+2. Robert Wilensky (1980). *Computers, Cognition and Philosophy.* BBS 3(3), 449–450. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=33)
+3. Aaron Sloman & Monica Croucher (1980). *How to Turn an Information Processor into an Understander.* BBS 3(3), 447–448. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=31)
+4. Jerry Fodor (1980). *Searle on What Only Brains Can Do.* BBS 3(3), 430–431. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=14)
+5. Zenon Pylyshyn (1980). *The 'Causal Power' of Machines.* BBS 3(3), 442–443. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=26)
+6. Ned Block (1980). *What Intuitions About Homunculi Don't Show.* BBS 3(3), 425–426. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=9)
+7. Daniel Dennett (1980). *The Milk of Human Intentionality.* BBS 3(3), 428–430. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=12)
+8. John R. Searle (1980). *Intrinsic Intentionality (author's response).* BBS 3(3), 450–457. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=34)
+9. Martin Ringle (1980). *Mysticism as a Philosophy of Artificial Intelligence.* BBS 3(3), 444–445. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=28)
+10. John R. Searle (1990). *Is the Brain a Digital Computer?.* Proceedings and Addresses of the APA 64(3), 21–37. [Read source](https://philosophy.as.uky.edu/sites/default/files/Is%20the%20Brain%20a%20Digital%20Computer%20-%20John%20R.%20Searle.pdf)
+11. Paul Thagard (1986). *The Emergence of Meaning: How to Escape Searle's Chinese Room.* Behaviorism 14(2), 139–146. [Read source](https://philpapers.org/rec/THATEO-6)
+12. William J. Rapaport (2002; 2006). *Conceptual-role and Syntactic Semantics.* Author's papers, abstracts and preprints. [Read source](https://cse.buffalo.edu/~rapaport/papers.html)
+13. Daniel Dennett & John Searle (1995). *The Mystery of Consciousness: An Exchange.* The New York Review of Books. [Read source](https://www.nybooks.com/articles/1995/12/21/the-mystery-of-consciousness-an-exchange/)
+14. David Chalmers & John Searle (1997). *Consciousness and the Philosophers: An Exchange.* The New York Review of Books. [Read source](https://www.nybooks.com/articles/1997/05/15/consciousness-and-the-philosophers-an-exchange/)
+15. Fodor (1991). *Yin and Yang in the Chinese Room.* The Nature of Mind, ed. D. Rosenthal; discussed in SEP. [Read source](https://plato.stanford.edu/entries/chinese-room/#RoboRepl)
+16. Jack Copeland (2002). *The Chinese Room from a Logical Point of View.* Discussed in SEP, Systems Reply. [Read source](https://plato.stanford.edu/entries/chinese-room/#SystRepl)
+17. David Cole (rev. 2024). *The Chinese Room Argument.* Stanford Encyclopedia of Philosophy. [Read source](https://plato.stanford.edu/entries/chinese-room/)
+18. John Haugeland (1980). *Programs, Causal Powers, and Intentionality.* BBS 3(3), 432–433. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/searle-chinese-room-bbs.pdf#page=16)
+19. Stevan Harnad (1990). *The Symbol Grounding Problem.* Physica D 42, 335–346. [Read source](https://www.southampton.ac.uk/~harnad/Papers/Harnad/harnad90.sgproblem.html)
+20. John R. Searle (1990). *Consciousness, Explanatory Inversion, and Cognitive Science.* Behavioral and Brain Sciences 13(4), 585–596 (target article). [Read source](https://www.cambridge.org/core/journals/behavioral-and-brain-sciences/article/abs/consciousness-explanatory-inversion-and-cognitive-science/76941A89615EB7CA8924E6F2F107C125)
+21. David J. Chalmers (1994). *On Implementing a Computation.* Minds and Machines 4(4), 391–402. [Read source](https://zoo.cs.yale.edu/classes/cs471/13s/13s-papers/chalmers-computation.pdf)
+22. Stanford Encyclopedia of Philosophy. *Computation in Physical Systems.* Reference article on implementation and counterfactual criteria. [Read source](https://plato.stanford.edu/entries/computation-physicalsystems/)
+23. Stanford Encyclopedia of Philosophy. *Phenomenal Intentionality.* Reference article surveying consciousness-based and alternative accounts of content. [Read source](https://plato.stanford.edu/entries/phenomenal-intentionality/)
